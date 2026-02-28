@@ -21,6 +21,7 @@ import 'package:my_app/telemetry/analytics.dart';
 import '../chat/chat_repo.dart';
 import '../chat/chat_repo_impl.dart';
 import '../chat/chat_models.dart';
+import '../chat/content_parts.dart';
 import 'package:my_app/services/app_repos.dart';
 import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/layer0_retrieval/chronicle_layer0_retrieval_service.dart';
@@ -73,6 +74,7 @@ import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/dual/intelligence/agentic_loop_orchestrator.dart';
 import 'package:my_app/chronicle/dual/intelligence/interrupt/interrupt_decision_engine.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
+import 'package:my_app/core/services/media_pick_and_analyze_service.dart';
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -538,17 +540,20 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   }
 
   /// Send a message to LUMARA
-  /// 
+  ///
+  /// [attachments] - Optional analyzed media (images with keywords from vision analysis)
   /// [conversationMode] - Optional conversation mode (from UI buttons)
   /// [persona] - Optional persona override (from UI selector, 'companion' default)
   Future<void> sendMessage(
     String text, {
+    List<AnalyzedMedia>? attachments,
     JournalEntry? currentEntry,
     models.ConversationMode? conversationMode,
     String? persona, // 'companion', 'strategist', 'therapist', 'challenger'
     bool skipCrossroadsCheck = false, // true when resending after user declined Crossroads
+    bool isEditRegenerate = false, // true when called from editMessageAndRegenerate (message already in state)
   }) async {
-    if (text.trim().isEmpty) return;
+    if (text.trim().isEmpty && (attachments == null || attachments.isEmpty)) return;
 
     final currentState = state;
     if (currentState is! LumaraAssistantLoaded) return;
@@ -557,9 +562,36 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       return;
     }
 
-    // Add user message to chat immediately (optimistic) so it appears like a normal chat
-    final userMessage = LumaraMessage.user(content: text);
-    final updatedMessages = [...currentState.messages, userMessage];
+    // Build effective text with image keywords for LLM context
+    String effectiveText = text.trim();
+    List<ContentPart>? contentPartsForPersistence;
+    if (attachments != null && attachments.isNotEmpty) {
+      final keywordParts = attachments.map((a) => a.keywords).join('; ');
+      effectiveText = '📷 [Attached image(s). Keywords: $keywordParts]\n\n$effectiveText'.trim();
+      contentPartsForPersistence = [
+        ...attachments.map((a) => MediaContentPart(
+          mime: 'image/jpeg',
+          pointer: MediaPointer(uri: a.imagePath, metadata: {'keywords': a.keywords, 'altText': a.altText}),
+          alt: a.altText,
+        )),
+        if (text.trim().isNotEmpty) TextContentPart(text: text.trim()),
+      ];
+    }
+
+    // Add user message to chat immediately (optimistic) — skip when edit-regenerate (already in state)
+    final displayContent = text.trim().isEmpty && attachments != null && attachments.isNotEmpty
+        ? '📷 [Image attached]'
+        : text.trim();
+    final List<LumaraMessage> updatedMessages;
+    if (isEditRegenerate) {
+      updatedMessages = List<LumaraMessage>.from(currentState.messages);
+    } else {
+      final userMessage = LumaraMessage.user(
+        content: displayContent,
+        metadata: contentPartsForPersistence != null ? {'hasMedia': true} : {},
+      );
+      updatedMessages = [...currentState.messages, userMessage];
+    }
     if (currentState.pendingAgenticQuestion == null) {
       emit(currentState.copyWith(
         messages: updatedMessages,
@@ -568,17 +600,19 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         notice: null,
         processingSteps: ['LUMARA is thinking...'], // Initial step to match reflection UX
       ));
-      // Save pending input immediately after setting isProcessing=true — no async
-      // gap between the guard check and the save, so resubmitPendingInput can never
-      // observe a pending input with isProcessing=false.
-      await _savePendingInput(text, conversationMode: conversationMode, persona: persona);
+      if (!isEditRegenerate) {
+        // Save pending input immediately after setting isProcessing=true — no async
+        // gap between the guard check and the save, so resubmitPendingInput can never
+        // observe a pending input with isProcessing=false.
+        await _savePendingInput(effectiveText, conversationMode: conversationMode, persona: persona);
+      }
     }
 
     // Crossroads: allow one confirmation per turn; clear when starting new message
     _crossroadsService.clearSurfacedThisTurn();
 
     _emitStep('Preparing your message…');
-    print('LUMARA Debug: Sending message: "$text"');
+    print('LUMARA Debug: Sending message: "$effectiveText"');
     print('LUMARA Debug: Current message count: ${currentState.messages.length}');
     if (conversationMode != null) {
       print('LUMARA Debug: Conversation mode: ${conversationMode.name}');
@@ -604,7 +638,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         // Calculate SENTINEL score
         final sentinelScore = await SentinelAnalyzer.calculateSentinelScore(
           userId: user.uid,
-          currentEntryText: text,
+          currentEntryText: effectiveText,
         );
         
         if (alreadyInCrisis || sentinelScore.alert) {
@@ -640,8 +674,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
 
     // Check for memory commands
-    if (text.startsWith('/memory')) {
-      await _handleMemoryCommand(text);
+    if (effectiveText.startsWith('/memory')) {
+      await _handleMemoryCommand(effectiveText);
       return;
     }
     
@@ -656,7 +690,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         String phaseName = await UserPhaseService.getCurrentPhase();
         if (phaseName.isEmpty) phaseName = 'discovery';
         final outputs = _rivetDecisionAnalyzer.analyzeMessage(
-          messageText: text,
+          messageText: effectiveText,
           currentPhase: phaseName,
         );
         final decisionOutputs = outputs.where((o) => o.type == RivetOutputType.decisionTrigger && o.decisionSignal != null).toList();
@@ -671,7 +705,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
               emit(s.copyWith(
                 pendingCrossroadsSignal: signal,
                 pendingCrossroadsConfirmationText: confirmationText,
-                pendingCrossroadsUserMessage: text,
+                pendingCrossroadsUserMessage: effectiveText,
               ));
             }
             return;
@@ -687,7 +721,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         currentState.pendingAgenticGapId != null &&
         currentState.pendingAgenticLoopContext != null) {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final userMessage = LumaraMessage.user(content: text);
+      final userMessage = LumaraMessage.user(content: displayContent);
       final replyMessages = [...currentState.messages, userMessage];
       emit(currentState.copyWith(messages: replyMessages, isProcessing: true, apiErrorMessage: null, notice: null));
       try {
@@ -695,7 +729,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           userId,
           currentState.pendingAgenticLoopContext!,
           currentState.pendingAgenticQuestion!,
-          text,
+          effectiveText,
           currentState.pendingAgenticGapId!,
         );
         final assistantMessage = LumaraMessage.assistant(content: result.content ?? '');
@@ -704,7 +738,13 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
           messages: finalMessages,
           isProcessing: false,
         ));
-        await _addToChatSession(text, 'user', messageId: userMessage.id, timestamp: userMessage.timestamp);
+        await _addToChatSession(
+          contentPartsForPersistence != null ? effectiveText : text,
+          'user',
+          contentParts: contentPartsForPersistence,
+          messageId: userMessage.id,
+          timestamp: userMessage.timestamp,
+        );
         await _addToChatSession(result.content ?? '', 'assistant');
       } catch (e) {
         print('LUMARA DualChronicle: continueAfterInterrupt error: $e');
@@ -714,13 +754,21 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
 
     // Ensure we have an active chat session (auto-create if needed)
-    await _ensureActiveChatSession(text);
+    await _ensureActiveChatSession(effectiveText);
 
-    // Record user message in MCP memory first
-    await _recordUserMessage(text);
-    
-    // Add user message to chat session (preserve ID for favorites)
-    await _addToChatSession(text, 'user', messageId: userMessage.id, timestamp: userMessage.timestamp);
+    // Record user message in MCP memory first (skip when edit-regenerate: already in session)
+    if (!isEditRegenerate) {
+      await _recordUserMessage(effectiveText);
+      final lastUserMsg = updatedMessages.isNotEmpty ? updatedMessages.last : null;
+      // Add user message to chat session (preserve ID for favorites)
+      await _addToChatSession(
+        contentPartsForPersistence != null ? effectiveText : text,
+        'user',
+        contentParts: contentPartsForPersistence,
+        messageId: lastUserMsg?.id,
+        timestamp: lastUserMsg?.timestamp,
+      );
+    }
 
     print('LUMARA Debug: Added user message, new count: ${updatedMessages.length}');
 
@@ -2947,20 +2995,26 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
   }
 
   /// Add message to current chat session
-  /// Optionally accepts messageId and timestamp to preserve IDs for favorites
-  Future<void> _addToChatSession(String content, String role, {String? messageId, DateTime? timestamp}) async {
+  /// Optionally accepts messageId, timestamp, and contentParts for rich media
+  Future<void> _addToChatSession(
+    String content,
+    String role, {
+    List<ContentPart>? contentParts,
+    String? messageId,
+    DateTime? timestamp,
+  }) async {
     if (currentChatSessionId == null) return;
-    
+
     try {
-      // Ensure ChatRepo is initialized before use
       await _chatRepo.initialize();
-      
+
       await _chatRepo.addMessage(
         sessionId: currentChatSessionId!,
         role: role,
         content: content,
-        messageId: messageId, // Preserve LumaraMessage ID for favorites
-        timestamp: timestamp, // Preserve timestamp
+        contentParts: contentParts,
+        messageId: messageId,
+        timestamp: timestamp,
       );
       print('LUMARA Chat: Added $role message to session $currentChatSessionId${messageId != null ? ' (preserved ID: $messageId)' : ''}');
       
@@ -3292,6 +3346,64 @@ Available: $yearsAgo more year${yearsAgo > 1 ? 's' : ''} of history''';
       print('LUMARA Chat: Loaded session $sessionId (${lumaraMessages.length} messages)');
     } catch (e) {
       print('LUMARA Chat: Error switching to session $sessionId: $e');
+    }
+  }
+
+  /// Edit a user message and regenerate the response from that point (Claude-style).
+  /// Truncates the conversation at the edited message and triggers a new assistant response.
+  Future<void> editMessageAndRegenerate({
+    required String messageId,
+    required String newContent,
+  }) async {
+    final currentState = state;
+    if (currentState is! LumaraAssistantLoaded) return;
+    if (currentState.isProcessing) return;
+
+    final messages = currentState.messages;
+    final index = messages.indexWhere((m) => m.id == messageId);
+    if (index < 0) {
+      print('LUMARA Chat: Message $messageId not found for edit');
+      return;
+    }
+    final msg = messages[index];
+    if (msg.role != LumaraMessageRole.user) {
+      print('LUMARA Chat: Can only edit user messages');
+      return;
+    }
+
+    final effectiveText = newContent.trim();
+    if (effectiveText.isEmpty) return;
+
+    try {
+      await _chatRepo.initialize();
+
+      // Truncate: keep messages 0..index with edited content
+      final editedMessage = msg.copyWith(content: effectiveText);
+      final truncatedMessages = [...messages.sublist(0, index), editedMessage];
+
+      // Persist: update user message, delete all messages after it
+      await _chatRepo.updateMessageContent(messageId, effectiveText);
+      for (var i = index + 1; i < messages.length; i++) {
+        await _chatRepo.deleteMessage(messages[i].id);
+      }
+
+      // Emit truncated state, then run the normal send flow (without adding a new user message)
+      emit(currentState.copyWith(
+        messages: truncatedMessages,
+        isProcessing: true,
+        apiErrorMessage: null,
+        processingSteps: ['LUMARA is thinking...'],
+      ));
+
+      await sendMessage(effectiveText, isEditRegenerate: true);
+    } catch (e) {
+      print('LUMARA Chat: Error in editMessageAndRegenerate: $e');
+      if (state is LumaraAssistantLoaded) {
+        emit((state as LumaraAssistantLoaded).copyWith(
+          isProcessing: false,
+          apiErrorMessage: 'Failed to edit: $e',
+        ));
+      }
     }
   }
 

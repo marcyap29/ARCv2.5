@@ -11,11 +11,13 @@ import 'package:my_app/chronicle/embeddings/create_embedding_service.dart';
 import 'research_models.dart';
 
 /// Stored entry: summary + embedding for similarity search.
+/// [detailedFindings] optional full report body for edit/save.
 class StoredResearchArtifact {
   final String sessionId;
   final String userId;
   final String query;
   final String summary;
+  final String detailedFindings;
   final DateTime timestamp;
   final String phaseName;
   final List<double> embedding;
@@ -27,6 +29,7 @@ class StoredResearchArtifact {
     required this.userId,
     required this.query,
     required this.summary,
+    this.detailedFindings = '',
     required this.timestamp,
     required this.phaseName,
     required this.embedding,
@@ -35,17 +38,22 @@ class StoredResearchArtifact {
   });
 
   StoredResearchArtifact copyWith({
+    String? query,
+    String? summary,
+    String? detailedFindings,
+    List<double>? embedding,
     bool? archived,
     DateTime? archivedAt,
   }) {
     return StoredResearchArtifact(
       sessionId: sessionId,
       userId: userId,
-      query: query,
-      summary: summary,
+      query: query ?? this.query,
+      summary: summary ?? this.summary,
+      detailedFindings: detailedFindings ?? this.detailedFindings,
       timestamp: timestamp,
       phaseName: phaseName,
-      embedding: embedding,
+      embedding: embedding ?? this.embedding,
       archived: archived ?? this.archived,
       archivedAt: archivedAt ?? this.archivedAt,
     );
@@ -56,6 +64,7 @@ class StoredResearchArtifact {
         'userId': userId,
         'query': query,
         'summary': summary,
+        'detailedFindings': detailedFindings,
         'timestamp': timestamp.toIso8601String(),
         'phaseName': phaseName,
         'embedding': embedding,
@@ -69,6 +78,7 @@ class StoredResearchArtifact {
       userId: json['userId'] as String,
       query: json['query'] as String,
       summary: json['summary'] as String,
+      detailedFindings: json['detailedFindings'] as String? ?? '',
       timestamp: DateTime.parse(json['timestamp'] as String),
       phaseName: json['phaseName'] as String,
       embedding: (json['embedding'] as List<dynamic>).map((e) => (e as num).toDouble()).toList(),
@@ -200,12 +210,52 @@ class ResearchArtifactRepository {
       userId: userId,
       query: artifact.query,
       summary: artifact.report.summary,
+      detailedFindings: artifact.report.detailedFindings,
       timestamp: artifact.timestamp,
       phaseName: artifact.phase.name,
       embedding: embedding,
     );
     _store.add(stored);
     await _save();
+  }
+
+  /// Update artifact content (query, summary, detailedFindings). Re-embeds for similarity search.
+  Future<void> updateArtifactContent({
+    required String userId,
+    required String sessionId,
+    String? query,
+    String? summary,
+    String? detailedFindings,
+  }) async {
+    await _ensureLoaded();
+    final i = _store.indexWhere((a) => a.userId == userId && a.sessionId == sessionId);
+    if (i < 0) return;
+    final existing = _store[i];
+    final newQuery = query ?? existing.query;
+    final newSummary = summary ?? existing.summary;
+    final newDetailed = detailedFindings ?? existing.detailedFindings;
+
+    final embedder = await _getEmbedder();
+    final textToEmbed = '$newQuery\n$newSummary';
+    final embedding = await embedder.embed(textToEmbed);
+
+    _store[i] = existing.copyWith(
+      query: newQuery,
+      summary: newSummary,
+      detailedFindings: newDetailed,
+      embedding: embedding,
+    );
+    await _save();
+  }
+
+  /// Get artifact by id (for loading full content for edit).
+  Future<StoredResearchArtifact?> getArtifact(String userId, String sessionId) async {
+    await _ensureLoaded();
+    try {
+      return _store.firstWhere((a) => a.userId == userId && a.sessionId == sessionId);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Find research sessions semantically similar to the query.

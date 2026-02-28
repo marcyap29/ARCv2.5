@@ -55,6 +55,10 @@ Example: [{"query":"SBIR Phase I requirements 2025","prerequisite":false},{"quer
     }
 
     final queries = _parseSubQueries(raw);
+    if (queries.isEmpty) {
+      // LLM returned unparseable JSON or empty array — fall back to user query
+      return _fallbackPlan(userQuery);
+    }
     final strategy = _determineStrategy(queries);
 
     return ResearchPlan(

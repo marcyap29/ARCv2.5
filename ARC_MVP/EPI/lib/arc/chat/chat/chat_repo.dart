@@ -1,4 +1,5 @@
 import 'chat_models.dart';
+import 'content_parts.dart';
 
 /// Repository interface for chat session persistence
 abstract class ChatRepo {
@@ -9,11 +10,13 @@ abstract class ChatRepo {
   });
 
   /// Add a message to an existing session
-  /// Optionally accepts messageId and timestamp to preserve IDs for favorites
+  /// Optionally accepts messageId and timestamp to preserve IDs for favorites.
+  /// When [contentParts] is provided, uses that instead of [content] for rich media (images, etc.).
   Future<void> addMessage({
     required String sessionId,
     required String role,
     required String content,
+    List<ContentPart>? contentParts,
     String? messageId,
     DateTime? timestamp,
   });
@@ -57,6 +60,9 @@ abstract class ChatRepo {
 
   /// Delete a single message by ID
   Future<void> deleteMessage(String messageId);
+
+  /// Update a message's text content (for edit-and-regenerate flow)
+  Future<void> updateMessageContent(String messageId, String newContent);
 
   /// Add tags to a session
   Future<void> addTags(String sessionId, List<String> tags);

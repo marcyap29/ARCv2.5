@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import '../../models/journal_entry_model.dart';
 import '../../arc/internal/mira/journal_repository.dart';
+import '../../arc/chat/chat/chat_repo.dart';
 import '../storage/layer0_repository.dart';
 import '../storage/layer0_populator.dart';
 import '../storage/aggregation_repository.dart';
@@ -20,16 +21,19 @@ class ChronicleOnboardingService {
   final Layer0Repository _layer0Repo;
   final AggregationRepository _aggregationRepo;
   final SynthesisEngine _synthesisEngine;
+  final ChatRepo? _chatRepo;
 
   ChronicleOnboardingService({
     required JournalRepository journalRepo,
     required Layer0Repository layer0Repo,
     required AggregationRepository aggregationRepo,
     required SynthesisEngine synthesisEngine,
+    ChatRepo? chatRepo,
   })  : _journalRepo = journalRepo,
         _layer0Repo = layer0Repo,
         _aggregationRepo = aggregationRepo,
-        _synthesisEngine = synthesisEngine;
+        _synthesisEngine = synthesisEngine,
+        _chatRepo = chatRepo;
 
   /// Backfill Layer 0 from all existing journal entries
   /// 
@@ -101,6 +105,41 @@ class ChronicleOnboardingService {
         
         // Yield to UI thread every batch
         await Future.microtask(() {});
+      }
+
+      // Backfill chat sessions to Layer 0
+      if (_chatRepo != null) {
+        try {
+          await _chatRepo!.initialize();
+          final sessions = await _chatRepo!.listAll(includeArchived: false);
+          result.totalEntries += sessions.length;
+          final populator = Layer0Populator(_layer0Repo);
+          for (final session in sessions) {
+            try {
+              final existing = await _layer0Repo.getEntry('chat_${session.id}');
+              if (existing == null || existing.userId != userId) {
+                final messages = await _chatRepo!.getMessages(session.id, lazy: false);
+                final ok = await populator.populateFromChatSession(
+                  session: session,
+                  messages: messages,
+                  userId: userId,
+                );
+                if (ok) {
+                  result.newEntries++;
+                } else {
+                  result.errors++;
+                }
+              }
+            } catch (e) {
+              result.errors++;
+            }
+            result.processedEntries++;
+            onProgress?.call(result.processedEntries, result.totalEntries);
+            await Future.microtask(() {});
+          }
+        } catch (e) {
+          print('⚠️ ChronicleOnboardingService: Chat backfill failed (non-fatal): $e');
+        }
       }
       
       if (result.newEntries == 0 && result.errors == 0) {

@@ -2535,10 +2535,10 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
             ],
           ),
           
-          // Floating scroll-to-top button (appears when scrolled down)
+          // Floating scroll-to-top/bottom buttons (same architecture as timeline)
           if (_showScrollToTop)
             Positioned(
-              bottom: 200, // Above scroll-to-bottom button
+              bottom: 140,
               right: 16,
               child: FloatingActionButton.small(
                 heroTag: 'scrollToTop',
@@ -2551,10 +2551,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                 ),
               ),
             ),
-          // Floating scroll-to-bottom button (appears when not at bottom)
           if (_showScrollToBottom)
             Positioned(
-              bottom: 140, // Above FAB and nav bar
+              bottom: 80,
               right: 16,
               child: FloatingActionButton.small(
                 heroTag: 'scrollToBottom',

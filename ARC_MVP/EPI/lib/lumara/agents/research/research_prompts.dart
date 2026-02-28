@@ -404,8 +404,7 @@ Follow this structure exactly:
 ## Timeline Connections
 [How these findings relate to user's patterns, interests, or current projects]
 - Pattern match: "This aligns with your [PATTERN] from [DATE_RANGE]"
-- Project relevance: "For [PROJECT], this suggests..."
-- Phase implication: "Given you're in {{CURRENT_PHASE}}, this data indicates..."
+- Project relevance: "For [PROJECT], this suggests..." — allow adequate space to complete your thoughts
 
 ## Insights
 [Synthesis across sources - what does this mean?]
@@ -414,11 +413,9 @@ Follow this structure exactly:
 3. [Insight with supporting evidence from multiple sources]
 
 ## Recommended Actions
-[Phase-appropriate next steps]
-Based on your {{CURRENT_PHASE}} phase:
-- [Immediate action if Breakthrough/Expansion]
-- [Exploratory action if Discovery/Transition]
-- [Consolidation action if Consolidation/Recovery]
+[Practical next steps]
+- [Immediate or exploratory actions]
+- [What to prioritize or explore further]
 
 ## Sources Analyzed
 [Complete list with full citations]
@@ -429,7 +426,6 @@ Based on your {{CURRENT_PHASE}} phase:
 **Metadata:**
 Sources Analyzed: [X]
 Insights Identified: [X]
-Phase: {{CURRENT_PHASE}}
 Research Depth: {{RESEARCH_DEPTH}}
 Generated: {{TIMESTAMP}}
 
@@ -437,15 +433,6 @@ Generated: {{TIMESTAMP}}
 **Justification:** [Brief justification based on source consistency, recency of data, number of independent confirmations]
 ---
 </output_structure>
-
-<phase_delivery_adaptation>
-**Recovery**: Gentle delivery, focus on understanding over action. "Here's what the research shows. No urgency to act—just information for when you're ready."
-**Transition**: Exploratory framing, multiple possibilities. "Several directions emerge from this research. Worth exploring: A, B, or C."
-**Breakthrough**: Action-oriented, decisive recommendations. "Based on this data, here's what to do next: [specific actions with timelines]"
-**Discovery**: Curiosity-driven, expansive connections. "This research opens up interesting possibilities: [novel connections, unexplored angles]"
-**Expansion**: Scaling-focused, momentum-building. "This validates your direction. Here's how to accelerate: [growth opportunities]"
-**Consolidation**: Refinement-focused, selective filtering. "This research helps narrow focus. Prioritize: [refined recommendations]"
-</phase_delivery_adaptation>
 
 <critical_requirements>
 - NEVER report "Sources: 0 analyzed" - use the provided search results; if none provided, state "No external sources were provided; synthesis is based on prior knowledge and timeline context."

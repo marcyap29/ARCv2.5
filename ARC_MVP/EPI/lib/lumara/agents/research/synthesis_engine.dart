@@ -51,7 +51,8 @@ class SynthesisEngine {
         agentPrompt;
     final context = _prepareContext(searchResults, priorContext);
 
-    int maxTokens = depth == SynthesisDepth.brief ? 500 : (depth == SynthesisDepth.deep ? 2000 : 1200);
+    // Allow sufficient room for Timeline Connections (including project relevance) to complete
+    int maxTokens = depth == SynthesisDepth.brief ? 1000 : (depth == SynthesisDepth.deep ? 4000 : 2400);
     String synthesis;
     try {
       synthesis = await _generate(

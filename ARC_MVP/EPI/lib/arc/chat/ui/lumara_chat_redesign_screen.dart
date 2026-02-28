@@ -4,7 +4,9 @@
 /// suggestion buttons, simple input bar. Uses same LumaraAssistantCubit as main chat.
 library;
 
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
@@ -17,6 +19,9 @@ import 'package:my_app/shared/widgets/lumara_icon.dart';
 import 'package:my_app/shared/widgets/lumara_thinking_dialog.dart';
 import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
 import 'package:my_app/arc/chat/widgets/lumara_message_body.dart';
+import 'package:my_app/arc/chat/voice/audio_io.dart';
+import 'package:my_app/arc/ui/widgets/attachment_menu_button.dart';
+import 'package:my_app/core/services/media_pick_and_analyze_service.dart';
 
 class LumaraChatRedesignScreen extends StatefulWidget {
   final String? initialMessage;
@@ -30,11 +35,22 @@ class LumaraChatRedesignScreen extends StatefulWidget {
 class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _inputFocusNode = FocusNode();
   final GlobalKey _responseStyleMenuKey = GlobalKey();
+  final MediaPickAndAnalyzeService _mediaService = MediaPickAndAnalyzeService();
+  List<AnalyzedMedia> _pendingAttachments = [];
+
+  // Scroll-to-top/bottom button state (same architecture as timeline)
+  bool _showScrollToTop = false;
+  bool _showScrollToBottom = false;
+
+  /// When non-null, user is editing this message; submit will call editMessageAndRegenerate.
+  String? _editingMessageId;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScrollChanged);
     if (widget.initialMessage != null && widget.initialMessage!.trim().isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _send(widget.initialMessage!.trim());
@@ -44,16 +60,106 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScrollChanged);
     _controller.dispose();
     _scrollController.dispose();
+    _inputFocusNode.dispose();
     super.dispose();
   }
 
   void _send(String text) {
     final t = text.trim();
-    if (t.isEmpty) return;
+    if (t.isEmpty && _pendingAttachments.isEmpty) return;
+
+    final attachments = List<AnalyzedMedia>.from(_pendingAttachments);
+    if (attachments.isNotEmpty) {
+      setState(() => _pendingAttachments.clear());
+    }
+    if (_editingMessageId != null) {
+      context.read<LumaraAssistantCubit>().editMessageAndRegenerate(
+        messageId: _editingMessageId!,
+        newContent: t.isEmpty ? '📷 [Image attached]' : t,
+      );
+      setState(() => _editingMessageId = null);
+    } else {
+      context.read<LumaraAssistantCubit>().sendMessage(
+        t.isEmpty ? '📷 [Image attached]' : t,
+        attachments: attachments.isNotEmpty ? attachments : null,
+      );
+    }
     _controller.clear();
-    context.read<LumaraAssistantCubit>().sendMessage(t);
+  }
+
+  void _startEditMessage(LumaraMessage message) {
+    setState(() {
+      _editingMessageId = message.id;
+      _controller.text = message.content;
+      _controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: message.content.length,
+      );
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _inputFocusNode.requestFocus();
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _handlePhotoGallery() async {
+    final result = await _mediaService.pickSingleFromGallery();
+    if (result != null && mounted) {
+      setState(() => _pendingAttachments.add(result));
+    }
+  }
+
+  Future<void> _handleCamera() async {
+    final result = await _mediaService.captureFromCamera();
+    if (result != null && mounted) {
+      setState(() => _pendingAttachments.add(result));
+    }
+  }
+
+  void _onScrollChanged() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final isNearTop = position.pixels <= 100;
+    final isNearBottom = position.pixels >= position.maxScrollExtent - 100;
+    final shouldShowTop = !isNearTop;
+    final shouldShowBottom = !isNearBottom && position.maxScrollExtent > 200;
+    if (_showScrollToTop != shouldShowTop || _showScrollToBottom != shouldShowBottom) {
+      setState(() {
+        _showScrollToTop = shouldShowTop;
+        _showScrollToBottom = shouldShowBottom;
+      });
+    }
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      setState(() => _showScrollToTop = false);
+    }
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      setState(() => _showScrollToBottom = false);
+    }
   }
 
   void _showSettingsAndHistory() {
@@ -154,10 +260,15 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
+          Column(
+            children: [
+              Expanded(
+                child: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              behavior: HitTestBehavior.opaque,
+              child: BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
               builder: (context, state) {
                 if (state is LumaraAssistantLoading) {
                   return const Center(child: CircularProgressIndicator(color: kcPrimaryColor));
@@ -213,8 +324,36 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                 );
               },
             ),
+            ),
           ),
           _buildInputBar(context),
+        ],
+      ),
+          // Scroll-to-top/bottom buttons (same architecture as timeline)
+          if (_showScrollToTop)
+            Positioned(
+              bottom: 140,
+              right: 16,
+              child: FloatingActionButton.small(
+                heroTag: 'chatScrollToTop',
+                onPressed: _scrollToTop,
+                backgroundColor: kcSurfaceAltColor,
+                elevation: 4,
+                child: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
+              ),
+            ),
+          if (_showScrollToBottom)
+            Positioned(
+              bottom: 80,
+              right: 16,
+              child: FloatingActionButton.small(
+                heroTag: 'chatScrollToBottom',
+                onPressed: _scrollToBottom,
+                backgroundColor: kcSurfaceAltColor,
+                elevation: 4,
+                child: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+              ),
+            ),
         ],
       ),
     );
@@ -398,13 +537,64 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                       ),
                     ),
                   isUser
-                      ? Text(
-                          message.content,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            height: 1.4,
-                          ),
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SelectableText(
+                              message.content,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                height: 1.4,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.copy_outlined,
+                                      size: 16,
+                                      color: Colors.white70,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 28,
+                                      minHeight: 28,
+                                    ),
+                                    onPressed: () {
+                                      Clipboard.setData(
+                                        ClipboardData(text: message.content),
+                                      );
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Copied to clipboard'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                                    tooltip: 'Copy',
+                                  ),
+                                  IconButton(
+                                      icon: const Icon(
+                                        Icons.edit_outlined,
+                                        size: 16,
+                                        color: Colors.white70,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 28,
+                                        minHeight: 28,
+                                      ),
+                                      onPressed: () => _startEditMessage(message),
+                                      tooltip: 'Edit',
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
                         )
                       : LumaraMessageBody(
                           content: message.content,
@@ -415,6 +605,8 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                           ),
                           linkColor: kcPrimaryColor,
                         ),
+                  if (!isUser && message.content.isNotEmpty)
+                    _ChatMessageActionsWidget(content: message.content),
                   if (!isUser && message.attributionTraces != null && message.attributionTraces!.isNotEmpty)
                     AttributionDisplayWidget(
                       traces: message.attributionTraces!,
@@ -442,59 +634,135 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
         color: kcSurfaceColor,
         border: Border(top: BorderSide(color: kcBorderColor)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline, color: kcSecondaryTextColor),
-            onPressed: () {
-              // Optional: attach or new chat; no-op for now
-            },
-            tooltip: 'Add',
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              style: const TextStyle(color: kcPrimaryTextColor, fontSize: 16),
-              decoration: InputDecoration(
-                hintText: 'Ask anything',
-                hintStyle: TextStyle(color: kcSecondaryTextColor.withOpacity(0.8)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: const BorderSide(color: kcBorderColor),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                isDense: true,
+          if (_editingMessageId != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Text(
+                    'Editing message',
+                    style: TextStyle(
+                      color: kcPrimaryColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _editingMessageId = null;
+                        _controller.clear();
+                      });
+                    },
+                    child: const Text('Cancel'),
+                  ),
+                ],
               ),
-              textCapitalization: TextCapitalization.sentences,
-              minLines: 1,
-              maxLines: 6,
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _send(_controller.text),
             ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            key: _responseStyleMenuKey,
-            icon: const Icon(Icons.expand_more, size: 20, color: kcSecondaryTextColor),
-            onPressed: _showResponseStyleMenu,
-            tooltip: 'Response style: Conversation / Detailed analysis',
-          ),
-          IconButton(
-            icon: const LumaraIcon(size: 20),
-            onPressed: () => _send(_controller.text),
-            tooltip: 'Send',
-          ),
-          IconButton(
-            icon: const Icon(Icons.mic_none, color: kcSecondaryTextColor),
-            onPressed: () {
-              // Voice: could open voice panel or keep for later
-            },
-            tooltip: 'Voice',
+          if (_pendingAttachments.isNotEmpty) _buildPendingAttachments(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              AttachmentMenuButton(
+                onPhotoGallery: _handlePhotoGallery,
+                onCamera: _handleCamera,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _inputFocusNode,
+                  style: const TextStyle(color: kcPrimaryTextColor, fontSize: 16),
+                  decoration: InputDecoration(
+                    hintText: _editingMessageId != null
+                        ? 'Edit your message and send to regenerate...'
+                        : 'Ask anything',
+                    hintStyle: TextStyle(color: kcSecondaryTextColor.withOpacity(0.8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: const BorderSide(color: kcBorderColor),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    isDense: true,
+                  ),
+                  textCapitalization: TextCapitalization.sentences,
+                  minLines: 1,
+                  maxLines: 6,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _send(_controller.text),
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                key: _responseStyleMenuKey,
+                icon: const Icon(Icons.expand_more, size: 20, color: kcSecondaryTextColor),
+                onPressed: _showResponseStyleMenu,
+                tooltip: 'Response style: Conversation / Detailed analysis',
+              ),
+              IconButton(
+                icon: const LumaraIcon(size: 20),
+                onPressed: () => _send(_controller.text),
+                tooltip: 'Send',
+              ),
+              IconButton(
+                icon: const Icon(Icons.mic_none, color: kcSecondaryTextColor),
+                onPressed: () {
+                  // Voice: could open voice panel or keep for later
+                },
+                tooltip: 'Voice',
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPendingAttachments() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      height: 56,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _pendingAttachments.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final a = _pendingAttachments[index];
+          return Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  File(a.imagePath),
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(
+                top: 2,
+                right: 2,
+                child: GestureDetector(
+                  onTap: () => setState(() => _pendingAttachments.removeAt(index)),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close, size: 14, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -568,6 +836,85 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(selection ? 'Response style: Detailed analysis' : 'Response style: Conversation (perceptive)'),
+      ),
+    );
+  }
+}
+
+/// Copy and Play actions for LUMARA chat replies (matches older UX).
+class _ChatMessageActionsWidget extends StatefulWidget {
+  final String content;
+
+  const _ChatMessageActionsWidget({required this.content});
+
+  @override
+  State<_ChatMessageActionsWidget> createState() => _ChatMessageActionsWidgetState();
+}
+
+class _ChatMessageActionsWidgetState extends State<_ChatMessageActionsWidget> {
+  AudioIO? _audioIO;
+
+  Future<void> _initAudio() async {
+    if (_audioIO != null) return;
+    try {
+      final io = AudioIO();
+      await io.initializeTTS();
+      if (mounted) setState(() => _audioIO = io);
+    } catch (_) {}
+  }
+
+  String _cleanForSpeech(String text) {
+    return text
+        .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1')
+        .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1')
+        .replaceAll(RegExp(r'`([^`]+)`'), r'$1')
+        .replaceAll(RegExp(r'\[([^\]]+)\]\([^\)]+\)'), r'$1')
+        .replaceAll(RegExp(r'#{1,6}\s+'), '')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+  }
+
+  Future<void> _speak() async {
+    await _initAudio();
+    if (_audioIO != null && widget.content.isNotEmpty) {
+      final clean = _cleanForSpeech(widget.content);
+      if (clean.isNotEmpty) await _audioIO!.speak(clean);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final iconColor = theme.colorScheme.onSurfaceVariant.withOpacity(0.6);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.copy_outlined, size: 18, color: iconColor),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: widget.content));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Copied to clipboard'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            tooltip: 'Copy',
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: Icon(Icons.play_arrow_outlined, size: 20, color: iconColor),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            onPressed: _speak,
+            tooltip: 'Listen',
+          ),
+        ],
       ),
     );
   }

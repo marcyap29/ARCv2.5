@@ -1,7 +1,43 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.60
+**Version:** 3.3.61
 **Last Updated:** February 25, 2026
+
+---
+
+## [3.3.61] - February 25, 2026
+
+### Research report editor; Outputs tab; chat/feed/CHRONICLE refinements
+
+**Research Agent:**
+- **research_report_detail_screen.dart:** Major expansion — report viewer with edit, export, CHRONICLE integration.
+- **report_editor_screen.dart:** New — inline report editing.
+- **report_export_service.dart:** New — export research reports.
+- **research_artifact_repository.dart, agents_chronicle_service.dart:** Repository and CHRONICLE wiring for reports.
+- **research_prompts.dart, query_planner.dart, synthesis_engine.dart:** Prompt and planner refinements.
+- **swarmspace_web_search_tool.dart, swarmspace_client.dart:** SwarmSpace client updates.
+
+**Outputs tab:**
+- **outputs_tab_screen.dart:** New — Outputs tab UI.
+- **home_view.dart:** Outputs tab integration.
+
+**Chat & feed:**
+- **lumara_chat_redesign_screen.dart:** Layout and UX improvements.
+- **lumara_assistant_cubit.dart:** Assistant logic updates.
+- **chat_repo.dart, chat_repo_impl.dart:** Chat repository refinements.
+- **lumara_message_body.dart:** Message body widget updates.
+- **feed_repository.dart, timeline_modal.dart, unified_feed_screen.dart:** Feed and timeline modal refinements.
+
+**CHRONICLE:**
+- **layer0_populator.dart:** Population logic and schema handling.
+- **raw_entry_schema.dart:** Schema updates.
+- **chronicle_onboarding_service.dart:** Onboarding flow refinements.
+- **chronicle_management_view.dart:** Management view updates.
+
+**Other:**
+- **media_pick_and_analyze_service.dart:** New — media pick and analyze.
+- **journal_screen.dart:** Journal updates.
+- **lumara_chat_orchestrator.dart, writing_prompts.dart:** Orchestrator and writing prompt refinements.
 
 ---
 

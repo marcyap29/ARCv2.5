@@ -30,11 +30,24 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
   @override
   Future<List<SearchSnippet>> search(String query) async {
     // Try tier-appropriate plugin first, fall back down the chain.
-    final result = await _tryTavilySearch(query) ??
-        await _tryBraveSearch(query) ??
-        await _tryWikipedia(query);
-
-    return result ?? [];
+    print('SwarmSpace: search(query="$query")');
+    List<SearchSnippet>? result = await _tryTavilySearch(query);
+    if (result != null) {
+      print('SwarmSpace: tavily-search returned ${result.length} snippets');
+      return result;
+    }
+    result = await _tryBraveSearch(query);
+    if (result != null) {
+      print('SwarmSpace: brave-search returned ${result.length} snippets');
+      return result;
+    }
+    result = await _tryWikipedia(query);
+    if (result != null) {
+      print('SwarmSpace: wikipedia returned ${result.length} snippets');
+      return result;
+    }
+    print('SwarmSpace: all plugins returned empty/failed, returning []');
+    return [];
   }
 
   @override
@@ -108,12 +121,24 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
       'count': 8,
     });
 
-    if (!result.success || result.data == null) return null;
+    if (!result.success) {
+      print('SwarmSpace: brave-search failed: ${result.error}');
+      return null;
+    }
+    if (result.data == null) {
+      print('SwarmSpace: brave-search returned null data');
+      return null;
+    }
 
-    final webResults =
-        result.data!['web']?['results'] as List<dynamic>? ?? [];
+    // Brave API returns { web: { results: [...] } }; some workers may wrap differently
+    final webResults = result.data!['web']?['results'] as List<dynamic>? ??
+        result.data!['results'] as List<dynamic>? ??
+        [];
 
-    if (webResults.isEmpty) return null;
+    if (webResults.isEmpty) {
+      print('SwarmSpace: brave-search web.results empty (keys: ${result.data!.keys.join(", ")})');
+      return null;
+    }
 
     return webResults.map((r) {
       final map = r as Map<String, dynamic>;

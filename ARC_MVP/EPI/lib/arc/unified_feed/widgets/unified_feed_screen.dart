@@ -361,6 +361,8 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
           Navigator.pop(context);
           _jumpToDate(date);
         },
+        feedRepo: _feedRepo,
+        onEntrySelected: (entry) => _onEntryTap(entry),
       ),
     );
   }
@@ -392,7 +394,15 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       }
       return;
     }
-    // Navigate to expanded entry view
+    // Chat entries: open directly in chat (skip preview)
+    if ((entry.type == FeedEntryType.savedConversation ||
+            entry.type == FeedEntryType.activeConversation) &&
+        entry.chatSessionId != null &&
+        entry.chatSessionId!.isNotEmpty) {
+      _openChatSession(entry.chatSessionId!);
+      return;
+    }
+    // All other entries: navigate to expanded entry view
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -406,6 +416,23 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       // (Future: implement theme-based filtering)
       _feedRepo.refresh();
     });
+  }
+
+  /// Open a saved/active chat session directly in the chat screen.
+  Future<void> _openChatSession(String sessionId) async {
+    try {
+      final cubit = context.read<LumaraAssistantCubit>();
+      await cubit.switchToSession(sessionId);
+    } catch (_) {
+      // Cubit may not be in tree; screen will handle
+    }
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => const LumaraChatRedesignScreen(),
+      ),
+    ).then((_) => _feedRepo.refresh());
   }
 
   void _onSaveActiveConversation() {

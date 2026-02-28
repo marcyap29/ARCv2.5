@@ -9,8 +9,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
+import 'package:my_app/arc/outputs/outputs_tab_screen.dart';
 import 'package:my_app/arc/unified_feed/utils/feed_helpers.dart';
 import 'package:my_app/arc/unified_feed/widgets/expanded_entry_view.dart';
+import 'package:my_app/lumara/agents/screens/research_report_detail_screen.dart';
+import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -171,6 +174,26 @@ class _LumaraMessageBodyState extends State<LumaraMessageBody> {
     });
   }
 
+  Future<void> _openReport(BuildContext context, String reportId) async {
+    final userId = await AgentsChronicleService.instance.getCurrentUserId();
+    final report = await AgentsChronicleService.instance.getResearchReportById(userId, reportId);
+    if (report != null && context.mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (ctx) => ResearchReportDetailScreen(report: report),
+        ),
+      );
+    }
+  }
+
+  void _openOutputsTab(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (ctx) => const OutputsTabScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -234,6 +257,11 @@ class _LumaraMessageBodyState extends State<LumaraMessageBody> {
         if (href.startsWith('entry:')) {
           final uuid = href.substring(6);
           _openEntry(context, uuid);
+        } else if (href.startsWith('report:')) {
+          final reportId = href.substring(7);
+          _openReport(context, reportId);
+        } else if (href == 'outputs:' || href.startsWith('outputs:')) {
+          _openOutputsTab(context);
         } else {
           final uri = Uri.tryParse(href);
           if (uri != null) {

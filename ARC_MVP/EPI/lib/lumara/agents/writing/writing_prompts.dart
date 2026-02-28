@@ -464,7 +464,6 @@ Then append exactly two blocks:
 Context signals used:
 - Recurring theme: [one theme from timeline that you anchored to]
 - Prior framing: [how the user previously framed this topic, if applicable]
-- Phase context: [{{CURRENT_PHASE}}]
 ---
 
 2) Metadata (scores and alignment):
@@ -472,7 +471,6 @@ Context signals used:
 Voice Match Estimate: [X]%
 Theme Match Estimate: [X]%
 Timeline References: [the one specific entry/period/pattern you cited]
-Phase Alignment: [How content matches {{CURRENT_PHASE}}]
 ---
 </output_format>
 

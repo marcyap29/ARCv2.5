@@ -50,6 +50,7 @@ import 'package:my_app/ui/phase/phase_check_in_bottom_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/services/scheduled_local_backup_service.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:my_app/arc/outputs/outputs_tab_screen.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -81,11 +82,12 @@ class _HomeViewState extends State<HomeView> {
   /// Phase Check-in shown this session (only prompt once per app open).
   bool _phaseCheckInShownThisSession = false;
 
-  // Navigation tabs: unified feed mode has LUMARA + Settings; legacy has 3 tabs
+  // Navigation tabs: unified feed mode has LUMARA + Outputs + Settings; legacy has 3 tabs
   List<TabItem> get _tabs {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
       return const [
         TabItem(icon: Icons.auto_awesome, text: 'LUMARA'),
+        TabItem(icon: Icons.folder_outlined, text: 'Outputs'),
         TabItem(icon: Icons.settings_outlined, text: 'Settings'),
       ];
     }
@@ -97,7 +99,7 @@ class _HomeViewState extends State<HomeView> {
 
   List<String> get _tabNames {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
-      return const ['LUMARA', 'Settings'];
+      return const ['LUMARA', 'Outputs', 'Settings'];
     }
     return const ['LUMARA', 'Conversations'];
   }
@@ -460,7 +462,7 @@ class _HomeViewState extends State<HomeView> {
 
   /// Get the appropriate page widget for the given index.
   ///
-  /// Unified feed mode: LUMARA (0) | Agents (1) | Settings (2)
+  /// Unified feed mode: LUMARA (0) | Outputs (1) | Settings (2)
   /// Legacy mode:       LUMARA (0) | Phase (1) | Journal (2)
   Widget _getPageForIndex(int index, BuildContext context) {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
@@ -476,6 +478,8 @@ class _HomeViewState extends State<HomeView> {
             },
           );
         case 1:
+          return const OutputsTabScreen();
+        case 2:
           return const SettingsView();
         default:
           return UnifiedFeedScreen(

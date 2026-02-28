@@ -482,6 +482,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
 
   Future<ChronicleOnboardingService> _createOnboardingService() async {
     final journalRepo = AppRepos.journal;
+    final chatRepo = AppRepos.chat;
     final (layer0Repo, aggregationRepo, changelogRepo) = await AppRepos.initializedChronicleRepos;
     final synthesisEngine = SynthesisEngine(
       layer0Repo: layer0Repo,
@@ -493,6 +494,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
       layer0Repo: layer0Repo,
       aggregationRepo: aggregationRepo,
       synthesisEngine: synthesisEngine,
+      chatRepo: chatRepo,
     );
   }
 

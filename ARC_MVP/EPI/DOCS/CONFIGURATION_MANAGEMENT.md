@@ -128,6 +128,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 **2026-02-25 (follow-up):** Doc sync v3.3.60 — SwarmSpace integration (swarmspaceRouter Cloud Function, SwarmSpaceClient, SwarmSpaceWebSearchTool); Research Agent real web search; agents_connection_service removed; layer0_populator, journal, home_view updates. CHANGELOG, PROMPT_TRACKER, bug_tracker, backend, FEATURES, CONFIGURATION_MANAGEMENT updated. Prompt audit: no new prompts (SwarmSpace is tool layer).
 
+**2026-02-25 (follow-up):** Doc sync v3.3.61 — Research report editor, Outputs tab, chat/feed/CHRONICLE refinements; report_editor_screen, report_export_service, outputs_tab_screen, media_pick_and_analyze_service; research_prompts, query_planner, writing_prompts content updates. main merged into test.
+
 **Status:** ✅ Ready for commit and push.
 
 ---

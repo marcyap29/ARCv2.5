@@ -2,9 +2,10 @@
 //
 // SwarmSpace plugin client for LUMARA.
 //
-// Calls the swarmspaceRouter Firebase Cloud Function — same pattern as
-// how LUMARA already calls proxyGemini and sendChatMessage.
-// Firebase handles auth token injection automatically.
+// Calls the swarmspaceRouter Firebase Cloud Function via **direct HTTP POST**
+// with manually attached ID token — same approach as groq_send.dart.
+// This bypasses Firebase SDK's httpsCallable/GTMSessionFetcher, which causes
+// "already running" and UNAUTHENTICATED when multiple calls run in parallel.
 //
 // Usage:
 //   final result = await SwarmSpaceClient.instance.invoke(
@@ -12,7 +13,12 @@
 //     {'query': 'my search query'},
 //   );
 
-import 'package:cloud_functions/cloud_functions.dart';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/services/firebase_service.dart';
 
 /// Result of a SwarmSpace plugin invocation.
 class SwarmSpaceResult {
@@ -72,8 +78,12 @@ class SwarmSpaceQuota {
   String toString() => '$used/$limit used ($remaining remaining)';
 }
 
+/// Cloud Function URL — same region/project as proxyGroq.
+const _swarmspaceRouterUrl =
+    'https://us-central1-arc-epi.cloudfunctions.net/swarmspaceRouter';
+
 /// SwarmSpace client — singleton.
-/// Wraps Firebase callable functions — no manual auth headers needed.
+/// Uses direct HTTP + manual ID token (bypasses GTMSessionFetcher).
 class SwarmSpaceClient {
   SwarmSpaceClient._();
   static final SwarmSpaceClient instance = SwarmSpaceClient._();
@@ -83,70 +93,128 @@ class SwarmSpaceClient {
 
   /// Invoke a SwarmSpace plugin via the Firebase router function.
   ///
+  /// Uses direct HTTP POST with manually attached auth token to avoid
+  /// GTMSessionFetcher conflicts when Research Agent runs parallel searches.
+  ///
   /// [pluginId] — e.g. 'brave-search', 'weather', 'gemini-flash'
   /// [params]   — plugin-specific request body (see each plugin's input_schema)
-  ///
-  /// Firebase automatically attaches the user's auth token.
-  /// The router validates it, checks tier, then forwards to the right worker.
   Future<SwarmSpaceResult> invoke(
     String pluginId,
     Map<String, dynamic> params,
   ) async {
+    await FirebaseService.instance.ensureReady();
+    final firebaseUser = FirebaseAuthService.instance.currentUser;
+    if (firebaseUser == null) {
+      return SwarmSpaceResult.error('Not authenticated. Sign in to use SwarmSpace.');
+    }
+    // Force refresh to avoid stale token (Firebase docs recommend for callables)
+    final idToken = await firebaseUser.getIdToken(true);
+    if (idToken == null || idToken.isEmpty) {
+      return SwarmSpaceResult.error('Could not obtain auth token. Try signing out and back in.');
+    }
+
+    final requestData = <String, dynamic>{
+      'plugin_id': pluginId,
+      'params': params,
+    };
+
+    final client = HttpClient();
     try {
-      final callable = FirebaseFunctions.instance
-          .httpsCallable('swarmspaceRouter');
+      final uri = Uri.parse(_swarmspaceRouterUrl);
+      final request = await client.postUrl(uri);
+      request.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $idToken');
+      request.write(jsonEncode({'data': requestData}));
 
-      // This is identical to how your app calls sendChatMessage / proxyGemini
-      final result = await callable.call<Map<String, dynamic>>({
-        'plugin_id': pluginId,
-        'params': params,
-      });
+      final httpResponse = await request.close().timeout(
+        const Duration(seconds: 25),
+        onTimeout: () {
+          throw const SocketException('swarmspaceRouter request timed out');
+        },
+      );
 
-      final data = Map<String, dynamic>.from(result.data as Map);
-      final swResult = SwarmSpaceResult.fromData(data);
+      final body = await httpResponse.transform(utf8.decoder).join();
 
-      // Cache quota for UI
+      if (httpResponse.statusCode != 200) {
+        String errorMsg = 'SwarmSpace HTTP ${httpResponse.statusCode}';
+        try {
+          final errData = jsonDecode(body) as Map<String, dynamic>;
+          final errObj = errData['error'] as Map<String, dynamic>?;
+          errorMsg = errObj?['message'] as String? ?? errorMsg;
+          final details = errObj?['details'] as Map<String, dynamic>?;
+
+          if (details != null && details['quota'] != null) {
+            final quota = SwarmSpaceQuota.fromJson(
+              Map<String, dynamic>.from(details['quota'] as Map),
+            );
+            _quotaCache[pluginId] = quota;
+          }
+        } catch (_) {}
+
+        if (kDebugMode) {
+          print('SwarmSpace: invoke($pluginId) error: $errorMsg');
+          if (httpResponse.statusCode == 401 && body.isNotEmpty) {
+            final preview = body.length > 300 ? '${body.substring(0, 300)}...' : body;
+            print('SwarmSpace: 401 response body: $preview');
+          }
+        }
+        return SwarmSpaceResult.error(errorMsg);
+      }
+
+      final data = jsonDecode(body) as Map<String, dynamic>;
+      final resultData = (data['result'] as Map<String, dynamic>?) ?? data;
+      final swResult = SwarmSpaceResult.fromData(
+        Map<String, dynamic>.from(resultData),
+      );
+
       if (swResult.quota != null) {
         _quotaCache[pluginId] = swResult.quota!;
       }
 
       return swResult;
-    } on FirebaseFunctionsException catch (e) {
-      // Quota exceeded — expected, not a crash
-      if (e.code == 'resource-exhausted') {
-        final details = e.details as Map<String, dynamic>?;
-        final quotaRaw = details?['quota'];
-        final quota = quotaRaw is Map<String, dynamic>
-            ? SwarmSpaceQuota.fromJson(Map<String, dynamic>.from(quotaRaw))
-            : null;
-        if (quota != null) _quotaCache[pluginId] = quota;
-        return SwarmSpaceResult.error(e.message ?? 'Quota exceeded');
-      }
-
-      // Tier insufficient — user needs to upgrade
-      if (e.code == 'permission-denied') {
-        return SwarmSpaceResult.error(
-          e.message ?? 'This feature requires a plan upgrade',
-        );
-      }
-
-      return SwarmSpaceResult.error(e.message ?? 'Plugin error: ${e.code}');
+    } on SocketException catch (e) {
+      if (kDebugMode) print('SwarmSpace: invoke($pluginId) network error: $e');
+      return SwarmSpaceResult.error('Network error: $e');
     } catch (e) {
+      if (kDebugMode) print('SwarmSpace: invoke($pluginId) unexpected error: $e');
       return SwarmSpaceResult.error('Unexpected error: $e');
+    } finally {
+      client.close();
     }
   }
 
   /// Check if a plugin is available for the current user's tier.
   /// Calls swarmspacePluginStatus — lightweight, no quota consumed.
+  /// Uses direct HTTP to avoid GTMSessionFetcher conflicts.
   Future<bool> isPluginAvailable(String pluginId) async {
     try {
-      final callable = FirebaseFunctions.instance
-          .httpsCallable('swarmspacePluginStatus');
-      final result = await callable.call<Map<String, dynamic>>({
-        'plugin_id': pluginId,
-      });
-      final data = result.data as Map<String, dynamic>;
-      return data['available'] == true;
+      final firebaseUser = FirebaseAuthService.instance.currentUser;
+      if (firebaseUser == null) return false;
+      final idToken = await firebaseUser.getIdToken();
+      if (idToken == null || idToken.isEmpty) return false;
+
+      const url = 'https://us-central1-arc-epi.cloudfunctions.net/swarmspacePluginStatus';
+      final client = HttpClient();
+      try {
+        final uri = Uri.parse(url);
+        final request = await client.postUrl(uri);
+        request.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $idToken');
+        request.write(jsonEncode({'data': {'plugin_id': pluginId}}));
+
+        final httpResponse = await request.close().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => throw const SocketException('swarmspacePluginStatus timed out'),
+        );
+        final body = await httpResponse.transform(utf8.decoder).join();
+
+        if (httpResponse.statusCode != 200) return false;
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final resultData = (data['result'] as Map<String, dynamic>?) ?? data;
+        return resultData['available'] == true;
+      } finally {
+        client.close();
+      }
     } catch (_) {
       return false;
     }

@@ -362,15 +362,41 @@ class FeedRepository {
     }).toList();
   }
 
-  /// Search entries by text.
+  /// Search entries by text and by output tags (#attachment, #report, #writing, etc.).
+  ///
+  /// Tag matching (case-insensitive, with or without #):
+  /// - #attachment: entries with media (hasMedia)
+  /// - #report: research reports
+  /// - #writing: entries with writing output (metadata['hasWritingOutput'])
   List<FeedEntry> search(String query) {
     if (query.isEmpty) return _cachedEntries;
-    final q = query.toLowerCase();
+    final q = query.toLowerCase().trim();
+    final qNoHash = q.startsWith('#') ? q.substring(1) : q;
+
     return _cachedEntries.where((e) {
-      return (e.title?.toLowerCase().contains(q) ?? false) ||
+      // Tag-based matching
+      if (qNoHash == 'attachment' || q == '#attachment') {
+        if (e.hasMedia) return true;
+      }
+      if (qNoHash == 'report' || q == '#report') {
+        if (e.type == FeedEntryType.researchReport) return true;
+      }
+      if (qNoHash == 'writing' || q == '#writing') {
+        if (e.metadata['hasWritingOutput'] == true) return true;
+        final outputTypes = e.metadata['outputTypes'];
+        if (outputTypes is List && outputTypes.any((t) => t.toString().toLowerCase() == 'writing')) {
+          return true;
+        }
+      }
+
+      // Text-based matching
+      if ((e.title?.toLowerCase().contains(q) ?? false) ||
           e.preview.toLowerCase().contains(q) ||
           e.tags.any((t) => t.toLowerCase().contains(q)) ||
-          e.themes.any((t) => t.toLowerCase().contains(q));
+          e.themes.any((t) => t.toLowerCase().contains(q))) {
+        return true;
+      }
+      return false;
     }).toList();
   }
 

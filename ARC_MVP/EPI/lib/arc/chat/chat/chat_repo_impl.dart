@@ -1,6 +1,10 @@
 import 'package:hive/hive.dart';
+import 'package:my_app/chronicle/storage/layer0_populator.dart';
+import 'package:my_app/chronicle/storage/layer0_repository.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 import 'chat_models.dart';
 import 'chat_repo.dart';
+import 'content_parts.dart';
 import 'chat_archive_policy.dart';
 
 /// Hive implementation of ChatRepo
@@ -21,6 +25,11 @@ class ChatRepoImpl implements ChatRepo {
   Box<ChatMessage>? _messagesBox;
 
   bool _isInitialized = false;
+
+  // CHRONICLE Layer 0 indexing (lazy init)
+  Layer0Repository? _layer0Repo;
+  Layer0Populator? _layer0Populator;
+  bool _layer0Initialized = false;
 
   @override
   Future<void> initialize() async {
@@ -77,6 +86,7 @@ class ChatRepoImpl implements ChatRepo {
     required String sessionId,
     required String role,
     required String content,
+    List<ContentPart>? contentParts,
     String? messageId,
     DateTime? timestamp,
   }) async {
@@ -93,16 +103,24 @@ class ChatRepoImpl implements ChatRepo {
       throw ArgumentError('Session not found: $sessionId');
     }
 
-    // Create and store message (preserve ID if provided for favorites)
-    final message = ChatMessage.createText(
-      sessionId: sessionId,
-      role: role,
-      content: content,
-      id: messageId, // Preserve LumaraMessage ID for favorites
-      createdAt: timestamp, // Preserve timestamp
-    );
-
-    await _messagesBox!.put(message.id, message);
+    final ChatMessage message;
+    if (contentParts != null && contentParts.isNotEmpty) {
+      message = ChatMessage.create(
+        sessionId: sessionId,
+        role: role,
+        contentParts: contentParts,
+      );
+      await _messagesBox!.put(message.id, message);
+    } else {
+      message = ChatMessage.createText(
+        sessionId: sessionId,
+        role: role,
+        content: content,
+        id: messageId,
+        createdAt: timestamp,
+      );
+      await _messagesBox!.put(message.id, message);
+    }
 
     // Update session timestamp and message count
     final updatedSession = session.copyWith(
@@ -112,6 +130,34 @@ class ChatRepoImpl implements ChatRepo {
 
     await _sessionsBox!.put(sessionId, updatedSession);
     print('ChatRepo: Added $role message to session $sessionId');
+
+    // Index chat session into Chronicle Layer 0 (fire-and-forget)
+    _indexChatSessionToChronicle(sessionId, updatedSession);
+  }
+
+  Future<void> _indexChatSessionToChronicle(String sessionId, ChatSession session) async {
+    try {
+      if (!_layer0Initialized) {
+        try {
+          _layer0Repo = Layer0Repository();
+          await _layer0Repo!.initialize();
+          _layer0Populator = Layer0Populator(_layer0Repo!);
+          _layer0Initialized = true;
+        } catch (e) {
+          return;
+        }
+      }
+      if (_layer0Populator == null) return;
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final messages = await getMessages(sessionId, lazy: false);
+      await _layer0Populator!.populateFromChatSession(
+        session: session,
+        messages: messages,
+        userId: userId,
+      );
+    } catch (_) {
+      // Non-fatal: don't break chat flow
+    }
   }
 
   @override
@@ -341,6 +387,31 @@ class ChatRepoImpl implements ChatRepo {
     }
 
     print('ChatRepo: Deleted message $messageId');
+  }
+
+  @override
+  Future<void> updateMessageContent(String messageId, String newContent) async {
+    _ensureInitialized();
+
+    final message = _messagesBox!.get(messageId);
+    if (message == null) {
+      print('ChatRepo: Message $messageId not found for update');
+      return;
+    }
+
+    final updated = ChatMessage(
+      id: message.id,
+      sessionId: message.sessionId,
+      role: message.role,
+      textContent: newContent,
+      createdAt: message.createdAt,
+      originalTextHash: message.originalTextHash,
+      provenance: message.provenance,
+      metadata: message.metadata,
+      contentParts: message.contentParts,
+    );
+    await _messagesBox!.put(messageId, updated);
+    print('ChatRepo: Updated message $messageId content');
   }
 
   @override

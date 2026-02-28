@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../../../arc/chat/chat/chat_models.dart';
+import '../../../arc/chat/chat/content_parts.dart';
 import '../../../data/models/media_item.dart';
 import '../../../models/journal_entry_model.dart';
 import '../../../prism/atlas/phase/phase_history_repository.dart';
@@ -34,8 +36,34 @@ class Layer0Populator {
       String content = _safeContent(journalEntry);
       List<String> keywords = List<String>.from(_safeKeywords(journalEntry));
 
-      // Enrich from file attachments (PDF, txt, md, docx) so LUMARA can scan text for chronicle
+      // Enrich from media attachments: images (altText/keywords), PDFs, files
       for (final media in journalEntry.media) {
+        if (media.type == MediaType.image || media.type == MediaType.video) {
+          // Image/video: use altText and analysisData for content + keyword extraction
+          if (media.altText != null && media.altText!.trim().isNotEmpty) {
+            content += '\n\n[Media: ${media.altText!.trim()}]';
+            _addKeywordsFromText(media.altText!, keywords);
+          }
+          if (media.ocrText != null && media.ocrText!.trim().isNotEmpty) {
+            content += '\n\n[OCR: ${media.ocrText!.trim()}]';
+            _addKeywordsFromText(media.ocrText!, keywords);
+          }
+          if (media.analysisData != null && media.analysisData!.isNotEmpty) {
+            final labels = media.analysisData!['labels'] as List? ?? [];
+            final objects = media.analysisData!['objects'] as List? ?? [];
+            for (final item in [...labels, ...objects]) {
+              if (item is Map) {
+                final label = item['label'] ?? item['identifier'];
+                if (label is String && label.length > 1 && !keywords.contains(label)) {
+                  if (keywords.length < 50) keywords.add(label);
+                }
+              } else if (item is String && item.length > 1 && !keywords.contains(item)) {
+                if (keywords.length < 50) keywords.add(item);
+              }
+            }
+          }
+          continue;
+        }
         if (media.type != MediaType.file) continue;
         final path = media.uri.replaceFirst(RegExp(r'^file://'), '');
         final name = media.altText ?? path.split(RegExp(r'[/\\]')).last;
@@ -115,6 +143,18 @@ class Layer0Populator {
     } catch (e) {
       print('❌ Layer0Populator: Failed to populate Layer 0 for entry ${journalEntry.id}: $e');
       return false;
+    }
+  }
+
+  /// Extract significant words from text and add to keywords (for Chronicle searchability).
+  void _addKeywordsFromText(String text, List<String> keywords) {
+    const stop = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'it', 'its'};
+    final words = text.toLowerCase().split(RegExp(r'[\s,;.!?\-:]+')).where((w) => w.length > 2).toList();
+    for (final w in words) {
+      if (stop.contains(w)) continue;
+      if (!keywords.contains(w) && keywords.length < 50) {
+        keywords.add(w);
+      }
     }
   }
 
@@ -265,5 +305,158 @@ class Layer0Populator {
     }
     final sorted = counted.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     return sorted.take(10).map((e) => e.key).toList();
+  }
+
+  /// Populate Layer 0 from a chat session.
+  /// Extracts content from messages (text, media alt/analysis) and builds keywords for Chronicle.
+  /// Uses entryId `chat_${session.id}` so sessions can be updated on new messages.
+  Future<bool> populateFromChatSession({
+    required ChatSession session,
+    required List<ChatMessage> messages,
+    required String userId,
+  }) async {
+    try {
+      final contentParts = <String>[];
+      final keywords = <String>[];
+      final mediaIds = <String>[];
+
+      for (final msg in messages) {
+        final role = msg.role == MessageRole.user ? 'User' : 'Assistant';
+        if (msg.textContent.trim().isNotEmpty) {
+          contentParts.add('[$role]: ${msg.textContent.trim()}');
+          _addKeywordsFromText(msg.textContent, keywords);
+        }
+        if (msg.contentParts != null) {
+          for (final part in msg.contentParts!) {
+            if (part is TextContentPart && part.text.trim().isNotEmpty) {
+              contentParts.add('[$role]: ${part.text.trim()}');
+              _addKeywordsFromText(part.text, keywords);
+            }
+            if (part is MediaContentPart) {
+              if (part.alt != null && part.alt!.trim().isNotEmpty) {
+                contentParts.add('[Media: ${part.alt!.trim()}]');
+                _addKeywordsFromText(part.alt!, keywords);
+              }
+              final meta = part.pointer.metadata;
+              if (meta.isNotEmpty) {
+                final kws = meta['keywords'];
+                if (kws is List) {
+                  for (final k in kws) {
+                    if (k is String && k.length > 1 && !keywords.contains(k) && keywords.length < 50) {
+                      keywords.add(k);
+                    }
+                  }
+                }
+                final labels = meta['labels'] as List?;
+                if (labels != null) {
+                  for (final item in labels) {
+                    if (item is String && item.length > 1 && !keywords.contains(item) && keywords.length < 50) {
+                      keywords.add(item);
+                    } else if (item is Map && item['label'] != null) {
+                      final label = item['label'].toString();
+                      if (label.length > 1 && !keywords.contains(label) && keywords.length < 50) {
+                        keywords.add(label);
+                      }
+                    }
+                  }
+                }
+              }
+              if (part.pointer.uri.isNotEmpty) mediaIds.add(part.pointer.uri);
+            }
+            if (part is PrismContentPart) {
+              final s = part.summary;
+              if (s.captions != null) {
+                for (final c in s.captions!) {
+                  contentParts.add('[Caption: $c]');
+                  _addKeywordsFromText(c, keywords);
+                }
+              }
+              if (s.transcript != null && s.transcript!.trim().isNotEmpty) {
+                contentParts.add('[Transcript: ${s.transcript!.trim()}]');
+                _addKeywordsFromText(s.transcript!, keywords);
+              }
+              if (s.objects != null) {
+                for (final o in s.objects!) {
+                  if (o.length > 1 && !keywords.contains(o) && keywords.length < 50) {
+                    keywords.add(o);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      final content = [
+        'Chat: ${session.subject}',
+        if (session.tags.isNotEmpty) 'Tags: ${session.tags.join(", ")}',
+        '',
+        contentParts.join('\n'),
+      ].join('\n');
+
+      final wordCount = content.isEmpty ? 0 : content.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+      _addKeywordsFromText(session.subject, keywords);
+      for (final t in session.tags) {
+        if (t.length > 1 && !keywords.contains(t) && keywords.length < 50) keywords.add(t);
+      }
+
+      final chatData = <String, dynamic>{
+        'session_id': session.id,
+        'subject': session.subject,
+        'message_count': session.messageCount,
+        'tags': session.tags,
+        if (session.displayPhase != null) 'phase': session.displayPhase,
+      };
+
+      final analysis = RawEntryAnalysis(
+        extractedThemes: keywords,
+        keywords: keywords,
+        entryType: 'chat',
+        chatData: chatData,
+      );
+
+      final schema = RawEntrySchema(
+        entryId: 'chat_${session.id}',
+        timestamp: session.updatedAt,
+        content: content,
+        metadata: RawEntryMetadata(
+          wordCount: wordCount,
+          voiceTranscribed: false,
+          mediaAttachments: mediaIds,
+        ),
+        analysis: analysis,
+      );
+
+      final rawEntry = ChronicleRawEntry.fromSchema(schema, userId);
+      await _layer0Repo.saveEntry(rawEntry);
+      print('✅ Layer0Populator: Populated Layer 0 for chat ${session.id}');
+      return true;
+    } catch (e) {
+      print('❌ Layer0Populator: Failed to populate Layer 0 for chat ${session.id}: $e');
+      return false;
+    }
+  }
+
+  /// Populate Layer 0 for multiple chat sessions (batch operation).
+  Future<({int succeeded, int failed})> populateFromChatSessions({
+    required List<ChatSession> sessions,
+    required String userId,
+    required Future<List<ChatMessage>> Function(String sessionId) getMessages,
+  }) async {
+    int succeeded = 0, failed = 0;
+    for (final session in sessions) {
+      final messages = await getMessages(session.id);
+      final ok = await populateFromChatSession(
+        session: session,
+        messages: messages,
+        userId: userId,
+      );
+      if (ok) {
+        succeeded++;
+      } else {
+        failed++;
+      }
+    }
+    return (succeeded: succeeded, failed: failed);
   }
 }

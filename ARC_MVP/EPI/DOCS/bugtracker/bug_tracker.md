@@ -160,6 +160,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Bugtracker Discovery & Consolidation run | — | — | 2026-02-26: BUG-ANALYZER-001 indexed; record count 39 → 40; BUGTRACKER_AUDIT_REPORT, BUGTRACKER_MASTER_INDEX, BUGTRACKER_TRIAGE_BACKLOG, bug_tracker refreshed. |
 | Entry citation format; chat/timeline/journal UI refinements | v3.3.59.2 | — | 2026-02-25: lumara_master_prompt ENTRY CITATION FORMAT; lumara_chat_redesign_screen, lumara_message_body, interactive_timeline_view, expanded_entry_view, journal_screen, inline_reflection_block; pubspec. |
 | SwarmSpace integration; Research Agent web search | v3.3.60 | — | 2026-02-25: swarmspaceRouter Cloud Function; SwarmSpaceClient, SwarmSpaceWebSearchTool; agents_connection_service removed; layer0_populator, journal, home_view updates. |
+| Research report editor; Outputs tab; chat/feed/CHRONICLE refinements | v3.3.61 | — | 2026-02-25: report_editor_screen, report_export_service, outputs_tab_screen; research_report_detail_screen expansion; lumara_chat_redesign_screen, layer0_populator, media_pick_and_analyze_service. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-25.
 

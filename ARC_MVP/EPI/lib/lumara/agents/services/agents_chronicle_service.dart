@@ -17,6 +17,16 @@ class AgentsChronicleService {
     return uid ?? 'default_user';
   }
 
+  /// Get a single research report by id. Returns null if not found.
+  Future<ResearchReport?> getResearchReportById(String userId, String reportId) async {
+    final list = await getResearchReports(userId);
+    try {
+      return list.firstWhere((r) => r.id == reportId);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Load research reports for the current user (active and archived).
   Future<List<ResearchReport>> getResearchReports(String userId, {bool includeArchived = true}) async {
     final list = await ResearchArtifactRepository.instance.listForUser(userId, includeArchived: includeArchived);
@@ -24,7 +34,7 @@ class AgentsChronicleService {
       id: a.sessionId,
       query: a.query,
       summary: a.summary,
-      detailedFindings: '',
+      detailedFindings: a.detailedFindings,
       generatedAt: a.timestamp,
       phase: _phaseNameToAtlas(a.phaseName),
       archived: a.archived,
@@ -57,6 +67,23 @@ class AgentsChronicleService {
   /// Permanently delete a research report.
   Future<void> deleteResearchReport(String userId, String sessionId) async {
     await ResearchArtifactRepository.instance.deleteArtifact(userId, sessionId);
+  }
+
+  /// Update research report content. Saves to artifact; visible in timeline and Outputs.
+  Future<void> updateResearchReport(
+    String userId,
+    String sessionId, {
+    String? query,
+    String? summary,
+    String? detailedFindings,
+  }) async {
+    await ResearchArtifactRepository.instance.updateArtifactContent(
+      userId: userId,
+      sessionId: sessionId,
+      query: query,
+      summary: summary,
+      detailedFindings: detailedFindings,
+    );
   }
 
   /// Load content drafts for the current user (active and archived).

@@ -134,7 +134,7 @@ class LumaraChatOrchestrator {
       );
 
       final uiReport = toUiReport(result.report, result.sessionId);
-      var completionMessage = _formatResearchCompletion(result.report);
+      var completionMessage = _formatResearchCompletion(result.report, result.sessionId);
       completionMessage = _validateAndSanitizeAgentOutput(
         completionMessage,
         agentName: 'ResearchAgent',
@@ -211,7 +211,7 @@ class LumaraChatOrchestrator {
     }
   }
 
-  String _formatResearchCompletion(agent_models.ResearchReport report) {
+  String _formatResearchCompletion(agent_models.ResearchReport report, String reportId) {
     final insights = report.keyInsights.take(3).map((i) => '• ${i.statement}').join('\n');
     return '''
 Research complete! 📊
@@ -227,7 +227,7 @@ $insights
 **Insights:** ${report.keyInsights.length} identified
 **Phase:** ${report.phase.name}
 
-[View Full Report in Agents Tab →]
+[View full report in Outputs tab](report:$reportId)
 ''';
   }
 
@@ -249,7 +249,7 @@ Preview:
 $preview
 ...
 
-[View & Edit Draft in Agents Tab →]
+[View & Edit Draft in Outputs tab](outputs:)
 ''';
   }
 
