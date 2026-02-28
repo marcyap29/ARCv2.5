@@ -743,7 +743,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Widget _buildDefaultProviderOption(ThemeData theme, bool isSelected, {bool isGemini = true}) {
     final provider = isGemini ? LLMProvider.gemini : LLMProvider.groq;
-    final label = isGemini ? 'Gemini 2.5 Flash (Default)' : 'Groq · Llama 3.3 70B (Fallback)';
+    final label = isGemini ? 'Gemini 3.0 Flash (Default)' : 'Groq · Llama 3.3 70B (Fallback)';
     final description = isGemini
         ? 'Google Gemini — primary provider. No API key needed when signed in.'
         : 'Groq Llama 3.3 70B — used when Gemini is unavailable.';

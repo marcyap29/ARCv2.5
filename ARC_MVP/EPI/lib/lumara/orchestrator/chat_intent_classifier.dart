@@ -83,8 +83,8 @@ Examples: "I'm feeling uncertain about the SBIR deadline", "Help me think throug
 Note: Questions about "my patterns over x days" or "over the last year" are reflection (conversation), not the pattern agent.
 
 **research** - Requests to investigate topics, gather information, analyze landscapes
-Triggers: "research", "investigate", "analyze", "find out about", "what do we know about"
-Examples: "Research SBIR requirements", "Investigate competitive landscape for AI memory systems"
+Triggers: "research", "investigate", "analyze", "find out about", "what do we know about", "what do people say", "what are people saying"
+Examples: "Research SBIR requirements", "What are people saying about AI journaling apps?", "Investigate competitive landscape for AI memory systems", "Find out about market trends for X"
 
 **writing** - Requests to create content (LinkedIn, articles, docs)
 Triggers: "write", "draft", "create a post", "compose"

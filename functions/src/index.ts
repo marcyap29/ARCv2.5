@@ -71,5 +71,8 @@ export { getWisprApiKey };
  */
 
 import { swarmspaceRouter, swarmspacePluginStatus } from "./functions/swarmspaceRouter";
+import { updateUserModelConfig } from "./functions/updateUserModelConfig";
+
 export { swarmspaceRouter };
 export { swarmspacePluginStatus };
+export { updateUserModelConfig };

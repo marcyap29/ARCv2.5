@@ -42,7 +42,7 @@ Future<String> _geminiDirectGenerateContent({
   bool jsonExpected = false,
 }) async {
   final uri = Uri.parse(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=$apiKey',
   );
   final body = <String, dynamic>{
     if (system.trim().isNotEmpty)
@@ -438,7 +438,7 @@ Stream<String> geminiSendStream({
   }
 
   final uri = Uri.parse(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=$apiKey&alt=sse',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:streamGenerateContent?key=$apiKey&alt=sse',
   );
 
   if (kDebugMode) print('DEBUG GEMINI STREAM: Using streaming endpoint');

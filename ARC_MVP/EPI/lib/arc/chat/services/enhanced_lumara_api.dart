@@ -8,6 +8,7 @@ import '../../../services/gemini_send.dart';
 import '../../../services/firebase_service.dart';
 import '../../../services/firebase_auth_service.dart';
 import 'groq_service.dart';
+import 'lumara_cloud_generate.dart';
 import 'lumara_reflection_settings_service.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
 import '../../../mira/memory/sentence_extraction_util.dart';
@@ -277,18 +278,13 @@ class EnhancedLumaraApi {
   void _ensureOrchestrator() {
     if (_orchestrator != null || !FeatureFlags.useOrchestrator) return;
     if (!_chronicleInitialized || _queryRouter == null || _contextBuilder == null) return;
-    final self = this;
     final writingAgent = WritingAgent(
       draftRepository: WritingDraftRepositoryImpl(),
       getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
       generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
-        final g = self._groq;
-        if (g == null) {
-          throw StateError('Writing requires a cloud API key (Groq). Set it in LUMARA settings.');
-        }
-        return g.generateContent(
-          prompt: userPrompt,
+        return generateForAgents(
           systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
           maxTokens: maxTokens ?? 800,
         );
       },

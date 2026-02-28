@@ -1,6 +1,6 @@
 # Prompt Tracker
 
-**Version:** 1.11.0  
+**Version:** 1.12.0  
 **Last Updated:** February 25, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-02-25 | Doc sync v3.3.62: Per-user LLM model config (updateUserModelConfig, llmRouter); sendChatMessage refactor; prompts.ts centralized; no PROMPT_REFERENCES bump | CHANGELOG v3.3.62 |
 | 2026-02-25 | Doc sync v3.3.61: research_prompts, query_planner, writing_prompts content updates; report editor, outputs tab, chat/feed/CHRONICLE; no PROMPT_REFERENCES bump | CHANGELOG v3.3.61 |
 | 2026-02-25 | Doc sync v3.3.60: SwarmSpace integration, Research Agent web search; no new prompts (SwarmSpace is tool layer) | CHANGELOG v3.3.60 |
 | 2026-02-25 | Doc sync v3.3.59.2: master prompt ENTRY CITATION FORMAT (use titles not UUIDs; `[title](entry:uuid)` for clickable links); no PROMPT_REFERENCES bump | CHANGELOG v3.3.59.2 |

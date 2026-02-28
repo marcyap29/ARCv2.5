@@ -1,7 +1,35 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.61
+**Version:** 3.3.62
 **Last Updated:** February 25, 2026
+
+---
+
+## [3.3.62] - February 25, 2026
+
+### Per-user LLM model configuration; llmRouter; sendChatMessage refactor
+
+**Firebase Cloud Functions:**
+- **updateUserModelConfig:** New callable — saves per-user LLM provider (groq, openai, anthropic, gemini, cloudflare, swarmspace), model ID, and optional API key. Validates provider/model; encrypts API keys via LLM_SETTINGS_ENCRYPTION_KEY. Supports useProjectKey for groq/gemini (no user key).
+- **llmRouter.ts, groqClient.ts:** New — multi-provider LLM routing; routes chat to user's configured provider.
+- **saveUserModelConfig.ts, userLlmSettings.ts:** Load/save encrypted user model config from Firestore.
+- **config/providers.ts:** Provider registry; add providers without changing chat logic.
+- **prompts.ts, crypto.ts:** Centralized prompts and encryption utilities.
+- **sendChatMessage.ts:** Refactored to use llmRouter and user model config; per-user provider/model selection.
+- **analyzeJournalEntry.ts, generateJournalPrompts.ts, generateJournalReflection.ts:** Use new routing.
+- **swarmspaceRouter.ts:** API key override support for SwarmSpace LLM plugins.
+
+**Client:**
+- **lumara_cloud_generate.dart, lumara_assistant_cubit.dart:** Wire to updateUserModelConfig; support in-chat model change flow.
+- **lumara_settings_screen.dart, research_screen.dart, writing_screen.dart:** Settings/agents UI updates.
+- **lumara_chat_orchestrator.dart:** Orchestrator updates for model config flow.
+- **enhanced_lumara_api.dart, gemini_provider.dart:** API and provider refinements.
+
+**Docs:**
+- **functions/MODEL_CONFIG_SETUP.md:** Per-user model configuration setup (providers, in-chat flow, API).
+- **functions/ARCHITECTURE.md, functions/README.md, functions/QUICK_START.md:** Updated.
+- **DOCS/backend.md:** updateUserModelConfig, llmRouter.
+- **DOCS/FLUTTER_COMMANDS.md:** New — Flutter command reference.
 
 ---
 

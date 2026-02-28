@@ -1,16 +1,13 @@
 // functions/generateJournalPrompts.ts - Journal prompt generation Cloud Function
+// Uses Groq (GPT-OSS 120B) - aligned with Flutter LUMARA
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { admin } from "../admin";
-import { ModelRouter } from "../modelRouter";
 import { checkUnifiedDailyLimit, checkRateLimit } from "../rateLimiter";
-import { createLLMClient } from "../llmClients";
-import {
-  SubscriptionTier,
-  UserDocument,
-} from "../types";
-import { GEMINI_API_KEY } from "../config";
+import { UserDocument } from "../types";
+import { GROQ_API_KEY } from "../config";
+import { groqChatCompletion } from "../groqClient";
 
 const db = admin.firestore();
 
@@ -21,7 +18,7 @@ const db = admin.firestore();
  * 1. Verify Firebase Auth token (automatic via onCall)
  * 2. Load user from Firestore
  * 3. Check rate limit
- * 4. Route to appropriate model (FREE: Gemini Flash, PAID: Gemini Pro)
+ * 4. Uses Groq (GPT-OSS 120B) for prompt generation
  * 5. Generate prompts using LLM with journal prompt generator system prompt
  * 6. Return prompts (4 initial or 12-18 expanded)
  * 
@@ -33,7 +30,7 @@ const db = admin.firestore();
  */
 export const generateJournalPrompts = onCall(
   {
-    secrets: [GEMINI_API_KEY],
+    secrets: [GROQ_API_KEY],
   },
   async (request) => {
     const { expanded = false, context } = request.data || {};
@@ -53,9 +50,7 @@ export const generateJournalPrompts = onCall(
       }
 
       const user = userDoc.data() as UserDocument;
-      // Support both 'plan' and 'subscriptionTier' fields
-      const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
-      const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;
+      void user; // Reserved for future tier-based logic
       const userEmail = request.auth?.token?.email as string | undefined;
 
       // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
@@ -78,12 +73,11 @@ export const generateJournalPrompts = onCall(
         );
       }
 
-      // Select model (internal only - Gemini by default)
-      const modelFamily = await ModelRouter.selectModelWithFailover(tier, "chat_message");
-      const modelConfig = ModelRouter.getConfig(modelFamily);
-      const client = createLLMClient(modelConfig);
-
-      logger.info(`Using model: ${modelFamily} (${modelConfig.modelId}) for journal prompts`);
+      const apiKey = GROQ_API_KEY.value();
+      if (!apiKey) {
+        throw new HttpsError("internal", "Groq API key not configured");
+      }
+      logger.info(`Using Groq (GPT-OSS 120B) for journal prompts`);
 
       // Build context string from provided context
       let contextString = "";
@@ -181,15 +175,13 @@ ${contextString || "No specific context provided. Generate prompts that are mean
         ? "Generate an expanded list of 12-18 journaling prompts using the 33/33/33 mix rule. Return only the prompts as a bulleted list."
         : "Generate exactly 4 initial journaling prompts (1 contextual, 1 fun/playful, 1 deep/inspirational, 1 unrelated). Return only the numbered prompts (1. 2. 3. 4.).";
 
-      // Generate prompts using LLM
-      let promptsText = "";
-      // Gemini-only path
-      const geminiClient = client as any;
-      promptsText = await geminiClient.generateContent(
-        userMessage,
-        systemPrompt,
-        []
-      );
+      // Generate prompts using Groq
+      const promptsText = await groqChatCompletion(apiKey, {
+        system: systemPrompt,
+        user: userMessage,
+        temperature: 0.7,
+        maxTokens: 4096,
+      });
 
       // Parse prompts from response
       const prompts: string[] = [];

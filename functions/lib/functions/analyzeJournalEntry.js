@@ -1,15 +1,16 @@
 "use strict";
 // functions/analyzeJournalEntry.ts - Journal entry analysis Cloud Function
+// Uses Groq (GPT-OSS 120B) - aligned with Flutter LUMARA
+// Note: Same general purpose as in-journal reflection (LUMARA analysis) but with structured output (summary, themes, suggestions) and crisis handling
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.analyzeJournalEntry = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
 const admin_1 = require("../admin");
-const modelRouter_1 = require("../modelRouter");
 const quotaGuards_1 = require("../quotaGuards");
 const rateLimiter_1 = require("../rateLimiter");
-const llmClients_1 = require("../llmClients");
 const config_1 = require("../config");
+const groqClient_1 = require("../groqClient");
 const crisis_detector_1 = require("../sentinel/crisis_detector");
 const resolve_1 = require("../prism/rivet/resolve");
 const crisisTemplates_1 = require("../services/crisisTemplates");
@@ -23,7 +24,7 @@ const db = admin_1.admin.firestore();
  * 2. LOCAL ANALYSIS FIRST: SENTINEL crisis detection
  * 3. Check intervention level and limited mode
  * 4. RESOLVE recovery tracking
- * 5. If safe: Route to appropriate model (FREE: Gemini Flash, PAID: Gemini Pro)
+ * 5. If safe: Uses Groq (GPT-OSS 120B) for analysis
  * 6. Generate analysis using LLM OR crisis template
  * 7. Increment analysis count
  * 8. Return structured analysis
@@ -35,7 +36,7 @@ const db = admin_1.admin.firestore();
  * Response: { summary, themes, suggestions, tier, ...crisis data }
  */
 exports.analyzeJournalEntry = (0, https_1.onCall)({
-    secrets: [config_1.GEMINI_API_KEY],
+    secrets: [config_1.GROQ_API_KEY],
 }, async (request) => {
     const { entryId, entryContent } = request.data;
     // Validate request
@@ -205,7 +206,7 @@ This will expire automatically. In the meantime, please reach out:
         // ============================================
         let analysisText;
         let usedGemini = false;
-        // Testing accounts NEVER use Gemini
+        // Testing accounts use mock response
         if (isTestingAccount) {
             firebase_functions_1.logger.info('🧪 Testing account - using mock response');
             analysisText = generateTestModeReflection({
@@ -215,9 +216,9 @@ This will expire automatically. In the meantime, please reach out:
             });
             usedGemini = false;
         }
-        // Safe to use Gemini
+        // Safe to use Groq for analysis
         else {
-            firebase_functions_1.logger.info('✓ Safe for Gemini - proceeding to API');
+            firebase_functions_1.logger.info('✓ Safe for analysis - proceeding to Groq API');
             // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
             const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail);
             if (!dailyCheck.allowed) {
@@ -228,11 +229,11 @@ This will expire automatically. In the meantime, please reach out:
             if (!rateLimitCheck.allowed) {
                 throw new https_1.HttpsError("resource-exhausted", rateLimitCheck.error?.message || "Rate limit exceeded", rateLimitCheck.error);
             }
-            // Select model (internal only - Gemini by default)
-            const modelFamily = await modelRouter_1.ModelRouter.selectModelWithFailover(tier, "journal_analysis");
-            const modelConfig = modelRouter_1.ModelRouter.getConfig(modelFamily);
-            const client = (0, llmClients_1.createLLMClient)(modelConfig);
-            firebase_functions_1.logger.info(`Using model: ${modelFamily} (${modelConfig.modelId}) - Internal only, not exposed to user`);
+            const apiKey = config_1.GROQ_API_KEY.value();
+            if (!apiKey) {
+                throw new https_1.HttpsError("internal", "Groq API key not configured");
+            }
+            firebase_functions_1.logger.info(`Using Groq (GPT-OSS 120B) for journal analysis - Internal only, not exposed to user`);
             // Build analysis prompt
             const systemPrompt = `You are LUMARA, the Life-aware Unified Memory and Reflection Assistant built on the EPI stack.
 You analyze journal entries to provide:
@@ -251,17 +252,14 @@ Provide a structured analysis with:
 - Summary: A brief overview of the entry
 - Themes: Key themes or patterns you notice
 - Suggestions: Actionable suggestions for reflection or growth`;
-            // Generate analysis
-            if (modelConfig.family === "GEMINI_FLASH" || modelConfig.family === "GEMINI_PRO") {
-                const geminiClient = client;
-                analysisText = await geminiClient.generateContent(analysisPrompt, systemPrompt);
-            }
-            else {
-                // Claude or other clients
-                const claudeClient = client;
-                analysisText = await claudeClient.generateMessage(analysisPrompt, systemPrompt);
-            }
-            usedGemini = true;
+            // Generate analysis using Groq
+            analysisText = await (0, groqClient_1.groqChatCompletion)(apiKey, {
+                system: systemPrompt,
+                user: analysisPrompt,
+                temperature: 0.7,
+                maxTokens: 4096,
+            });
+            usedGemini = false; // Legacy field - we use Groq now
         }
         // ============================================
         // PHASE 3: PARSE AND RETURN RESULTS
@@ -286,7 +284,7 @@ Provide a structured analysis with:
             used_gemini: usedGemini,
             processing_path: isTestingAccount ? 'mock' :
                 sentinelResult.crisis_detected ? 'crisis_template' :
-                    'gemini_api',
+                    'groq_api',
             detection_time_ms: detectionTime,
             resolve: resolveResult
         };

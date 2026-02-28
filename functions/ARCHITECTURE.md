@@ -99,11 +99,11 @@
 
 | Tier | Operation | Model Selected |
 |------|-----------|----------------|
-| FREE | Any | `gemini-2.5-flash` (backend quotas) |
-| PAID | journal_analysis | `gemini-2.5` (unlimited) |
+| FREE | Any | `gemini-3-flash-preview` (backend quotas) |
+| PAID | journal_analysis | `gemini-3-flash-preview` (unlimited) |
 | PAID | deep_reflection | Claude Sonnet |
-| PAID | chat_message | `gemini-2.5` (unlimited) |
-| PAID | theme_extraction | `gemini-2.5` |
+| PAID | chat_message | `gemini-3-flash-preview` (unlimited) |
+| PAID | theme_extraction | `gemini-3-flash-preview` |
 | PAID | monthly_summary | Claude Sonnet |
 
 **Note**: FREE and PAID both use the same Gemini 2.5 model. The difference is backend-enforced quotas, not model capabilities.
@@ -136,7 +136,7 @@
 ### 3. LLM Clients (`src/llmClients.ts`)
 
 **GeminiClient**:
-- Supports `gemini-2.5-flash` (free tier) and `gemini-2.5` (paid tier)
+- Supports `gemini-3-flash-preview` (free and paid tiers)
 - Uses `generativelanguage.googleapis.com/v1beta`
 - Both use the same underlying Gemini 2.5 model - difference is backend quotas
 - Handles system instructions and conversation history
@@ -216,8 +216,8 @@
 - `ANTHROPIC_API_KEY`
 
 ### Config (set via `firebase functions:config:set`)
-- `GEMINI_FLASH_MODEL_ID` (default: "gemini-2.5-flash" - free tier with backend quotas)
-- `GEMINI_PRO_MODEL_ID` (default: "gemini-2.5" - paid tier, unlimited, same model)
+- `GEMINI_FLASH_MODEL_ID` (default: "gemini-3-flash-preview" - free tier with backend quotas)
+- `GEMINI_PRO_MODEL_ID` (default: "gemini-3-flash-preview" - paid tier, unlimited)
 - `CLAUDE_HAIKU_MODEL_ID` (default: "claude-3-haiku-20240307")
 - `CLAUDE_SONNET_MODEL_ID` (default: "claude-3-5-sonnet-20241022")
 - `FREE_MAX_ANALYSES_PER_ENTRY` (default: "4")
@@ -312,11 +312,11 @@ The codebase includes:
 1. Create paid tier user
 2. Verify unlimited analyses
 3. Verify unlimited messages
-4. Verify `gemini-2.5` / Claude routing based on operation
+4. Verify `gemini-3-flash-preview` routing based on operation
 
 ### Model Routing Tests
-1. `journal_analysis` → `gemini-2.5` (paid, unlimited)
+1. `journal_analysis` → `gemini-3-flash-preview` (paid, unlimited)
 2. `deep_reflection` → Claude Sonnet (paid)
-3. `chat_message` → `gemini-2.5` (paid, unlimited)
-4. All operations → `gemini-2.5-flash` (free, backend quotas)
+3. `chat_message` → `gemini-3-flash-preview` (paid, unlimited)
+4. All operations → `gemini-3-flash-preview` (free, backend quotas)
 

@@ -82,8 +82,8 @@ firebase deploy --only functions
 - `ANTHROPIC_API_KEY` - Get from https://console.anthropic.com/
 
 ### Optional Config (Defaults Provided)
-- `GEMINI_FLASH_MODEL_ID` (default: "gemini-2.5-flash" - free tier)
-- `GEMINI_PRO_MODEL_ID` (default: "gemini-2.5" - paid tier, unlimited)
+- `GEMINI_FLASH_MODEL_ID` (default: "gemini-3-flash-preview" - free tier)
+- `GEMINI_PRO_MODEL_ID` (default: "gemini-3-flash-preview" - paid tier, unlimited)
 - `CLAUDE_HAIKU_MODEL_ID` (default: "claude-3-haiku-20240307")
 - `CLAUDE_SONNET_MODEL_ID` (default: "claude-3-5-sonnet-20241022")
 - `FREE_MAX_ANALYSES_PER_ENTRY` (default: "4")

@@ -25,6 +25,8 @@ const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
 const params_1 = require("firebase-functions/params");
 const authGuard_1 = require("../authGuard");
+const userLlmSettings_1 = require("../userLlmSettings");
+const config_1 = require("../config");
 // ── Secrets ────────────────────────────────────────────────────────────────────
 // Set these once via Firebase CLI:
 //   firebase functions:secrets:set SWARMSPACE_INTERNAL_TOKEN
@@ -99,8 +101,10 @@ function canAccessPlugin(userTier, requiredTier) {
     return TIER_RANK[userTier] >= TIER_RANK[requiredTier];
 }
 // ── The router function ────────────────────────────────────────────────────────
+/** Plugin IDs that accept per-user API key override (LLM plugins) */
+const LLM_PLUGINS = new Set(["gemini-flash"]);
 exports.swarmspaceRouter = (0, https_1.onCall)({
-    secrets: [SWARMSPACE_INTERNAL_TOKEN],
+    secrets: [SWARMSPACE_INTERNAL_TOKEN, config_1.LLM_SETTINGS_ENCRYPTION_KEY],
 }, async (request) => {
     // Step 1: Verify the user is logged in (Firebase handles token validation automatically).
     // This is exactly the same pattern as your existing proxyGemini function.
@@ -129,6 +133,17 @@ exports.swarmspaceRouter = (0, https_1.onCall)({
         });
     }
     firebase_functions_1.logger.info(`SwarmSpace router: user=${userId} tier=${userTier} plugin=${plugin_id}`);
+    // Step 4b: For LLM plugins, pass user's API key if they have custom config
+    let paramsToSend = params ?? {};
+    if (LLM_PLUGINS.has(plugin_id)) {
+        const encKey = config_1.LLM_SETTINGS_ENCRYPTION_KEY.value();
+        if (encKey) {
+            const userLlm = await (0, userLlmSettings_1.loadUserLlmSettings)(userId, encKey);
+            if (userLlm && (userLlm.provider === "gemini" || userLlm.provider === "swarmspace")) {
+                paramsToSend = { ...paramsToSend, _apiKeyOverride: userLlm.apiKey };
+            }
+        }
+    }
     // Step 5: Forward the request to the Cloudflare worker.
     // We stamp it with three headers the worker requires:
     //   - Authorization        → proves this came from our router (not from the internet)
@@ -146,7 +161,7 @@ exports.swarmspaceRouter = (0, https_1.onCall)({
                 "X-SwarmSpace-User-Id": userId,
                 "X-SwarmSpace-User-Tier": userTier,
             },
-            body: JSON.stringify(params ?? {}),
+            body: JSON.stringify(paramsToSend),
             // 25 second timeout — Firebase functions time out at 60s,
             // this leaves headroom for our own error handling
             signal: AbortSignal.timeout(25000),
@@ -191,8 +206,7 @@ exports.swarmspaceRouter = (0, https_1.onCall)({
 // LUMARA calls this to check if a plugin is available for the current user.
 // Lightweight — no quota consumed, no worker called.
 exports.swarmspacePluginStatus = (0, https_1.onCall)({}, async (request) => {
-    const { userId: _userId, isPremium, user } = await (0, authGuard_1.enforceAuth)(request);
-    const userId = _userId;
+    const { isPremium, user } = await (0, authGuard_1.enforceAuth)(request);
     const { plugin_id } = request.data ?? {};
     if (!plugin_id || typeof plugin_id !== "string") {
         throw new https_1.HttpsError("invalid-argument", "plugin_id is required");

@@ -1,17 +1,12 @@
 // functions/generateJournalReflection.ts - In-journal LUMARA reflection Cloud Function
+// Uses Groq (GPT-OSS 120B) - aligned with Flutter EnhancedLumaraApi
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
-import { ModelRouter } from "../modelRouter";
 import { checkUnifiedDailyLimit, checkRateLimit } from "../rateLimiter";
-import { createLLMClient } from "../llmClients";
 import { enforceAuth } from "../authGuard";
-import {
-  SubscriptionTier,
-} from "../types";
-import {
-  GEMINI_API_KEY,
-} from "../config";
+import { GROQ_API_KEY } from "../config";
+import { groqChatCompletion } from "../groqClient";
 
 // Note: db removed as user document is now loaded via enforceAuth()
 
@@ -22,7 +17,7 @@ import {
  * 1. Verify Firebase Auth token (automatic via onCall)
  * 2. Load user from Firestore
  * 3. Check rate limit (free tier: 20 requests/day, 3 requests/minute)
- * 4. Route to appropriate model (FREE: Gemini Flash, PAID: Gemini Pro)
+ * 4. Uses Groq (GPT-OSS 120B) for reflection
  * 5. Generate reflection using LLM with LUMARA Master Prompt
  * 6. Return reflection text
  * 
@@ -47,7 +42,7 @@ import {
  */
 export const generateJournalReflection = onCall(
   {
-    secrets: [GEMINI_API_KEY],
+    secrets: [GROQ_API_KEY],
     // Auth enforced via enforceAuth() - no invoker: "public"
   },
   async (request) => {
@@ -72,16 +67,12 @@ export const generateJournalReflection = onCall(
 
     // Enforce authentication (supports anonymous trial)
     const authResult = await enforceAuth(request);
-    const { userId, isAnonymous, isPremium, user } = authResult;
+    const { userId, isAnonymous, isPremium } = authResult;
     const userEmail = request.auth?.token?.email as string | undefined;
 
     logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous}, premium: ${isPremium})`);
 
     try {
-      // Support both 'plan' and 'subscriptionTier' fields
-      const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
-      const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;
-
       // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
       const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail);
       if (!dailyCheck.allowed) {
@@ -102,12 +93,11 @@ export const generateJournalReflection = onCall(
         );
       }
 
-      // Select model (internal only - Gemini by default)
-      const modelFamily = await ModelRouter.selectModelWithFailover(tier, "chat_message");
-      const modelConfig = ModelRouter.getConfig(modelFamily);
-      const client = createLLMClient(modelConfig);
-
-      logger.info(`Using model: ${modelFamily} (${modelConfig.modelId}) for journal reflection`);
+      const apiKey = GROQ_API_KEY.value();
+      if (!apiKey) {
+        throw new HttpsError("internal", "Groq API key not configured");
+      }
+      logger.info(`Using Groq (GPT-OSS 120B) for journal reflection`);
 
       // Build system prompt with LUMARA Master Prompt
       // Note: For journal reflections, we use a simplified version without web access
@@ -236,10 +226,13 @@ Follow the ECHO structure (Empathize → Clarify → Highlight → Open) but exp
 
       logger.info(`Generating reflection with prompt length: ${userPrompt.length}`);
 
-      // Generate reflection using LLM
-      // Gemini-only path
-      const geminiClient = client as any;
-      const reflection: string = await geminiClient.generateContent(userPrompt, systemPrompt, []);
+      // Generate reflection using Groq
+      const reflection: string = await groqChatCompletion(apiKey, {
+        system: systemPrompt,
+        user: userPrompt,
+        temperature: 0.7,
+        maxTokens: 4096,
+      });
 
       logger.info(`Generated reflection (length: ${reflection.length})`);
 

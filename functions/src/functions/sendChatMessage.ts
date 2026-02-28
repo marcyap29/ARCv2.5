@@ -1,27 +1,36 @@
 // functions/sendChatMessage.ts - Chat message Cloud Function
+// Supports per-user LLM (Groq, OpenAI, Anthropic, Gemini) via updateUserModelConfig
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { admin } from "../admin";
-import { ModelRouter } from "../modelRouter";
 import { incrementMessageCount } from "../quotaGuards";
 import { checkUnifiedDailyLimit, checkRateLimit } from "../rateLimiter";
-import { createLLMClient } from "../llmClients";
 import { enforceAuth } from "../authGuard";
 import {
-  SubscriptionTier,
   ChatResponse,
   ChatMessage,
   ChatThreadDocument,
+  ModelChangeFlowState,
 } from "../types";
-import { GEMINI_API_KEY } from "../config";
+import { GROQ_API_KEY, GEMINI_API_KEY, LLM_SETTINGS_ENCRYPTION_KEY } from "../config";
+import { groqChatCompletion } from "../groqClient";
+import { llmChatCompletion } from "../llmRouter";
+import { loadUserLlmSettings } from "../userLlmSettings";
+import { saveUserModelConfig, saveUserModelConfigWithProjectKey } from "../saveUserModelConfig";
+import { LUMARA_CHAT_SYSTEM_PROMPT } from "../prompts";
+import { resolveProvider, getProvider, canUseProjectKey } from "../config/providers";
+import type { ProviderId } from "../config/providers";
 import {
   selectClosingStatement,
   classifyConversationCategory,
-  detectEnergyLevel
+  detectEnergyLevel,
 } from "../closingTracker.js";
 
 const db = admin.firestore();
+
+/** Keywords that trigger model-change flow */
+const MODEL_CHANGE_INTENT = /change\s*(my\s*)?model|switch\s*model|use\s*(a\s*)?different\s*model|set\s*(my\s*)?model/i;
 
 /**
  * Send a chat message
@@ -30,7 +39,7 @@ const db = admin.firestore();
  * 1. Verify Firebase Auth token (automatic via onCall)
  * 2. Load user and thread from Firestore
  * 3. Check quota (free tier: max 200 messages per thread)
- * 4. Route to appropriate model (FREE: Gemini Flash, PAID: Gemini Pro)
+ * 4. Uses Groq (GPT-OSS 120B) for chat responses
  * 5. Generate response using LLM
  * 6. Append message to thread
  * 7. Increment message count
@@ -45,8 +54,7 @@ const db = admin.firestore();
  */
 export const sendChatMessage = onCall(
   {
-    secrets: [GEMINI_API_KEY],
-    // Auth enforced via enforceAuth() - no invoker: "public"
+    secrets: [GROQ_API_KEY, GEMINI_API_KEY, LLM_SETTINGS_ENCRYPTION_KEY],
   },
   async (request) => {
     const { threadId, message } = request.data;
@@ -61,16 +69,12 @@ export const sendChatMessage = onCall(
 
     // Enforce authentication (supports anonymous trial)
     const authResult = await enforceAuth(request);
-    const { userId, isAnonymous, user } = authResult;
+    const { userId, isAnonymous } = authResult;
     const userEmail = request.auth?.token?.email as string | undefined;
 
     logger.info(`Sending chat message in thread ${threadId} for user ${userId} (anonymous: ${isAnonymous})`);
 
     try {
-      // Support both 'plan' and 'subscriptionTier' fields
-      const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
-      const tier: SubscriptionTier = (plan === "pro" ? "PAID" : "FREE") as SubscriptionTier;
-
       // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
       const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail);
       if (!dailyCheck.allowed) {
@@ -117,6 +121,28 @@ export const sendChatMessage = onCall(
         await threadRef.set(thread);
       }
 
+      // ── Model-change flow (in-chat) ───────────────────────────────────────
+      const flowState = thread.metadata?.activeFlow;
+      if (flowState?.flow === "model_change") {
+        const encKey = LLM_SETTINGS_ENCRYPTION_KEY.value();
+        const result = await handleModelChangeFlow(
+          flowState,
+          message.trim(),
+          userId,
+          threadRef,
+          thread,
+          conversationHistory,
+          encKey || ""
+        );
+        if (result) return result;
+      }
+
+      // Start model-change flow if user asked to change model
+      if (!flowState && MODEL_CHANGE_INTENT.test(message)) {
+        const result = await startModelChangeFlow(threadRef, thread, message, conversationHistory);
+        if (result) return result;
+      }
+
       // Fetch recent journal entries for context
       let journalContext = "";
       try {
@@ -140,280 +166,47 @@ export const sendChatMessage = onCall(
         logger.warn(`Failed to load journal entries: ${error}`);
       }
 
-      // Select model (internal only - Gemini by default)
-      const modelFamily = await ModelRouter.selectModelWithFailover(tier, "chat_message");
-      const modelConfig = ModelRouter.getConfig(modelFamily);
-      const client = createLLMClient(modelConfig);
-
-      logger.info(`Using model: ${modelFamily} (${modelConfig.modelId}) - Internal only, not exposed to user`);
-
-      // Build system prompt with web access and trigger-safety policy
-      const systemPrompt = `You are LUMARA, the Life-aware Unified Memory and Reflection Assistant built on the EPI stack.
-Your primary context is always the user's lived history, journals, and internal data.
-You may use the public web when needed, but you must handle it with precision and restraint.
-
-Follow these rules exactly:
-
----
-
-## 1. Priority of Sources
-
-1. Use information from:
-   * the user's journals,
-   * their prior conversations,
-   * their uploaded documents,
-   * their saved knowledge bases
-   **before** you consider the web.
-
-2. Use the web when:
-   * the user directly asks for external information, or
-   * the question cannot be answered from their private data.
-
-Never block the user from accessing external information.
-
----
-
-## 2. Trigger-Safety Without Censorship
-
-Your job is not to deny information.
-Your job is to mediate how that information is delivered.
-
-When web results are likely to include:
-* violence,
-* sexual violence,
-* graphic injury,
-* graphic medical content,
-* hate content,
-* extreme sensationalism,
-
-apply this protocol automatically.
-
----
-
-## 3. The Three-Stage Protocol (Mandatory)
-
-### A. Content Note
-
-Give a short, steady, non-dramatic heads-up.
-Example:
-"Note: This topic involves violence. I will give a clean summary. Tell me if you want unfiltered detail."
-
-### B. Summary (Default Delivery)
-
-Provide a structured, factual, non-graphic overview.
-Remove sensory detail.
-Avoid vivid description.
-Avoid emotional projection.
-Focus on mechanisms, sequence, implications, and relevance.
-
-### C. Offer Detail (Only on Explicit Request)
-
-If the user says:
-* "Give me the full detail."
-* "Show me the raw version."
-* "You can give the specifics."
-
-then provide deeper information, without unnecessary vividness or indulgent description.
-
-You must never surprise the user with graphic content.
-
----
-
-## 4. Neutral, Grounded Delivery
-
-When presenting potentially destabilizing information:
-* Keep a steady tone.
-* Avoid dramatization.
-* Avoid embellishment.
-* Stick to structure, causes, and context.
-* Anchor the content to what the user asked.
-
-Do not assume the user is fragile.
-Do not provide emotional soothing unless they request it.
-
----
-
-## 5. User Agency Always Comes First
-
-If the user wants unfiltered information, you provide it.
-Your filters are safeguards, not restrictions.
-You do not censor.
-You do not infantilize.
-You only modulate the delivery to avoid accidental harm.
-
----
-
-## 6. When No Emotional Signal Is Given
-
-Default to:
-* a brief content note (if needed),
-* a clean summary,
-* and an optional deeper dive.
-
-This avoids accidental triggering without limiting access.
-
----
-
-## 7. Never Redirect or Stall
-
-Do not tell the user to "be careful."
-Do not deny or defer.
-Do not moralize.
-Answer directly, with the protocol above.
-
----
-
-## 8. Core Principle
-
-Information is allowed.
-Graphic surprise is not.
-
----
-
----
-
-## 9. Natural Response Endings (CRITICAL)
-
-**CRITICAL: Avoid Generic Ending Questions**
-
-Do NOT end responses with generic, formulaic questions that feel robotic or forced. These phrases are explicitly prohibited:
-
-* ❌ "Does this resonate with you?"
-* ❌ "Does this resonate?"
-* ❌ "What would be helpful to focus on next?" (when used as a default closing)
-* ❌ "Is there anything else you want to explore here?"
-* ❌ Any variation of "Does this make sense?" or "Does this help?" as a default ending
-* ❌ "How does this sit with you?" (when used formulaically, not organically)
-
-**When Questions Are Appropriate:**
-
-Questions may end responses ONLY when they:
-* Genuinely deepen reflection or invite meaningful engagement
-* Feel natural and organic to the flow of the response
-* Connect directly to specific patterns or insights you've identified
-* Offer gentle guidance without being directive or formulaic
-* Emerge naturally from the content, not as a default closing mechanism
-
-**Natural Completion:**
-
-Silence is a valid and often preferred ending when the reflection feels complete. Do not force a question at the end of every response. Let your responses end naturally when the thought is complete, when you've provided sufficient insight, or when the guidance feels finished. A complete, thoughtful response that ends without a question is often more natural and effective than one that forces a generic question.
-
-**Examples of Natural Endings:**
-* ✅ Ending with a complete thought: "By explicitly addressing these power dynamics, you will position ARC and EPI not just as tools, but as systems designed to foster equity, empowerment, and ethical behavior."
-* ✅ Ending with a specific insight: "The pattern here suggests that transparency and user sovereignty aren't just features—they're foundational principles that prevent extraction."
-* ✅ Ending with a natural conclusion: "These four approaches—sovereignty, transparency, equitable distribution, and countering dependence—form a coherent framework for ethical system design."
-* ✅ Ending with silence when the reflection is complete (no question needed)
-
-**Examples of Forced Endings to Avoid:**
-* ❌ "Does this resonate with you?" (generic, formulaic)
-* ❌ "What would be helpful to focus on next?" (when used as default closing)
-* ❌ "Is there anything else you want to explore here?" (generic extension question)
-* ❌ "How does this sit with you?" (when used formulaically, not organically)
-* ❌ Any question added just because you feel you need to end with a question
-
-**When to Use Ending Questions:**
-Only use ending questions when they:
-* Connect directly to a specific insight or pattern you've identified
-* Genuinely invite deeper reflection on a particular aspect
-* Feel like a natural extension of the conversation, not a default mechanism
-* Are specific and contextual, not generic or formulaic
-
----
-
-## 10. Explicit Request Handling (CRITICAL)
-
-When the user explicitly requests opinions, thoughts, recommendations, or critical analysis, you MUST provide direct, substantive responses. Do NOT default to reflection-only.
-
-**Explicit Request Signals:**
-* "Tell me your thoughts" / "What do you think" / "What are your thoughts"
-* "Give me the hard truth" / "Be honest" / "Tell me straight"
-* "What's your opinion" / "What's your take"
-* "Am I missing anything" / "What am I missing" / "What's missing"
-* "Give me recommendations" / "What would you recommend" / "What do you recommend"
-* "Review this" / "Analyze this" / "Critique this"
-* "Is this reasonable" / "Does this sound right" / "What's wrong with this"
-* "Help with [document/topic]" / "Help me with [document/topic]" / "Can you help with [document/topic]"
-
-**Document/Technical Analysis Requests (CRITICAL):**
-
-When users share documents, technical content, compliance materials, or ask for help analyzing external content:
-
-1. **Focus exclusively on the provided content** - Do NOT reference unrelated journal entries or past conversations unless directly relevant to the document being analyzed
-2. **Provide detailed, substantive analysis** - Break down the content systematically. For complex documents (compliance plans, technical specs, etc.), provide comprehensive analysis. Be thorough and detailed - there is no limit on response length.
-3. **Identify specific strengths and weaknesses** - Be concrete and specific, not vague or generic. Example: "The de-identification pipeline is well-structured because it uses deterministic tokenization, but it lacks consideration for X scenario where..."
-4. **Point out gaps, risks, or missing elements** - If asked "what's missing," actively identify specific gaps with examples. Example: "Missing consideration of X scenario where Y could occur, which would require Z mitigation"
-5. **Offer concrete recommendations** - Provide actionable next steps with specific details, not just observations. Example: "Add Y to address Z risk by implementing..."
-6. **Be thorough and detailed** - Use your expertise (compliance, architecture, security, etc.) to provide informed analysis. There is no limit on response length - be comprehensive and complete.
-7. **Do NOT end with generic extension questions** - Provide complete analysis that stands on its own. Do not ask "Is there anything else you want to explore here?" or similar generic extension questions. Let your persona naturally ask questions only when genuinely relevant to the analysis, not as a default ending.
-
-**When Explicit Requests Are Made:**
-1. **Provide direct opinions and analysis** - Don't just reflect, give your actual thoughts
-2. **Offer critical feedback** - If asked for "hard truth," be direct and honest
-3. **Identify gaps and missing elements** - If asked what's missing, actively identify gaps
-4. **Give concrete recommendations** - Provide actionable advice, not just possibilities
-5. **Be process and task-friendly** - Focus on helping the user accomplish their goal
-
-**Response Structure for Explicit Requests:**
-* Start with a brief acknowledgment of the request
-* Provide your direct thoughts/opinions/analysis
-* Identify what's missing or what could be improved (if applicable)
-* Give concrete recommendations or next steps
-* Maintain your persona's style (warmth, rigor, challenge level)
-
-**Example:**
-User: "Tell me your thoughts on this HIPAA compliance plan. Give me the hard truth."
-
-Response should include:
-- Direct assessment of key strengths (e.g., "The de-identification pipeline is well-structured because it uses deterministic tokenization, which ensures consistent handling of PHI. The boundary definition clearly separates covered and non-covered components...")
-- Critical analysis of specific weaknesses and gaps (e.g., "However, the documentation lacks consideration for X scenario where Y could occur, which would require Z mitigation. Missing explicit handling of edge cases such as...")
-- Concrete recommendations for improvement (e.g., "To address these gaps, add Y to the threat model to cover Z risk by implementing... Consider establishing a regular audit process for...")
-- Overall assessment and next steps (e.g., "Overall, this is a solid foundation, but addressing the identified gaps will strengthen compliance. The most critical next step is...")
-
-Focus exclusively on the document content, not unrelated journal entries. Provide honest, direct feedback without generic validation. Be thorough and detailed - there is no limit on response length. Do not end with generic extension questions like "Is there anything else you want to explore here?" - let your persona naturally ask questions only when genuinely relevant.
-
-**RESPONSE LENGTH**: For all responses, be thorough and detailed - there is no limit on response length. Let your response flow naturally to completion. Do not end with generic extension questions - let your persona naturally ask questions only when genuinely relevant, not as a default ending.
-
----
-
-## 11. Multi-Turn Conversation Tracking (CRITICAL)
-
-**CRITICAL: Multi-Turn Conversation Rules**
-
-When conversation history is provided, the current user message is a CONTINUATION of the conversation above, not an independent request.
-
-**🚨 CRITICAL MULTI-TURN CONVERSATION RULES:**
-
-1. **The current user input is a RESPONSE to the most recent turn above.**
-   - If you asked a question in the last turn, the current user input is ANSWERING that question.
-   - If you requested information in the last turn, the current user input is PROVIDING that information.
-
-2. **DO NOT repeat questions you already asked** - the user has answered them.
-
-3. **DO NOT ask for information you already requested** - the user has provided it.
-
-4. **USE the information the user just provided to fulfill their original request.**
-
-5. **When the user provides information you requested, immediately use it to complete their original request.**
-
-**Example scenario:**
-- Turn 1: User asks "Can you find scriptures about hope?"
-- Turn 2: LUMARA asks "What themes or feelings do you want the verses to address?"
-- Turn 3 (CURRENT): User says "I want verses about hope and strength"
-- → CORRECT: Provide scriptures about hope and strength (fulfill the original request)
-- → WRONG: Ask "What themes or feelings do you want the verses to address?" again (you already asked, they answered)
-
-**When the user provides information you requested:**
-- Immediately use that information to fulfill their original request
-- Do not ask for clarification unless the information is genuinely unclear or incomplete
-- Do not repeat the question - recognize that they have answered it
-
-**Natural Conversation Flow:**
-- Reference shared history naturally: "Like you mentioned earlier about..." or "Building on what you said about..."
-- Vary acknowledgment based on context: Sometimes a brief acknowledgment is enough. Sometimes more reflection is needed. Read the moment.
-- Don't force questions into every response. Natural conversations include statements that don't prompt further dialogue.
-- Use continuity indicators when relevant: "Still working through that..." "That's new..." "Same pattern as..."
-
-Be thoughtful, empathetic, and supportive while maintaining these protocols.`;
+      // Load per-user LLM config or use default (Groq)
+      const encKey = LLM_SETTINGS_ENCRYPTION_KEY.value();
+      const userLlm = encKey ? await loadUserLlmSettings(userId, encKey) : null;
+
+      let apiKey: string;
+      let llmProvider: ProviderId | null = null;
+      let llmModelId: string | null = null;
+
+      if (userLlm) {
+        if (userLlm.useProjectKey) {
+          apiKey = userLlm.provider === "groq" ? (GROQ_API_KEY.value() ?? "") : (GEMINI_API_KEY.value() ?? "");
+          if (!apiKey) {
+            throw new HttpsError("failed-precondition", `${userLlm.provider} API key not configured for this project`);
+          }
+          logger.info(`Using user LLM (project default): ${userLlm.provider}/${userLlm.modelId}`);
+        } else {
+          apiKey = userLlm.apiKey ?? "";
+          if (!apiKey) {
+            logger.warn("User LLM config missing apiKey, falling back to default");
+            apiKey = GROQ_API_KEY.value() ?? "";
+            llmProvider = "groq";
+            llmModelId = getProvider("groq").defaultModelId;
+          } else {
+            logger.info(`Using user LLM: ${userLlm.provider}/${userLlm.modelId}`);
+          }
+        }
+        if (llmProvider === null) {
+          llmProvider = userLlm.provider;
+          llmModelId = userLlm.modelId;
+        }
+      } else {
+        apiKey = GROQ_API_KEY.value() ?? "";
+        if (!apiKey) {
+          throw new HttpsError("internal", "Groq API key not configured");
+        }
+        llmProvider = "groq";
+        llmModelId = getProvider("groq").defaultModelId;
+        logger.info(`Using default Groq for chat`);
+      }
+
+      const systemPrompt = LUMARA_CHAT_SYSTEM_PROMPT;
 
       // Generate response
       let assistantResponse: string;
@@ -423,22 +216,26 @@ Be thoughtful, empathetic, and supportive while maintaining these protocols.`;
         ? `${message}${journalContext}` 
         : message;
 
-      if (modelConfig.family === "GEMINI_FLASH" || modelConfig.family === "GEMINI_PRO") {
-        // Use Gemini client
-        const geminiClient = client as any;
-        assistantResponse = await geminiClient.generateContent(
-          messageWithContext,
-          systemPrompt,
-          conversationHistory
-        );
+      if (userLlm && llmProvider && llmModelId) {
+        assistantResponse = await llmChatCompletion({
+          provider: llmProvider,
+          modelId: llmModelId,
+          apiKey,
+          accountId: userLlm?.accountId,
+          system: systemPrompt,
+          user: messageWithContext,
+          conversationHistory,
+          temperature: 0.7,
+          maxTokens: 4096,
+        });
       } else {
-        // Use Claude client
-        const claudeClient = client as any;
-        assistantResponse = await claudeClient.generateMessage(
-          message,
-          systemPrompt,
-          conversationHistory
-        );
+        assistantResponse = await groqChatCompletion(apiKey, {
+          system: systemPrompt,
+          user: messageWithContext,
+          conversationHistory,
+          temperature: 0.7,
+          maxTokens: 4096,
+        });
       }
 
       // PROGRAMMATIC CLOSING STATEMENT ENFORCEMENT - DISABLED
@@ -506,6 +303,162 @@ Be thoughtful, empathetic, and supportive while maintaining these protocols.`;
     }
   }
 );
+
+/** Build ChatResponse from thread and assistant message */
+function buildChatResponse(
+  threadId: string,
+  thread: ChatThreadDocument,
+  assistantMessage: ChatMessage
+): ChatResponse {
+  const messageCount = (thread.messageCount || 0) + 1; // +1 for the user message we're adding
+  return { threadId, message: assistantMessage, messageCount };
+}
+
+/** Start model-change flow when user asks to change model */
+async function startModelChangeFlow(
+  threadRef: admin.firestore.DocumentReference,
+  thread: ChatThreadDocument,
+  message: string,
+  conversationHistory: Array<{ role: "user" | "assistant"; content: string }>
+): Promise<ChatResponse | null> {
+  const flowState: ModelChangeFlowState = {
+    flow: "model_change",
+    step: "await_provider",
+  };
+  const assistantContent =
+    "I can help you switch to a different model. Which provider would you like? Choose one: **groq**, **openai**, **anthropic**, **gemini**, **cloudflare**, or **swarmspace**.";
+  const now = admin.firestore.Timestamp.now() as any;
+  const userMsg: ChatMessage = { role: "user", content: message, timestamp: now };
+  const assistantMsg: ChatMessage = { role: "assistant", content: assistantContent, timestamp: now };
+  const updatedMessages = [...(thread.messages || []), userMsg, assistantMsg];
+  await threadRef.update({
+    messages: updatedMessages,
+    metadata: { activeFlow: flowState },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await incrementMessageCount(threadRef.id);
+  return buildChatResponse(threadRef.id, { ...thread, messageCount: (thread.messageCount || 0) + 1 }, assistantMsg);
+}
+
+/** Handle model-change flow steps. Returns ChatResponse if handled, null to continue to normal LLM. */
+async function handleModelChangeFlow(
+  flowState: ModelChangeFlowState,
+  message: string,
+  userId: string,
+  threadRef: admin.firestore.DocumentReference,
+  thread: ChatThreadDocument,
+  _conversationHistory: Array<{ role: "user" | "assistant"; content: string }>,
+  encKey: string
+): Promise<ChatResponse | null> {
+  const now = admin.firestore.Timestamp.now() as any;
+  const userMsg: ChatMessage = { role: "user", content: message, timestamp: now };
+  let assistantContent: string;
+  let nextFlow: ModelChangeFlowState | null = null;
+
+  if (flowState.step === "await_provider") {
+    const provider = resolveProvider(message);
+    if (!provider) {
+      assistantContent =
+        "I didn't recognize that provider. Please choose one: **groq**, **openai**, **anthropic**, **gemini**, **cloudflare**, or **swarmspace**.";
+      nextFlow = flowState;
+    } else {
+      const cfg = getProvider(provider);
+      if (cfg.requiresAccountId) {
+        assistantContent = `Got it — ${cfg.displayName}. First, what's your Cloudflare account ID? (Find it in the Cloudflare dashboard URL: dash.cloudflare.com → Workers & Pages → your account ID)`;
+        nextFlow = { flow: "model_change", step: "await_account_id", provider };
+      } else if (canUseProjectKey(provider)) {
+        assistantContent = `Got it — ${cfg.displayName}. Use **default** (no API key needed) or provide your **own** key? Reply \`default\` or \`own\`.`;
+        nextFlow = { flow: "model_change", step: "await_use_default", provider };
+      } else {
+        assistantContent = `Got it — ${cfg.displayName}. What's the model ID? (e.g. \`${cfg.defaultModelId}\` or any model from that provider)`;
+        nextFlow = { flow: "model_change", step: "await_model_id", provider };
+      }
+    }
+  } else if (flowState.step === "await_use_default") {
+    const choice = message.toLowerCase().trim();
+    if (choice === "default" || choice === "d" || choice === "use default") {
+      const cfg = getProvider(flowState.provider as ProviderId);
+      assistantContent = `Using project default. What's the model ID? (e.g. \`${cfg.defaultModelId}\`)`;
+      nextFlow = { ...flowState, step: "await_model_id", useProjectKey: true };
+    } else if (choice === "own" || choice === "o" || choice === "my key" || choice === "my own") {
+      const cfg = getProvider(flowState.provider as ProviderId);
+      assistantContent = `Got it. What's the model ID? (e.g. \`${cfg.defaultModelId}\`)`;
+      nextFlow = { ...flowState, step: "await_model_id", useProjectKey: false };
+    } else {
+      assistantContent = "Reply **default** (no API key) or **own** (provide your key).";
+      nextFlow = flowState;
+    }
+  } else if (flowState.step === "await_account_id") {
+    const accountId = message.trim();
+    if (!accountId || accountId.length < 3) {
+      assistantContent = "Please enter a valid Cloudflare account ID (at least 3 characters).";
+      nextFlow = flowState;
+    } else {
+      const cfg = getProvider(flowState.provider as ProviderId);
+      assistantContent = `Thanks. What's the model ID? (e.g. \`${cfg.defaultModelId}\`)`;
+      nextFlow = { ...flowState, step: "await_model_id", accountId };
+    }
+  } else if (flowState.step === "await_model_id") {
+    const modelId = message.trim();
+    if (modelId.length < 2 || modelId.length > 128) {
+      assistantContent = "Please enter a valid model ID (2–128 characters).";
+      nextFlow = { ...flowState, modelId: undefined };
+    } else if (flowState.useProjectKey) {
+      try {
+        await saveUserModelConfigWithProjectKey(userId, flowState.provider as ProviderId, modelId);
+        const providerCfg = getProvider(flowState.provider as ProviderId);
+        assistantContent = `Done. Your chat is now using **${providerCfg.displayName}** (project default) with model \`${modelId}\`.`;
+        nextFlow = null;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to save";
+        assistantContent = `Couldn't save: ${msg}. Please try again.`;
+        nextFlow = flowState;
+      }
+    } else {
+      assistantContent = "Please provide your API key for this provider. It will be stored securely and never shared.";
+      nextFlow = { ...flowState, step: "await_api_key", modelId };
+    }
+  } else if (flowState.step === "await_api_key") {
+    const provider = flowState.provider as ProviderId;
+    const modelId = (flowState.modelId || "").trim();
+    const accountId = flowState.accountId?.trim();
+    if (!provider || !modelId || !encKey) {
+      assistantContent = "Something went wrong. Please try again or use Settings to configure your model.";
+      nextFlow = null;
+    } else {
+      try {
+        const providerCfg = getProvider(provider);
+        const accountIdToUse = providerCfg.requiresAccountId ? accountId : undefined;
+        await saveUserModelConfig(userId, provider, modelId, message.trim(), encKey, accountIdToUse);
+        assistantContent = `Done. Your chat is now using **${providerCfg.displayName}** with model \`${modelId}\`.`;
+        nextFlow = null; // Clear flow
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Validation failed";
+        assistantContent = `I couldn't save that API key: ${msg}. Please check it and try again.`;
+        nextFlow = flowState;
+      }
+    }
+  } else {
+    return null;
+  }
+
+  const assistantMsg: ChatMessage = { role: "assistant", content: assistantContent, timestamp: now };
+  const updatedMessages = [...(thread.messages || []), userMsg, assistantMsg];
+  const updateData: Record<string, unknown> = {
+    messages: updatedMessages,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (nextFlow) {
+    updateData.metadata = { activeFlow: nextFlow };
+  } else {
+    updateData["metadata"] = admin.firestore.FieldValue.delete();
+  }
+  await threadRef.update(updateData);
+  await incrementMessageCount(threadRef.id);
+
+  const updatedThread = { ...thread, messages: updatedMessages, messageCount: (thread.messageCount || 0) + 1 };
+  return buildChatResponse(threadRef.id, updatedThread, assistantMsg);
+}
 
 /**
  * Enforce closing statement rotation using programmatic tracking

@@ -33,7 +33,7 @@ class GeminiProvider extends LLMProviderBase {
     final userPrompt = context['userPrompt'] as String;
 
     final uri = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=$apiKey',
     );
 
     // Use the passed system prompt or default to LUMARA Reflective Intelligence Core

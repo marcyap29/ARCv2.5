@@ -23,6 +23,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { enforceAuth } from "../authGuard";
+import { loadUserLlmSettings } from "../userLlmSettings";
+import { LLM_SETTINGS_ENCRYPTION_KEY } from "../config";
 
 // ── Secrets ────────────────────────────────────────────────────────────────────
 // Set these once via Firebase CLI:
@@ -117,9 +119,12 @@ function canAccessPlugin(userTier: Tier, requiredTier: Tier): boolean {
 }
 
 // ── The router function ────────────────────────────────────────────────────────
+/** Plugin IDs that accept per-user API key override (LLM plugins) */
+const LLM_PLUGINS = new Set(["gemini-flash"]);
+
 export const swarmspaceRouter = onCall(
   {
-    secrets: [SWARMSPACE_INTERNAL_TOKEN],
+    secrets: [SWARMSPACE_INTERNAL_TOKEN, LLM_SETTINGS_ENCRYPTION_KEY],
   },
   async (request) => {
     // Step 1: Verify the user is logged in (Firebase handles token validation automatically).
@@ -161,6 +166,18 @@ export const swarmspaceRouter = onCall(
       `SwarmSpace router: user=${userId} tier=${userTier} plugin=${plugin_id}`
     );
 
+    // Step 4b: For LLM plugins, pass user's API key if they have custom config
+    let paramsToSend = params ?? {};
+    if (LLM_PLUGINS.has(plugin_id)) {
+      const encKey = LLM_SETTINGS_ENCRYPTION_KEY.value();
+      if (encKey) {
+        const userLlm = await loadUserLlmSettings(userId, encKey);
+        if (userLlm && (userLlm.provider === "gemini" || userLlm.provider === "swarmspace")) {
+          paramsToSend = { ...paramsToSend, _apiKeyOverride: userLlm.apiKey };
+        }
+      }
+    }
+
     // Step 5: Forward the request to the Cloudflare worker.
     // We stamp it with three headers the worker requires:
     //   - Authorization        → proves this came from our router (not from the internet)
@@ -179,7 +196,7 @@ export const swarmspaceRouter = onCall(
           "X-SwarmSpace-User-Id": userId,
           "X-SwarmSpace-User-Tier": userTier,
         },
-        body: JSON.stringify(params ?? {}),
+        body: JSON.stringify(paramsToSend),
         // 25 second timeout — Firebase functions time out at 60s,
         // this leaves headroom for our own error handling
         signal: AbortSignal.timeout(25_000),
@@ -238,8 +255,7 @@ export const swarmspaceRouter = onCall(
 export const swarmspacePluginStatus = onCall(
   {},
   async (request) => {
-    const { userId: _userId, isPremium, user } = await enforceAuth(request);
-    const userId = _userId;
+    const { isPremium, user } = await enforceAuth(request);
     const { plugin_id } = request.data ?? {};
 
     if (!plugin_id || typeof plugin_id !== "string") {

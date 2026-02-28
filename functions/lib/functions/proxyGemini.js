@@ -50,7 +50,7 @@ exports.proxyGemini = (0, https_1.onCall)({
         }
         const genAI = new generative_ai_1.GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             generationConfig: jsonExpected
                 ? { responseMimeType: "application/json" }
                 : undefined,

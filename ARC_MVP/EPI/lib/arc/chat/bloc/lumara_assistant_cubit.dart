@@ -772,13 +772,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     print('LUMARA Debug: Added user message, new count: ${updatedMessages.length}');
 
+    // Infer seeking type for agentic loop — Research/Writing skip the "what triggered this?" interrupt
+    final seekingType = _inferSeekingType(text);
+
     // Dual chronicle: run agentic loop (chat modality). If interrupt, show clarifying question and wait for reply.
+    // Research/Writing intents skip interrupt; they use research-scoping questions instead.
     final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
     String phaseName = await UserPhaseService.getCurrentPhase();
     if (phaseName.isEmpty) phaseName = 'unknown';
     final agenticContext = AgenticContext(
       currentPhase: phaseName,
       readinessScore: 0.5,
+      seekingType: seekingType,
       modality: AgenticModality.chat,
     );
     try {
@@ -2757,7 +2762,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
 
       final classifier = ChatIntentClassifier(
         generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          return generateWithLumaraCloud(
+          return generateForAgents(
             systemPrompt: systemPrompt,
             userPrompt: userPrompt,
             maxTokens: maxTokens ?? 600,
@@ -2768,7 +2773,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       final researchAgent = ResearchAgent(
         getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
         generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          return generateWithLumaraCloud(
+          return generateForAgents(
             systemPrompt: systemPrompt,
             userPrompt: userPrompt,
             maxTokens: maxTokens ?? 1200,
@@ -2781,7 +2786,7 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
         draftRepository: WritingDraftRepositoryImpl(),
         getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
         generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          return generateWithLumaraCloud(
+          return generateForAgents(
             systemPrompt: systemPrompt,
             userPrompt: userPrompt,
             maxTokens: maxTokens ?? 800,
@@ -2801,6 +2806,29 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     }
   }
 
+  /// Lightweight heuristic to infer seeking type for agentic loop.
+  /// Research/Writing skip the "what triggered this?" interrupt.
+  String? _inferSeekingType(String text) {
+    final lower = text.toLowerCase().trim();
+    if (lower.length < 10) return null;
+    final researchKeywords = [
+      'research', 'investigate', 'find out', 'search for', 'look up',
+      'what do people say', 'what are people saying', 'what\'s the buzz',
+      'analyze', 'find information', 'compile', 'gather info',
+    ];
+    final writingKeywords = [
+      'write ', 'draft ', 'article', 'essay', 'post about', 'compose',
+      'create a post', 'create content', 'linkedin',
+    ];
+    for (final k in researchKeywords) {
+      if (lower.contains(k)) return 'Research';
+    }
+    for (final k in writingKeywords) {
+      if (lower.contains(k)) return 'Writing';
+    }
+    return null;
+  }
+
   /// If the message is research/writing intent, run the agent and return true; otherwise false.
   Future<bool> _tryChatAgentPath(
     String text,
@@ -2813,8 +2841,9 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     // proxyGroq call immediately before the main response call, which triggers the
     // GTMSessionFetcher "was already running" warning on iOS (BUG-LUMARA-GTM-001).
     final lowerText = text.toLowerCase().trim();
-    final mightNeedAgent = lowerText.length > 15 && (
+    final mightNeedAgent = lowerText.length > 12 && (
       lowerText.contains('research') ||
+      lowerText.contains('investigate') ||
       lowerText.contains('write ') ||
       lowerText.contains('draft ') ||
       lowerText.contains('article') ||
@@ -2822,9 +2851,14 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       lowerText.contains('report') ||
       lowerText.contains('search for') ||
       lowerText.contains('find information') ||
+      lowerText.contains('find out') ||
       lowerText.contains('look up') ||
+      lowerText.contains('what do people say') ||
+      lowerText.contains('what are people saying') ||
+      lowerText.contains('what\'s the buzz') ||
       lowerText.contains('summarize') ||
-      lowerText.contains('compile')
+      lowerText.contains('compile') ||
+      lowerText.contains('analyze ')
     );
     if (!mightNeedAgent) return false;
 

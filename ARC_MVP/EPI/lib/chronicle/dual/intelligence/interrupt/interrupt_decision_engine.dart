@@ -84,7 +84,10 @@ class InterruptDecisionEngine {
     AgenticContext context,
     ClassifiedGaps classified,
   ) {
-    if (context.seekingType == 'Reflection') {
+    // Skip interrupt for Reflection, Research, and Writing — those have their own flows
+    if (context.seekingType == 'Reflection' ||
+        context.seekingType == 'Research' ||
+        context.seekingType == 'Writing') {
       return const InterruptDecision(shouldInterrupt: false);
     }
     if (context.currentPhase == 'Recovery' && context.readinessScore < 0.4) {

@@ -73,12 +73,35 @@ export interface JournalEntryDocument {
 }
 
 /**
+ * Per-user LLM settings (stored in Firestore, API key encrypted)
+ */
+export interface LLMSettings {
+  provider: string; // "groq" | "openai" | "anthropic" | "gemini"
+  modelId: string;
+  apiKeyEncrypted: string;
+  updatedAt: admin.firestore.Timestamp;
+}
+
+/**
+ * Model-change flow state (stored in thread metadata)
+ */
+export interface ModelChangeFlowState {
+  flow: "model_change";
+  step: "await_provider" | "await_use_default" | "await_account_id" | "await_model_id" | "await_api_key";
+  provider?: string;
+  useProjectKey?: boolean;
+  accountId?: string;
+  modelId?: string;
+}
+
+/**
  * Chat thread document structure
  */
 export interface ChatThreadDocument {
   userId: string;
   messageCount: number;
   messages: ChatMessage[];
+  metadata?: { activeFlow?: ModelChangeFlowState };
   createdAt: admin.firestore.Timestamp;
   updatedAt: admin.firestore.Timestamp;
 }

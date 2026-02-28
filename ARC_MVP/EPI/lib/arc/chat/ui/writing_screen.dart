@@ -108,7 +108,7 @@ class _WritingScreenState extends State<WritingScreen> {
         draftRepository: WritingDraftRepositoryImpl(),
         getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
         generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          return generateWithLumaraCloud(
+          return generateForAgents(
             systemPrompt: systemPrompt,
             userPrompt: userPrompt,
             maxTokens: maxTokens ?? 800,

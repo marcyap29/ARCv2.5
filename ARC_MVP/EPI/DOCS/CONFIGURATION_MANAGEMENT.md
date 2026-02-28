@@ -130,6 +130,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 **2026-02-25 (follow-up):** Doc sync v3.3.61 — Research report editor, Outputs tab, chat/feed/CHRONICLE refinements; report_editor_screen, report_export_service, outputs_tab_screen, media_pick_and_analyze_service; research_prompts, query_planner, writing_prompts content updates. main merged into test.
 
+**2026-02-25 (follow-up):** Doc sync v3.3.62 — Per-user LLM model config (updateUserModelConfig, llmRouter, groqClient, saveUserModelConfig); sendChatMessage refactor; MODEL_CONFIG_SETUP.md, FLUTTER_COMMANDS.md. main merged into test.
+
 **Status:** ✅ Ready for commit and push.
 
 ---

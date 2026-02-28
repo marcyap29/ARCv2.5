@@ -1,14 +1,14 @@
 "use strict";
 // functions/generateJournalPrompts.ts - Journal prompt generation Cloud Function
+// Uses Groq (GPT-OSS 120B) - aligned with Flutter LUMARA
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateJournalPrompts = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
 const admin_1 = require("../admin");
-const modelRouter_1 = require("../modelRouter");
 const rateLimiter_1 = require("../rateLimiter");
-const llmClients_1 = require("../llmClients");
 const config_1 = require("../config");
+const groqClient_1 = require("../groqClient");
 const db = admin_1.admin.firestore();
 /**
  * Generate journaling prompts
@@ -17,7 +17,7 @@ const db = admin_1.admin.firestore();
  * 1. Verify Firebase Auth token (automatic via onCall)
  * 2. Load user from Firestore
  * 3. Check rate limit
- * 4. Route to appropriate model (FREE: Gemini Flash, PAID: Gemini Pro)
+ * 4. Uses Groq (GPT-OSS 120B) for prompt generation
  * 5. Generate prompts using LLM with journal prompt generator system prompt
  * 6. Return prompts (4 initial or 12-18 expanded)
  *
@@ -28,7 +28,7 @@ const db = admin_1.admin.firestore();
  * Response: { prompts: string[] }
  */
 exports.generateJournalPrompts = (0, https_1.onCall)({
-    secrets: [config_1.GEMINI_API_KEY],
+    secrets: [config_1.GROQ_API_KEY],
 }, async (request) => {
     const { expanded = false, context } = request.data || {};
     const userId = request.auth?.uid;
@@ -43,9 +43,7 @@ exports.generateJournalPrompts = (0, https_1.onCall)({
             throw new https_1.HttpsError("not-found", "User not found");
         }
         const user = userDoc.data();
-        // Support both 'plan' and 'subscriptionTier' fields
-        const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
-        const tier = (plan === "pro" ? "PAID" : "FREE");
+        void user; // Reserved for future tier-based logic
         const userEmail = request.auth?.token?.email;
         // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
         const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail);
@@ -57,11 +55,11 @@ exports.generateJournalPrompts = (0, https_1.onCall)({
         if (!rateLimitCheck.allowed) {
             throw new https_1.HttpsError("resource-exhausted", rateLimitCheck.error?.message || "Rate limit exceeded", rateLimitCheck.error);
         }
-        // Select model (internal only - Gemini by default)
-        const modelFamily = await modelRouter_1.ModelRouter.selectModelWithFailover(tier, "chat_message");
-        const modelConfig = modelRouter_1.ModelRouter.getConfig(modelFamily);
-        const client = (0, llmClients_1.createLLMClient)(modelConfig);
-        firebase_functions_1.logger.info(`Using model: ${modelFamily} (${modelConfig.modelId}) for journal prompts`);
+        const apiKey = config_1.GROQ_API_KEY.value();
+        if (!apiKey) {
+            throw new https_1.HttpsError("internal", "Groq API key not configured");
+        }
+        firebase_functions_1.logger.info(`Using Groq (GPT-OSS 120B) for journal prompts`);
         // Build context string from provided context
         let contextString = "";
         if (context) {
@@ -155,11 +153,13 @@ ${contextString || "No specific context provided. Generate prompts that are mean
         const userMessage = expanded
             ? "Generate an expanded list of 12-18 journaling prompts using the 33/33/33 mix rule. Return only the prompts as a bulleted list."
             : "Generate exactly 4 initial journaling prompts (1 contextual, 1 fun/playful, 1 deep/inspirational, 1 unrelated). Return only the numbered prompts (1. 2. 3. 4.).";
-        // Generate prompts using LLM
-        let promptsText = "";
-        // Gemini-only path
-        const geminiClient = client;
-        promptsText = await geminiClient.generateContent(userMessage, systemPrompt, []);
+        // Generate prompts using Groq
+        const promptsText = await (0, groqClient_1.groqChatCompletion)(apiKey, {
+            system: systemPrompt,
+            user: userMessage,
+            temperature: 0.7,
+            maxTokens: 4096,
+        });
         // Parse prompts from response
         const prompts = [];
         if (expanded) {

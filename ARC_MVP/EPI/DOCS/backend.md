@@ -1,6 +1,6 @@
 # Backend Architecture & Setup
 
-**Version:** 3.3.60
+**Version:** 3.3.62
 **Last Updated:** February 25, 2026
 **Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration (web), RevenueCat (in-app purchases), Local Backup Services, and Groq API Proxy (GPT-OSS 120B primary)
 
@@ -115,7 +115,7 @@ exports.proxyGemini = onCall(
     
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY.value());
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       tools: [{ googleSearch: {} }],
       generationConfig: jsonExpected ? { responseMimeType: "application/json" } : undefined,
     });
@@ -171,6 +171,7 @@ LUMARA's web access is governed by a comprehensive 10-rule safety layer that ens
    - `proxyGroq` - API key proxy for Groq API (Llama 3.3 70B / Mixtral) — **primary for LUMARA (v3.3.24)**
    - `proxyGemini` - API key proxy for Gemini API — **fallback when Groq unavailable**
    - `swarmspaceRouter` - SwarmSpace API front door; validates auth, routes to tier-appropriate Cloudflare plugin workers (brave-search, tavily-search, semantic-scholar, wikipedia, url-reader, etc.); used by Research Agent web search
+   - `updateUserModelConfig` - Per-user LLM config (provider, model, API key); groq/openai/anthropic/gemini/cloudflare/swarmspace; LLM_SETTINGS_ENCRYPTION_KEY required
    - `getAssemblyAIToken` - Returns AssemblyAI API key for premium users (Universal Streaming v3)
    - `sendChatMessage` - LUMARA chat (currently deprecated, uses proxy instead)
    - `generateJournalReflection` - In-journal reflections (currently deprecated, uses proxy instead)
@@ -363,6 +364,7 @@ firebase deploy --only functions:proxyGemini
 | `proxyGroq` | ✅ Deployed | YES | API key proxy for Groq (Llama 3.3 70B / Mixtral) — **primary** |
 | `proxyGemini` | ✅ Deployed | YES | API key proxy for Gemini — **fallback** |
 | `swarmspaceRouter` | ✅ New (v3.3.60) | NO | SwarmSpace API router; tier-based plugin routing (brave-search, tavily-search, etc.); Research Agent web search |
+| `updateUserModelConfig` | ✅ New (v3.3.62) | NO | Per-user LLM provider/model/API key; requires LLM_SETTINGS_ENCRYPTION_KEY |
 | `getAssemblyAIToken` | ✅ Deployed | YES | AssemblyAI API key for premium users (v3) |
 | `sendChatMessage` | ✅ Deployed | NO | Deprecated, uses proxy |
 | `generateJournalReflection` | ✅ Deployed | NO | Deprecated, uses proxy |
@@ -403,8 +405,8 @@ firebase deploy --only functions:proxyGemini
 File: `functions/.env.arc-epi`
 ```bash
 # Model Configuration
-GEMINI_FLASH_MODEL_ID=gemini-2.5-flash
-GEMINI_PRO_MODEL_ID=gemini-2.5
+GEMINI_FLASH_MODEL_ID=gemini-3-flash-preview
+GEMINI_PRO_MODEL_ID=gemini-3-flash-preview
 
 # Rate Limiting
 FREE_MAX_REQUESTS_PER_DAY=50

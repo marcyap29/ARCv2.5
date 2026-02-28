@@ -409,7 +409,7 @@ class GeminiClient {
         return AsyncStream<GenerationEvent> { continuation in
             Task {
                 do {
-                    let url = URL(string: "\(baseURL)/models/gemini-2.5-flash:streamGenerateContent?key=\(apiKey)")!
+                    let url = URL(string: "\(baseURL)/models/gemini-3-flash-preview:streamGenerateContent?key=\(apiKey)")!
                     
                     var request = URLRequest(url: url)
                     request.httpMethod = "POST"

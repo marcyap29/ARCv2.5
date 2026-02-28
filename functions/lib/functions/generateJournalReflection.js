@@ -1,14 +1,14 @@
 "use strict";
 // functions/generateJournalReflection.ts - In-journal LUMARA reflection Cloud Function
+// Uses Groq (GPT-OSS 120B) - aligned with Flutter EnhancedLumaraApi
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateJournalReflection = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
-const modelRouter_1 = require("../modelRouter");
 const rateLimiter_1 = require("../rateLimiter");
-const llmClients_1 = require("../llmClients");
 const authGuard_1 = require("../authGuard");
 const config_1 = require("../config");
+const groqClient_1 = require("../groqClient");
 // Note: db removed as user document is now loaded via enforceAuth()
 /**
  * Generate a journal reflection (in-journal LUMARA)
@@ -17,7 +17,7 @@ const config_1 = require("../config");
  * 1. Verify Firebase Auth token (automatic via onCall)
  * 2. Load user from Firestore
  * 3. Check rate limit (free tier: 20 requests/day, 3 requests/minute)
- * 4. Route to appropriate model (FREE: Gemini Flash, PAID: Gemini Pro)
+ * 4. Uses Groq (GPT-OSS 120B) for reflection
  * 5. Generate reflection using LLM with LUMARA Master Prompt
  * 6. Return reflection text
  *
@@ -41,7 +41,7 @@ const config_1 = require("../config");
  * Response: { reflection: string }
  */
 exports.generateJournalReflection = (0, https_1.onCall)({
-    secrets: [config_1.GEMINI_API_KEY],
+    secrets: [config_1.GROQ_API_KEY],
     // Auth enforced via enforceAuth() - no invoker: "public"
 }, async (request) => {
     const { entryText, entryId: _entryId, // For per-entry usage limit tracking (reserved)
@@ -52,13 +52,10 @@ exports.generateJournalReflection = (0, https_1.onCall)({
     }
     // Enforce authentication (supports anonymous trial)
     const authResult = await (0, authGuard_1.enforceAuth)(request);
-    const { userId, isAnonymous, isPremium, user } = authResult;
+    const { userId, isAnonymous, isPremium } = authResult;
     const userEmail = request.auth?.token?.email;
     firebase_functions_1.logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous}, premium: ${isPremium})`);
     try {
-        // Support both 'plan' and 'subscriptionTier' fields
-        const plan = user.plan || user.subscriptionTier?.toLowerCase() || "free";
-        const tier = (plan === "pro" ? "PAID" : "FREE");
         // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
         const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail);
         if (!dailyCheck.allowed) {
@@ -69,11 +66,11 @@ exports.generateJournalReflection = (0, https_1.onCall)({
         if (!rateLimitCheck.allowed) {
             throw new https_1.HttpsError("resource-exhausted", rateLimitCheck.error?.message || "Rate limit exceeded", rateLimitCheck.error);
         }
-        // Select model (internal only - Gemini by default)
-        const modelFamily = await modelRouter_1.ModelRouter.selectModelWithFailover(tier, "chat_message");
-        const modelConfig = modelRouter_1.ModelRouter.getConfig(modelFamily);
-        const client = (0, llmClients_1.createLLMClient)(modelConfig);
-        firebase_functions_1.logger.info(`Using model: ${modelFamily} (${modelConfig.modelId}) for journal reflection`);
+        const apiKey = config_1.GROQ_API_KEY.value();
+        if (!apiKey) {
+            throw new https_1.HttpsError("internal", "Groq API key not configured");
+        }
+        firebase_functions_1.logger.info(`Using Groq (GPT-OSS 120B) for journal reflection`);
         // Build system prompt with LUMARA Master Prompt
         // Note: For journal reflections, we use a simplified version without web access
         // since journal analysis doesn't need web access
@@ -191,10 +188,13 @@ The historical context is not just background - it is essential material for und
 Follow the ECHO structure (Empathize → Clarify → Highlight → Open) but expand each section with detail. Include connections to past entries in your Highlight section. Consider the mood, phase, circadian context, recent chats, and any media when crafting your reflection. Be thorough and detailed - there is no limit on response length. Let your response flow naturally to completion. Do not end with generic extension questions - let your persona naturally ask questions only when genuinely relevant, not as a default ending. Avoid bullet points.`;
         }
         firebase_functions_1.logger.info(`Generating reflection with prompt length: ${userPrompt.length}`);
-        // Generate reflection using LLM
-        // Gemini-only path
-        const geminiClient = client;
-        const reflection = await geminiClient.generateContent(userPrompt, systemPrompt, []);
+        // Generate reflection using Groq
+        const reflection = await (0, groqClient_1.groqChatCompletion)(apiKey, {
+            system: systemPrompt,
+            user: userPrompt,
+            temperature: 0.7,
+            maxTokens: 4096,
+        });
         firebase_functions_1.logger.info(`Generated reflection (length: ${reflection.length})`);
         return { reflection };
     }

@@ -53,8 +53,8 @@ firebase functions:secrets:set ANTHROPIC_API_KEY
 
 ```bash
 # Set model IDs (optional - defaults provided)
-firebase functions:config:set gemini.flash_model_id="gemini-2.5-flash"
-firebase functions:config:set gemini.pro_model_id="gemini-2.5"
+firebase functions:config:set gemini.flash_model_id="gemini-3-flash-preview"
+firebase functions:config:set gemini.pro_model_id="gemini-3-flash-preview"
 firebase functions:config:set claude.haiku_model_id="claude-3-haiku-20240307"
 firebase functions:config:set claude.sonnet_model_id="claude-3-5-sonnet-20241022"
 ```
@@ -122,25 +122,25 @@ Handles Stripe subscription events to update user tiers.
 **Important**: Both FREE and PAID tiers use the same Gemini 2.5 model. The difference is backend-enforced quotas, not model capabilities.
 
 ### FREE Tier
-- Model: `gemini-2.5-flash` (same underlying Gemini 2.5 model)
+- Model: `gemini-3-flash-preview` (Gemini 3.0 Flash)
 - Backend-enforced limits:
   - 4 deep analyses per journal entry
   - 200 chat turns per thread
 - No Claude access
 
 ### PAID Tier ($30/mo)
-- Model: `gemini-2.5` (unlimited access to same Gemini 2.5 model)
+- Model: `gemini-3-flash-preview` (unlimited access)
 - Additional models: Claude Haiku, Claude Sonnet (for deep reflection)
 - Backend removes all quotas: Unlimited analyses and chat
 
 ## Model Routing
 
-- **FREE tier**: Always `gemini-2.5-flash` (backend enforces quotas)
+- **FREE tier**: Always `gemini-3-flash-preview` (backend enforces quotas)
 - **PAID tier**:
-  - `journal_analysis`: `gemini-2.5` (unlimited)
+  - `journal_analysis`: `gemini-3-flash-preview` (unlimited)
   - `deep_reflection`: Claude Sonnet
-  - `chat_message`: `gemini-2.5` (unlimited)
-  - `theme_extraction`: `gemini-2.5`
+  - `chat_message`: `gemini-3-flash-preview` (unlimited)
+  - `theme_extraction`: `gemini-3-flash-preview`
   - `monthly_summary`: Claude Sonnet
 
 ## Migration to Gemini 3.0

@@ -61,7 +61,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
       final agent = ResearchAgent(
         getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
         generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          return generateWithLumaraCloud(
+          return generateForAgents(
             systemPrompt: systemPrompt,
             userPrompt: userPrompt,
             maxTokens: maxTokens ?? 1200,
