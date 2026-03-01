@@ -84,24 +84,9 @@ class InterruptDecisionEngine {
     AgenticContext context,
     ClassifiedGaps classified,
   ) {
-    // Skip interrupt for Reflection, Research, and Writing — those have their own flows
-    if (context.seekingType == 'Reflection' ||
-        context.seekingType == 'Research' ||
-        context.seekingType == 'Writing') {
-      return const InterruptDecision(shouldInterrupt: false);
-    }
-    if (context.currentPhase == 'Recovery' && context.readinessScore < 0.4) {
-      return const InterruptDecision(shouldInterrupt: false);
-    }
-    final gap = classified.clarificationGaps.first;
-    final value = _calculateInterruptValue(gap);
-    if (value > 0.6) {
-      return InterruptDecision(
-        shouldInterrupt: true,
-        question: _buildClarifyingQuestion(gap),
-        gapId: gap.id,
-      );
-    }
+    // Disabled: Chat interrupt caused decision-making loops ("Before I continue...").
+    // Pattern recognition fallback + gap analysis triggered too often, fragmenting
+    // the conversation. Users can ask follow-ups naturally instead.
     return const InterruptDecision(shouldInterrupt: false);
   }
 

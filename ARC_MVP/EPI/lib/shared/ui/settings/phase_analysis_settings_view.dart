@@ -14,8 +14,6 @@ import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/phase_sentinel_integration.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
-import 'package:my_app/ui/phase/phase_check_in_bottom_sheet.dart';
-import 'package:my_app/services/phase_check_in_service.dart';
 
 /// Settings screen: Phase Analysis card + Phase Statistics card. Uses purple accent to match main menu.
 class PhaseAnalysisSettingsView extends StatefulWidget {
@@ -29,19 +27,11 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
   PhaseRegimeService? _phaseRegimeService;
   PhaseIndex? _phaseIndex;
   bool _isLoading = false;
-  bool _phaseCheckInReminderEnabled = true;
-  bool _phaseCheckInReminderLoading = true;
-  int _phaseCheckInIntervalDays = 30;
-  bool _phaseCheckInIntervalLoading = true;
-  String? _displayPhaseName;
 
   @override
   void initState() {
     super.initState();
     _initializeServices();
-    _loadPhaseCheckInReminder();
-    _loadPhaseCheckInInterval();
-    _loadDisplayPhase();
   }
 
   Future<void> _initializeServices() async {
@@ -51,41 +41,6 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
         _phaseIndex = _phaseRegimeService!.phaseIndex;
       });
     }
-  }
-
-  Future<void> _loadPhaseCheckInReminder() async {
-    final enabled = await PhaseCheckInService.instance.isReminderEnabled();
-    if (mounted) {
-      setState(() {
-        _phaseCheckInReminderEnabled = enabled;
-        _phaseCheckInReminderLoading = false;
-      });
-    }
-  }
-
-  Future<void> _setPhaseCheckInReminder(bool value) async {
-    await PhaseCheckInService.instance.setReminderEnabled(value);
-    if (mounted) setState(() => _phaseCheckInReminderEnabled = value);
-  }
-
-  Future<void> _loadPhaseCheckInInterval() async {
-    final days = await PhaseCheckInService.instance.getIntervalDays();
-    if (mounted) {
-      setState(() {
-        _phaseCheckInIntervalDays = days;
-        _phaseCheckInIntervalLoading = false;
-      });
-    }
-  }
-
-  Future<void> _setPhaseCheckInInterval(int days) async {
-    await PhaseCheckInService.instance.setIntervalDays(days);
-    if (mounted) setState(() => _phaseCheckInIntervalDays = days);
-  }
-
-  Future<void> _loadDisplayPhase() async {
-    final name = await PhaseCheckInService.instance.getDisplayPhaseName();
-    if (mounted) setState(() => _displayPhaseName = name.isEmpty ? null : name);
   }
 
   @override
@@ -98,138 +53,12 @@ class _PhaseAnalysisSettingsViewState extends State<PhaseAnalysisSettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildPhaseCheckInCard(),
-            const SizedBox(height: 16),
             _buildPhaseAnalysisCard(),
             const SizedBox(height: 16),
             _buildPhaseStatisticsCard(),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildPhaseCheckInCard() {
-    return Card(
-      color: kcSurfaceAltColor,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SettingsCardTitle(title: 'Phase Check-in', icon: Icons.check_circle_outline),
-            if (_displayPhaseName != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Text(
-                    'Current phase: ',
-                    style: bodyStyle(context).copyWith(
-                      fontSize: 13,
-                      color: kcSecondaryTextColor,
-                    ),
-                  ),
-                  Text(
-                    _displayPhaseName!,
-                    style: bodyStyle(context).copyWith(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: kcPrimaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 8),
-            Text(
-              'Prompt to confirm or update your phase. You can open it manually below.',
-              style: bodyStyle(context).copyWith(
-                fontSize: 13,
-                color: kcSecondaryTextColor,
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (_phaseCheckInReminderLoading)
-              const Center(child: Padding(
-                padding: EdgeInsets.all(8.0),
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ))
-            else
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Show reminder when due',
-                      style: bodyStyle(context).copyWith(
-                        color: kcPrimaryTextColor,
-                      ),
-                    ),
-                  ),
-                  Switch(
-                    value: _phaseCheckInReminderEnabled,
-                    onChanged: _setPhaseCheckInReminder,
-                    activeThumbColor: kcAccentColor,
-                  ),
-                ],
-              ),
-            const SizedBox(height: 12),
-            Text(
-              'Remind me every',
-              style: bodyStyle(context).copyWith(
-                fontSize: 13,
-                color: kcSecondaryTextColor,
-              ),
-            ),
-            const SizedBox(height: 6),
-            if (_phaseCheckInIntervalLoading)
-              const SizedBox(height: 36, child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))))
-            else
-              Row(
-                children: [
-                  _intervalChip(14),
-                  const SizedBox(width: 8),
-                  _intervalChip(30),
-                  const SizedBox(width: 8),
-                  _intervalChip(60),
-                ],
-              ),
-            const Divider(height: 24),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.edit_calendar, color: kcAccentColor, size: 22),
-              title: Text(
-                'Review and update your current phase',
-                style: bodyStyle(context).copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: kcPrimaryTextColor,
-                ),
-              ),
-              trailing: const Icon(Icons.chevron_right, color: kcSecondaryTextColor),
-              onTap: () async {
-                await showPhaseCheckInBottomSheet(context);
-                _loadDisplayPhase();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _intervalChip(int days) {
-    final selected = _phaseCheckInIntervalDays == days;
-    final label = days == 14 ? '2 weeks' : (days == 30 ? '1 month' : '2 months');
-    return FilterChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => _setPhaseCheckInInterval(days),
-      selectedColor: kcAccentColor.withOpacity(0.3),
-      checkmarkColor: kcAccentColor,
     );
   }
 

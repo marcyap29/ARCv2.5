@@ -14,10 +14,11 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 import 'package:my_app/lumara/agents/models/research_models.dart';
+import 'package:my_app/lumara/agents/services/docx_export_helper.dart';
 import 'package:my_app/services/google_drive_service.dart';
 
 /// Format for export.
-enum ReportExportFormat { markdown, pdf }
+enum ReportExportFormat { markdown, pdf, docx }
 
 /// Destination for export.
 enum ReportExportDestination { device, share, googleDrive }
@@ -199,6 +200,14 @@ class ReportExportService {
         await dest.writeAsBytes(bytes);
         return dest.path;
       }
+
+      if (format == ReportExportFormat.docx) {
+        final bytes = buildDocxBytes(report);
+        final dir = await getApplicationDocumentsDirectory();
+        final dest = File(path.join(dir.path, '$baseName.docx'));
+        await dest.writeAsBytes(bytes);
+        return dest.path;
+      }
     } catch (e) {
       return null;
     }
@@ -230,6 +239,19 @@ class ReportExportService {
         final bytes = await toPdfBytes(report);
         final dir = await getTemporaryDirectory();
         final file = File(path.join(dir.path, '$baseName.pdf'));
+        await file.writeAsBytes(bytes);
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: report.query,
+          subject: 'Research Report: ${report.query}',
+        );
+        return true;
+      }
+
+      if (format == ReportExportFormat.docx) {
+        final bytes = buildDocxBytes(report);
+        final dir = await getTemporaryDirectory();
+        final file = File(path.join(dir.path, '$baseName.docx'));
         await file.writeAsBytes(bytes);
         await Share.shareXFiles(
           [XFile(file.path)],
@@ -279,6 +301,19 @@ class ReportExportService {
         final fileId = await gd.uploadFile(
           localFile: file,
           nameOverride: '$baseName.pdf',
+          folderId: await gd.getOrCreateAppFolder(),
+        );
+        return fileId;
+      }
+
+      if (format == ReportExportFormat.docx) {
+        final bytes = buildDocxBytes(report);
+        final dir = await getTemporaryDirectory();
+        final file = File(path.join(dir.path, '$baseName.docx'));
+        await file.writeAsBytes(bytes);
+        final fileId = await gd.uploadFile(
+          localFile: file,
+          nameOverride: '$baseName.docx',
           folderId: await gd.getOrCreateAppFolder(),
         );
         return fileId;

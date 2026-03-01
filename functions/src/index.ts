@@ -70,9 +70,14 @@ export { getWisprApiKey };
  * - Firestore rules enforce data isolation
  */
 
-import { swarmspaceRouter, swarmspacePluginStatus } from "./functions/swarmspaceRouter";
+import {
+  swarmspaceRouter,
+  swarmspacePluginStatus,
+  swarmspacePluginCatalog,
+} from "./functions/swarmspaceRouter";
 import { updateUserModelConfig } from "./functions/updateUserModelConfig";
 
 export { swarmspaceRouter };
 export { swarmspacePluginStatus };
+export { swarmspacePluginCatalog };
 export { updateUserModelConfig };

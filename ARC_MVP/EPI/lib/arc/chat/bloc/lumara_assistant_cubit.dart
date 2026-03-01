@@ -748,7 +748,18 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         await _addToChatSession(result.content ?? '', 'assistant');
       } catch (e) {
         print('LUMARA DualChronicle: continueAfterInterrupt error: $e');
-        emit(currentState.copyWith(isProcessing: false, apiErrorMessage: 'Something went wrong. Please try again.'));
+        // Persist user reply and clear pending so user can continue chatting.
+        await _addToChatSession(
+          contentPartsForPersistence != null ? effectiveText : text,
+          'user',
+          contentParts: contentPartsForPersistence,
+          messageId: userMessage.id,
+          timestamp: userMessage.timestamp,
+        );
+        emit(currentState.clearedAgenticPending().copyWith(
+          isProcessing: false,
+          apiErrorMessage: 'Something went wrong. Please try again.',
+        ));
       }
       return;
     }

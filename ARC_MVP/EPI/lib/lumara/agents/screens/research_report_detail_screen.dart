@@ -592,6 +592,12 @@ class _ReportExportSheetState extends State<_ReportExportSheet> {
                   selected: _format == ReportExportFormat.pdf,
                   onTap: () => setState(() => _format = ReportExportFormat.pdf),
                 ),
+                const SizedBox(width: 8),
+                _FormatChip(
+                  label: '.docx',
+                  selected: _format == ReportExportFormat.docx,
+                  onTap: () => setState(() => _format = ReportExportFormat.docx),
+                ),
               ],
             ),
             const SizedBox(height: 20),

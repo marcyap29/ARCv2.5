@@ -162,6 +162,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | SwarmSpace integration; Research Agent web search | v3.3.60 | — | 2026-02-25: swarmspaceRouter Cloud Function; SwarmSpaceClient, SwarmSpaceWebSearchTool; agents_connection_service removed; layer0_populator, journal, home_view updates. |
 | Research report editor; Outputs tab; chat/feed/CHRONICLE refinements | v3.3.61 | — | 2026-02-25: report_editor_screen, report_export_service, outputs_tab_screen; research_report_detail_screen expansion; lumara_chat_redesign_screen, layer0_populator, media_pick_and_analyze_service. |
 | Per-user LLM model config; llmRouter; sendChatMessage refactor | v3.3.62 | — | 2026-02-25: updateUserModelConfig Cloud Function; llmRouter, groqClient, saveUserModelConfig; sendChatMessage refactor; MODEL_CONFIG_SETUP.md, FLUTTER_COMMANDS.md. |
+| Phase check-in removal; SwarmSpace plugin catalog; CHRONICLE reviews | v3.3.63 | — | 2026-02-25: phase_check_in module deleted; plugin_catalog_screen, docx_export_helper, chronicle/reviews; swarmspaceRouter swarmspacePluginStatus. |
 
 **Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-25.
 

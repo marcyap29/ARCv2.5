@@ -1,7 +1,7 @@
 "use strict";
 // index.ts - Main entry point for Cloud Functions
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateUserModelConfig = exports.swarmspacePluginStatus = exports.swarmspaceRouter = exports.getWisprApiKey = exports.getAssemblyAIToken = exports.proxyGemini = exports.createCheckoutSession = exports.getUserSubscription = exports.generateJournalReflection = exports.generateJournalPrompts = exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = exports.stripeWebhook = exports.sendChatMessage = exports.analyzeJournalEntry = void 0;
+exports.updateUserModelConfig = exports.swarmspacePluginCatalog = exports.swarmspacePluginStatus = exports.swarmspaceRouter = exports.getWisprApiKey = exports.getAssemblyAIToken = exports.proxyGemini = exports.createCheckoutSession = exports.getUserSubscription = exports.generateJournalReflection = exports.generateJournalPrompts = exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = exports.stripeWebhook = exports.sendChatMessage = exports.analyzeJournalEntry = void 0;
 /**
  * Firebase Cloud Functions - ARC Backend
  *
@@ -72,6 +72,7 @@ Object.defineProperty(exports, "getWisprApiKey", { enumerable: true, get: functi
 const swarmspaceRouter_1 = require("./functions/swarmspaceRouter");
 Object.defineProperty(exports, "swarmspaceRouter", { enumerable: true, get: function () { return swarmspaceRouter_1.swarmspaceRouter; } });
 Object.defineProperty(exports, "swarmspacePluginStatus", { enumerable: true, get: function () { return swarmspaceRouter_1.swarmspacePluginStatus; } });
+Object.defineProperty(exports, "swarmspacePluginCatalog", { enumerable: true, get: function () { return swarmspaceRouter_1.swarmspacePluginCatalog; } });
 const updateUserModelConfig_1 = require("./functions/updateUserModelConfig");
 Object.defineProperty(exports, "updateUserModelConfig", { enumerable: true, get: function () { return updateUserModelConfig_1.updateUserModelConfig; } });
 //# sourceMappingURL=index.js.map

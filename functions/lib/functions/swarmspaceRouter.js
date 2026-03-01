@@ -20,7 +20,7 @@
 //             - Authorization: Bearer <SWARMSPACE_INTERNAL_TOKEN>
 //         → Return the worker's response to LUMARA
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.swarmspacePluginStatus = exports.swarmspaceRouter = void 0;
+exports.swarmspacePluginCatalog = exports.swarmspacePluginStatus = exports.swarmspaceRouter = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
 const params_1 = require("firebase-functions/params");
@@ -40,48 +40,81 @@ const PLUGIN_REGISTRY = {
     "gemini-flash": {
         workerUrl: "https://swarmspace-plugin-gemini-flash.orbitalai.workers.dev",
         requiredTier: "free",
+        capabilities: ["llm", "synthesis", "writing"],
+        description: "Fast AI synthesis for writing and drafting",
+        exampleQuery: "Draft a LinkedIn post about my latest project",
     },
     "brave-search": {
         workerUrl: "https://swarmspace-plugin-brave-search.orbitalai.workers.dev",
         requiredTier: "free",
+        capabilities: ["web_search", "general"],
+        description: "Privacy-focused web search",
+        exampleQuery: "What are the latest developments in AI?",
     },
     "semantic-scholar": {
         workerUrl: "https://swarmspace-plugin-semantic-scholar.orbitalai.workers.dev",
         requiredTier: "free",
+        capabilities: ["academic_search", "research", "papers"],
+        description: "Academic paper and citation search",
+        exampleQuery: "Find papers on transformer architectures",
     },
     "weather": {
         workerUrl: "https://swarmspace-plugin-weather.orbitalai.workers.dev",
         requiredTier: "free",
+        capabilities: ["weather", "real_time"],
+        description: "Current weather and forecasts",
+        exampleQuery: "What's the weather in San Francisco?",
     },
     "wikipedia": {
         workerUrl: "https://swarmspace-plugin-wikipedia.orbitalai.workers.dev",
         requiredTier: "free",
+        capabilities: ["knowledge", "encyclopedia", "general"],
+        description: "Wikipedia knowledge base",
+        exampleQuery: "Who invented the transistor?",
     },
     "currency": {
         workerUrl: "https://swarmspace-plugin-currency.orbitalai.workers.dev",
         requiredTier: "free",
+        capabilities: ["currency", "exchange_rates", "real_time"],
+        description: "Currency exchange rates",
+        exampleQuery: "What is EUR to USD right now?",
     },
     "news": {
         workerUrl: "https://swarmspace-plugin-news.orbitalai.workers.dev",
         requiredTier: "free",
+        capabilities: ["news", "real_time", "headlines"],
+        description: "Latest news and headlines",
+        exampleQuery: "Top tech news today",
     },
     // ── Standard tier ($30/mo) ─────────────────────────────────────────────────
     "url-reader": {
         workerUrl: "https://swarmspace-plugin-url-reader.orbitalai.workers.dev",
         requiredTier: "standard",
+        capabilities: ["url_fetch", "content_extraction", "reading"],
+        description: "Fetch and extract content from URLs",
+        exampleQuery: "Read and summarize this article: https://...",
     },
     "tavily-search": {
         workerUrl: "https://swarmspace-plugin-tavily-search.orbitalai.workers.dev",
         requiredTier: "standard",
+        capabilities: ["web_search", "ai_optimized", "research"],
+        description: "AI-optimized search for research",
+        exampleQuery: "Deep research on quantum computing applications",
     },
     // ── Premium tier ──────────────────────────────────────────────────────────
     "exa-search": {
         workerUrl: "https://swarmspace-plugin-exa-search.orbitalai.workers.dev",
         requiredTier: "premium",
+        capabilities: ["neural_search", "semantic", "research"],
+        description: "Neural semantic search",
+        exampleQuery: "Find content similar to this concept",
     },
     "perplexity-sonar": {
         workerUrl: "https://swarmspace-plugin-perplexity-sonar.orbitalai.workers.dev",
         requiredTier: "premium",
+        capabilities: ["web_search", "answer_synthesis", "research"],
+        description: "Real-time answer synthesis from the web",
+        exampleQuery: "Explain the current state of fusion energy",
     },
 };
 // ── Tier resolution ────────────────────────────────────────────────────────────
@@ -224,6 +257,28 @@ exports.swarmspacePluginStatus = (0, https_1.onCall)({}, async (request) => {
         required_tier: plugin.requiredTier,
         reason: available ? null : "tier_insufficient",
         upgrade_url: available ? null : "https://swarmspace.ai/upgrade",
+    };
+});
+// ── Plugin catalog endpoint ────────────────────────────────────────────────────
+// Returns full catalog with metadata + availability for the current user.
+// Used by the SwarmSpace catalog UI and by the orchestrator for capability routing.
+exports.swarmspacePluginCatalog = (0, https_1.onCall)({}, async (request) => {
+    const { isPremium, user } = await (0, authGuard_1.enforceAuth)(request);
+    const userTier = resolveSwarmSpaceTier(user.plan ?? "free", isPremium);
+    const plugins = Object.entries(PLUGIN_REGISTRY).map(([pluginId, config]) => ({
+        plugin_id: pluginId,
+        worker_url: config.workerUrl,
+        required_tier: config.requiredTier,
+        capabilities: config.capabilities,
+        description: config.description,
+        example_query: config.exampleQuery,
+        available: canAccessPlugin(userTier, config.requiredTier),
+        cost_tier: config.costTier ?? config.requiredTier,
+    }));
+    return {
+        user_tier: userTier,
+        plugins,
+        upgrade_url: "https://swarmspace.ai/upgrade",
     };
 });
 //# sourceMappingURL=swarmspaceRouter.js.map

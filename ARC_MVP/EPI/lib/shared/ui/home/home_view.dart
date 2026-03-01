@@ -45,8 +45,6 @@ import 'package:my_app/shared/ui/settings/settings_view.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/integration/veil_chronicle_factory.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart' show SynthesisTier;
-import 'package:my_app/services/phase_check_in_service.dart';
-import 'package:my_app/ui/phase/phase_check_in_bottom_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/services/scheduled_local_backup_service.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
@@ -78,9 +76,6 @@ class _HomeViewState extends State<HomeView> {
   /// In unified feed mode: true = show welcome full-screen (hide bottom nav); false = show main tabs.
   /// Becomes false when user has entries or when they tap "Get Started" (empty timeline with tabs).
   bool _feedIsEmpty = true;
-
-  /// Phase Check-in shown this session (only prompt once per app open).
-  bool _phaseCheckInShownThisSession = false;
 
   // Navigation tabs: unified feed mode has LUMARA + Outputs + Settings; legacy has 3 tabs
   List<TabItem> get _tabs {
@@ -190,21 +185,6 @@ class _HomeViewState extends State<HomeView> {
         _openEntryById(widget.entryIdToOpen!);
       });
     }
-
-    // Phase Check-in: show once per session when due (30 days since last, or 7 days after dismiss)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(seconds: 2), () async {
-        if (!mounted || _phaseCheckInShownThisSession) return;
-        try {
-          final due = await PhaseCheckInService.instance.isCheckInDue();
-          if (!mounted) return;
-          if (due) {
-            _phaseCheckInShownThisSession = true;
-            await showPhaseCheckInBottomSheet(context);
-          }
-        } catch (_) {}
-      });
-    });
 
     // Initialize shake-to-report-bug detection
     _initializeShakeDetection();

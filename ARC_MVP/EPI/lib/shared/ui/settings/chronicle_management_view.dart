@@ -20,6 +20,9 @@ import 'package:my_app/app/app_repos.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
 import 'package:my_app/shared/ui/chronicle/pattern_index_viewer.dart';
+import 'package:my_app/chronicle/reviews/screens/monthly_review_screen.dart';
+import 'package:my_app/chronicle/reviews/screens/yearly_review_screen.dart';
+import 'package:my_app/chronicle/reviews/screens/reviews_hub_screen.dart';
 import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -640,6 +643,64 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                         _countsLoaded ? '$_multiyearCount files' : 'Loading...',
                         Icons.calendar_view_month,
                         onTap: () => _openLayersViewer(initialTabIndex: 2),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Reviews (Monthly / Yearly)
+                  SettingsSection(
+                    title: 'Reviews',
+                    children: [
+                      Text(
+                        'LUMARA narrative synthesis, theme evolution, patterns, and seeds.',
+                        style: captionStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SettingsActionButton(
+                        title: 'Reviews Hub',
+                        subtitle: 'Browse and generate monthly & yearly reviews',
+                        icon: Icons.dashboard,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ReviewsHubScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      SettingsActionButton(
+                        title: 'Monthly Review',
+                        subtitle: 'See how your story unfolded (last month)',
+                        icon: Icons.auto_stories,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MonthlyReviewScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      SettingsActionButton(
+                        title: 'Yearly Review',
+                        subtitle: 'See the arc of your year',
+                        icon: Icons.eco,
+                        onPressed: () {
+                          final year = DateTime.now().year - 1;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => YearlyReviewScreen(year: year),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

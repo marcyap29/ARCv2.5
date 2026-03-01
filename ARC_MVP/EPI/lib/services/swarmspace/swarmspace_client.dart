@@ -78,9 +78,67 @@ class SwarmSpaceQuota {
   String toString() => '$used/$limit used ($remaining remaining)';
 }
 
+/// Single plugin entry from the catalog.
+class PluginCatalogEntry {
+  final String pluginId;
+  final String requiredTier;
+  final List<String> capabilities;
+  final String description;
+  final String exampleQuery;
+  final bool available;
+
+  const PluginCatalogEntry({
+    required this.pluginId,
+    required this.requiredTier,
+    required this.capabilities,
+    required this.description,
+    required this.exampleQuery,
+    required this.available,
+  });
+
+  factory PluginCatalogEntry.fromJson(Map<String, dynamic> json) {
+    final caps = json['capabilities'];
+    final capList = caps is List ? caps : <dynamic>[];
+    return PluginCatalogEntry(
+      pluginId: json['plugin_id'] as String? ?? '',
+      requiredTier: json['required_tier'] as String? ?? 'free',
+      capabilities: capList.map((e) => e.toString()).toList(),
+      description: json['description'] as String? ?? '',
+      exampleQuery: json['example_query'] as String? ?? '',
+      available: json['available'] as bool? ?? false,
+    );
+  }
+}
+
+/// Result of fetching the plugin catalog.
+class PluginCatalogResult {
+  final String userTier;
+  final List<PluginCatalogEntry> plugins;
+  final String? upgradeUrl;
+
+  const PluginCatalogResult({
+    required this.userTier,
+    required this.plugins,
+    this.upgradeUrl,
+  });
+
+  factory PluginCatalogResult.fromJson(Map<String, dynamic> json) {
+    final pluginsRaw = json['plugins'] as List<dynamic>? ?? [];
+    return PluginCatalogResult(
+      userTier: json['user_tier'] as String? ?? 'free',
+      plugins: pluginsRaw
+          .map((e) => PluginCatalogEntry.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+      upgradeUrl: json['upgrade_url'] as String?,
+    );
+  }
+}
+
 /// Cloud Function URL — same region/project as proxyGroq.
 const _swarmspaceRouterUrl =
     'https://us-central1-arc-epi.cloudfunctions.net/swarmspaceRouter';
+const _swarmspacePluginCatalogUrl =
+    'https://us-central1-arc-epi.cloudfunctions.net/swarmspacePluginCatalog';
 
 /// SwarmSpace client — singleton.
 /// Uses direct HTTP + manual ID token (bypasses GTMSessionFetcher).
@@ -217,6 +275,42 @@ class SwarmSpaceClient {
       }
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Fetch the full plugin catalog with metadata and availability for the current user.
+  /// Returns null on auth failure or network error.
+  Future<PluginCatalogResult?> getPluginCatalog() async {
+    try {
+      await FirebaseService.instance.ensureReady();
+      final firebaseUser = FirebaseAuthService.instance.currentUser;
+      if (firebaseUser == null) return null;
+      final idToken = await firebaseUser.getIdToken(true);
+      if (idToken == null || idToken.isEmpty) return null;
+
+      final client = HttpClient();
+      try {
+        final uri = Uri.parse(_swarmspacePluginCatalogUrl);
+        final request = await client.postUrl(uri);
+        request.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $idToken');
+        request.write(jsonEncode({'data': <String, dynamic>{}}));
+
+        final httpResponse = await request.close().timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw const SocketException('swarmspacePluginCatalog timed out'),
+        );
+        final body = await httpResponse.transform(utf8.decoder).join();
+
+        if (httpResponse.statusCode != 200) return null;
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final resultData = (data['result'] as Map<String, dynamic>?) ?? data;
+        return PluginCatalogResult.fromJson(Map<String, dynamic>.from(resultData));
+      } finally {
+        client.close();
+      }
+    } catch (_) {
+      return null;
     }
   }
 

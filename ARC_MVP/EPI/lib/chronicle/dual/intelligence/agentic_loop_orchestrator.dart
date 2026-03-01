@@ -104,6 +104,10 @@ class AgenticLoopOrchestrator {
     if (classified.clarificationGaps.isNotEmpty) {
       final decision = await _interruptEngine.shouldInterrupt(context, classified);
       if (decision.shouldInterrupt && decision.question != null && decision.gapId != null) {
+        // Persist the gap so continueAfterInterrupt can find it when the user replies.
+        // Without this, getGap returns null → "Gap not found" → no assistant reply ever shows.
+        final gap = classified.clarificationGaps.first;
+        await _lumaraRepo.addGap(userId, gap);
         print('LUMARA learning: Interrupt with clarifying question (gapId=${decision.gapId}).');
         return LoopResult(
           type: 'interrupt',

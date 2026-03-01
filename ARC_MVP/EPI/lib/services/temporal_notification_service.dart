@@ -15,6 +15,8 @@ import 'package:flutter/material.dart';
 import '../app/app.dart' show navigatorKey;
 import '../ui/journal/journal_screen.dart';
 import '../shared/ui/home/home_view.dart';
+import '../chronicle/reviews/screens/monthly_review_screen.dart';
+import '../chronicle/reviews/screens/yearly_review_screen.dart';
 
 /// Service for scheduling and managing temporal notifications
 class TemporalNotificationService {
@@ -150,24 +152,30 @@ class TemporalNotificationService {
     }
   }
 
-  /// Schedule monthly thread review
+  /// Schedule monthly review (LUMARA CHRONICLE)
+  /// Fires on the 1st of each month during user's preferred time.
   Future<void> _scheduleMonthlyNotification(String userId, NotificationPreferences prefs) async {
     await _notifications.cancel(2);
     
     final now = DateTime.now();
     final nextMonth = DateTime(now.year, now.month + 1, prefs.monthlyDay);
     final scheduledTime = tz.TZDateTime.from(nextMonth, tz.local);
+    // Month being reviewed = the month that just ended (e.g. March 1st → review February)
+    final reviewMonthKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    final monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    final monthName = now.month >= 1 && now.month <= 12 ? monthNames[now.month] : 'Month';
     
     await _notifications.zonedSchedule(
       2,
-      'ARC Monthly Review',
-      'Your monthly thread review is ready',
+      'Your $monthName Review',
+      'See how your story unfolded in $monthName. Tap to explore.',
       scheduledTime,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'monthly_review',
-          'Monthly Thread Reviews',
-          channelDescription: 'Monthly synthesis of your emotional threads',
+          'Monthly Reviews',
+          channelDescription: 'LUMARA monthly review of your journal',
           importance: Importance.defaultImportance,
           priority: Priority.defaultPriority,
         ),
@@ -178,6 +186,7 @@ class TemporalNotificationService {
       payload: jsonEncode({
         'type': 'monthly_review',
         'userId': userId,
+        'monthKey': reviewMonthKey,
       }),
     );
   }
@@ -215,25 +224,27 @@ class TemporalNotificationService {
     );
   }
 
-  /// Schedule yearly becoming summary
+  /// Schedule yearly review (LUMARA CHRONICLE)
+  /// Fires on January 1st (or first active window of January).
   Future<void> _scheduleYearlyNotification(String userId, NotificationPreferences prefs) async {
     await _notifications.cancel(4);
     
-    // Schedule for January 1st of next year
     final now = DateTime.now();
     final nextYear = DateTime(now.year + 1, 1, 1, 9, 0);
     final scheduledTime = tz.TZDateTime.from(nextYear, tz.local);
+    // Year being reviewed = the year that just ended
+    final reviewYear = now.year;
     
     await _notifications.zonedSchedule(
       4,
-      'LUMARA Year in Review',
-      'Your yearly becoming summary is ready',
+      'Your $reviewYear Year in Review',
+      'The arc of your $reviewYear. Tap to see your journey.',
       scheduledTime,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'yearly_summary',
-          'Yearly Becoming Summaries',
-          channelDescription: 'Your year-long developmental narrative',
+          'Yearly Reviews',
+          channelDescription: 'LUMARA year-in-review of your journal',
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -242,9 +253,9 @@ class TemporalNotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       payload: jsonEncode({
-        'type': 'yearly_summary',
+        'type': 'yearly_review',
         'userId': userId,
-        'year': now.year + 1,
+        'year': reviewYear,
       }),
     );
   }
@@ -291,9 +302,11 @@ class TemporalNotificationService {
           break;
           
         case 'monthly_review':
-          navigator.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 0)),
-            (route) => false,
+          final monthKey = data['monthKey'] as String?;
+          navigator.push(
+            MaterialPageRoute(
+              builder: (context) => MonthlyReviewScreen(monthKey: monthKey),
+            ),
           );
           break;
           
@@ -305,9 +318,12 @@ class TemporalNotificationService {
           break;
           
         case 'yearly_summary':
-          navigator.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomeView(initialTab: 0)),
-            (route) => false,
+        case 'yearly_review':
+          final year = data['year'] as int? ?? DateTime.now().year - 1;
+          navigator.push(
+            MaterialPageRoute(
+              builder: (context) => YearlyReviewScreen(year: year),
+            ),
           );
           break;
           

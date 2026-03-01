@@ -1,7 +1,38 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.62
+**Version:** 3.3.63
 **Last Updated:** February 25, 2026
+
+---
+
+## [3.3.63] - February 25, 2026
+
+### Phase check-in removal; SwarmSpace plugin catalog; CHRONICLE reviews; DOCX export
+
+**Removed:**
+- **Phase check-in module:** phase_check_in_model, phase_check_in_service, phase_check_in_copy, phase_check_in_bottom_sheet, phase_analysis_settings_view deleted. bootstrap: phase check-in init removed.
+- **home_view:** Phase check-in related UI removed.
+
+**SwarmSpace & agents:**
+- **swarmspaceRouter.ts:** Plugin handling expanded; swarmspacePluginStatus callable.
+- **swarmspace_client.dart:** Client updates.
+- **agents_screen.dart:** Plugin catalog integration.
+- **plugin_catalog_screen.dart:** New — SwarmSpace plugin catalog UI.
+
+**Research & export:**
+- **research_report_detail_screen.dart, report_export_service.dart:** Export and detail refinements.
+- **docx_export_helper.dart:** New — DOCX export support.
+
+**CHRONICLE:**
+- **chronicle/reviews/:** New — CHRONICLE reviews module.
+- **chronicle_management_view.dart:** Management view expansion.
+- **agentic_loop_orchestrator.dart, interrupt_decision_engine.dart:** Orchestrator and interrupt refinements.
+- **temporal_notification_service.dart:** Notification updates.
+
+**Other:**
+- **lumara_assistant_cubit.dart, lumara_chat_redesign_screen.dart:** Minor updates.
+- **pubspec:** Dependency update.
+- **FLUTTER_COMMANDS.md:** Command reference updates.
 
 ---
 

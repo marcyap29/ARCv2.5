@@ -7,6 +7,7 @@ import 'package:my_app/arc/agents/drafts/new_draft_screen.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
 import 'package:my_app/arc/chat/ui/research_screen.dart';
 import 'package:my_app/arc/chat/ui/writing_screen.dart';
+import 'package:my_app/lumara/agents/screens/plugin_catalog_screen.dart';
 import 'package:my_app/services/swarmspace/agents_connection_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -124,6 +125,17 @@ class _AgentsScreenState extends State<AgentsScreen> {
                             );
                           },
                           onConnect: _openConnectSettings,
+                        ),
+                        const SizedBox(height: 12),
+                        _CapabilitiesCatalogCard(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (context) => const PluginCatalogScreen(),
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -486,6 +498,64 @@ class _ArchiveTabState extends State<_ArchiveTab> {
         _refresh();
       }
     }
+  }
+}
+
+/// Card that opens the SwarmSpace plugin catalog.
+class _CapabilitiesCatalogCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _CapabilitiesCatalogCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      color: kcSurfaceAltColor,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: kcPrimaryColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.extension, color: kcPrimaryColor, size: 26),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'All SwarmSpace Capabilities',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: kcPrimaryTextColor,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Weather, currency, news, search & more — view catalog',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: kcSecondaryTextColor),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

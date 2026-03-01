@@ -694,8 +694,8 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                   minLines: 1,
                   maxLines: 6,
                   keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(_controller.text),
+                  textInputAction: TextInputAction.newline,
+                  // Enter = new line (not Send). Use the send button to submit.
                 ),
               ),
               const SizedBox(width: 4),
