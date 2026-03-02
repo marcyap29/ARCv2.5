@@ -7,9 +7,12 @@
 // No changes needed in ResearchAgent or SearchOrchestrator.
 //
 // Tier routing:
-//   free     → brave-search (privacy web) + wikipedia (knowledge)
+//   free     → brave-search (privacy web) + wikipedia (knowledge) + news (NewsData.io)
 //   standard → tavily-search (AI-optimized) + brave-search fallback
 //   premium  → exa-search (neural) + tavily-search fallback
+//
+// News routing: When query contains "news", "headlines", "latest", "today", etc.,
+// try the news plugin first for real-time headlines.
 
 import 'package:my_app/services/swarmspace/swarmspace_client.dart';
 import 'research_models.dart';
@@ -27,9 +30,23 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
   SwarmSpaceWebSearchTool({SwarmSpaceClient? client})
       : _client = client ?? SwarmSpaceClient.instance;
 
+  static final _newsKeywords = RegExp(
+    r'\b(news|headlines?|latest|today|breaking|current events)\b',
+    caseSensitive: false,
+  );
+
   @override
   Future<List<SearchSnippet>> search(String query) async {
-    // Try tier-appropriate plugin first, fall back down the chain.
+    // Try news plugin first when query is news-related (NewsData.io).
+    if (_newsKeywords.hasMatch(query)) {
+      final newsResult = await _tryNews(query);
+      if (newsResult != null && newsResult.isNotEmpty) {
+        print('SwarmSpace: news returned ${newsResult.length} snippets');
+        return newsResult;
+      }
+    }
+
+    // Try tier-appropriate plugin, fall back down the chain.
     print('SwarmSpace: search(query="$query")');
     List<SearchSnippet>? result = await _tryTavilySearch(query);
     if (result != null) {
@@ -76,6 +93,40 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
   }
 
   // ── Plugin calls ────────────────────────────────────────────────────────────
+
+  Future<List<SearchSnippet>?> _tryNews(String query) async {
+    // Extract search terms: "latest news on AI" → "AI", "top tech news today" → "tech"
+    final cleanQuery = query
+        .replaceAll(_newsKeywords, '')
+        .replaceAll(RegExp(r"\b(top|what's?|what is|get|find|show)\b", caseSensitive: false), '')
+        .trim();
+    final searchQ = cleanQuery.isEmpty ? 'technology' : cleanQuery;
+
+    final result = await _client.invoke('news', {
+      'query': searchQ,
+      'language': 'en',
+    });
+
+    if (!result.success || result.data == null) return null;
+
+    final results = result.data!['results'] as List<dynamic>? ?? [];
+    if (results.isEmpty) return null;
+
+    return results.map((r) {
+      final map = r as Map<String, dynamic>;
+      return SearchSnippet(
+        title: map['title'] as String? ?? '',
+        snippet: map['snippet'] as String? ?? map['description'] as String? ?? '',
+        url: map['url'] as String? ?? map['link'] as String? ?? '',
+        domain: map['domain'] as String? ?? map['source'] as String? ?? 'news',
+        publishDate: map['pubDate'] != null || map['published_date'] != null
+            ? DateTime.tryParse(
+                (map['pubDate'] ?? map['published_date']) as String,
+              )
+            : null,
+      );
+    }).toList();
+  }
 
   Future<List<SearchSnippet>?> _tryTavilySearch(String query) async {
     final result = await _client.invoke('tavily-search', {

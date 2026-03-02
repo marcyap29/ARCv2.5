@@ -1,7 +1,23 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.63
+**Version:** 3.3.64
 **Last Updated:** February 25, 2026
+
+---
+
+## [3.3.64] - February 25, 2026
+
+### newsDataInvoke; swarmspace_web_search_tool; chat_intent_classifier; transcript_cleaner
+
+**Firebase Cloud Functions:**
+- **newsDataInvoke.ts:** New callable — news data plugin via SwarmSpace.
+
+**Client:**
+- **swarmspace_web_search_tool.dart:** Web search tool expansion.
+- **chat_intent_classifier.dart:** Intent classifier refinements.
+- **transcript_cleaner.dart:** New — transcript cleanup utilities.
+
+**Docs:** FLUTTER_COMMANDS.md updates.
 
 ---
 

@@ -134,6 +134,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 **2026-02-25 (follow-up):** Doc sync v3.3.63 — Phase check-in removal; SwarmSpace plugin catalog; CHRONICLE reviews; DOCX export; plugin_catalog_screen, docx_export_helper, chronicle/reviews. main merged into test; backup-2026-02-25 created.
 
+**2026-02-25 (follow-up):** Doc sync v3.3.64 — newsDataInvoke Cloud Function; swarmspace_web_search_tool expansion; chat_intent_classifier; transcript_cleaner. main merged into test; backup-2026-02-25 updated.
+
 **Status:** ✅ Ready for commit and push.
 
 ---

@@ -6,4 +6,6 @@
   cd /Users/mymac/Software/Development/ARCv2.5
   cd functions && npm run build && firebase deploy --only functions:swarmspacePluginCatalog
 # Or deploy all functions:
-  cd functions && npm run build && firebase deploy --only functions            
+  cd functions && npm run build && firebase deploy --only functions       
+# Verify Secrets:
+  firebase functions:secrets:access 'API_KEY'     

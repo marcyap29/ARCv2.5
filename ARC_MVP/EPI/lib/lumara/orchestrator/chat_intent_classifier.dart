@@ -82,9 +82,9 @@ You are LUMARA's intent classifier. Classify user messages into intent types.
 Examples: "I'm feeling uncertain about the SBIR deadline", "Help me think through this decision", "How have my patterns looked over the last 30 days?", "What was I like last year?"
 Note: Questions about "my patterns over x days" or "over the last year" are reflection (conversation), not the pattern agent.
 
-**research** - Requests to investigate topics, gather information, analyze landscapes
-Triggers: "research", "investigate", "analyze", "find out about", "what do we know about", "what do people say", "what are people saying"
-Examples: "Research SBIR requirements", "What are people saying about AI journaling apps?", "Investigate competitive landscape for AI memory systems", "Find out about market trends for X"
+**research** - Requests to investigate topics, gather information, analyze landscapes, get latest news
+Triggers: "research", "investigate", "analyze", "find out about", "what do we know about", "what do people say", "what are people saying", "latest news", "what's in the news", "headlines", "breaking news"
+Examples: "Research SBIR requirements", "What's the latest news on AI?", "Top tech headlines today", "What are people saying about AI journaling apps?", "Investigate competitive landscape for AI memory systems"
 
 **writing** - Requests to create content (LinkedIn, articles, docs)
 Triggers: "write", "draft", "create a post", "compose"

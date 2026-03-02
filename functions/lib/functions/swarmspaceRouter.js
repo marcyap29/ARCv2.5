@@ -80,10 +80,10 @@ const PLUGIN_REGISTRY = {
         exampleQuery: "What is EUR to USD right now?",
     },
     "news": {
-        workerUrl: "https://swarmspace-plugin-news.orbitalai.workers.dev",
+        workerUrl: "https://us-central1-arc-epi.cloudfunctions.net/newsDataInvoke",
         requiredTier: "free",
         capabilities: ["news", "real_time", "headlines"],
-        description: "Latest news and headlines",
+        description: "Latest news and headlines (NewsData.io)",
         exampleQuery: "Top tech news today",
     },
     // ── Standard tier ($30/mo) ─────────────────────────────────────────────────
