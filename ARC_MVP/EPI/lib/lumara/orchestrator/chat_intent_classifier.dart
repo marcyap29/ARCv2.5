@@ -48,6 +48,30 @@ class ChatIntentClassifier {
   /// High confidence when user explicitly invokes an agent via prefix.
   static const double _explicitInvokeConfidence = 0.95;
 
+  /// Check for news requests — route directly to Research Agent (NewsData.io).
+  /// Key phrase: "get me news on/about/concerning X". Also: "Latest news on Iran", etc.
+  UserIntent? _tryNewsInvoke(String message) {
+    final lower = message.trim().toLowerCase();
+    if (lower.length < 8) return null;
+    final newsPattern = RegExp(
+      r'\bget\s+me\s+news\s+(on|about|concerning)\b|'
+      r'\b(get\s+me\s+)?(the\s+)?(latest\s+)?news\b|'
+      r'\bnews\s+(on|about|regarding|concerning)\b|'
+      r'\b(latest|breaking|top)\s+news\b|'
+      r'\bheadlines?\s+(on|about|for)\b',
+      caseSensitive: false,
+    );
+    if (newsPattern.hasMatch(lower)) {
+      return UserIntent(
+        type: ChatIntentType.research,
+        originalMessage: message,
+        estimatedDuration: const Duration(minutes: 3),
+        confidence: _explicitInvokeConfidence,
+      );
+    }
+    return null;
+  }
+
   /// Check for "LUMARA, write..." or "LUMARA, research..." (case-insensitive, flexible punctuation/spacing).
   UserIntent? _tryExplicitInvoke(String message) {
     final trimmed = message.trim();
@@ -126,6 +150,10 @@ For writing:
 ''';
 
   Future<UserIntent> classifyIntent(String message) async {
+    // News requests → Research agent (NewsData.io)
+    final newsIntent = _tryNewsInvoke(message);
+    if (newsIntent != null) return newsIntent;
+
     // Explicit invocation: "LUMARA, write a..." → Writing agent; "LUMARA, research..." → Research agent
     final explicit = _tryExplicitInvoke(message);
     if (explicit != null) return explicit;

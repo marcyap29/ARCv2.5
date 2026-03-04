@@ -150,25 +150,56 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
     );
   }
 
+  /// True if [s] looks like a UUID or "entry:uuid" — never show this as user-facing label.
+  bool _looksLikeUuidOrNodeRef(String? s) {
+    if (s == null || s.isEmpty) return false;
+    final t = s.trim();
+    if (t.startsWith('entry:')) return true;
+    final uuidLike = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+    return uuidLike.hasMatch(t) || (t.length > 20 && t.contains('-') && RegExp(r'[0-9a-f-]{20,}', caseSensitive: false).hasMatch(t));
+  }
+
   Widget _buildTraceTitle(BuildContext context, AttributionTrace trace) {
-    final label = trace.displayTitle ?? trace.nodeRef;
     final entryId = trace.entryId ?? _parseEntryIdFromNodeRef(trace.nodeRef);
-    
+    final rawLabel = trace.displayTitle ?? trace.nodeRef;
+    final useHumanLabel = !_looksLikeUuidOrNodeRef(rawLabel);
+
+    // When we have an entryId, show a tappable link (InkWell) that opens the journal entry.
     if (entryId != null && entryId.isNotEmpty) {
       return InkWell(
         onTap: () => _openEntryPreview(context, entryId),
-        child: Text(
-          'Memory: $label',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.primary,
-            decoration: TextDecoration.underline,
-            decorationColor: Theme.of(context).colorScheme.primary,
-          ),
-          overflow: TextOverflow.ellipsis,
-        ),
+        child: useHumanLabel
+            ? Text(
+                'Memory: $rawLabel',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.primary,
+                  decoration: TextDecoration.underline,
+                  decorationColor: Theme.of(context).colorScheme.primary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              )
+            : FutureBuilder<String>(
+                future: _entryDisplayTitle(entryId),
+                builder: (context, snapshot) {
+                  final label = snapshot.hasData && snapshot.data!.isNotEmpty
+                      ? snapshot.data!
+                      : 'Related journal entry';
+                  return Text(
+                    'Memory: $label',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Theme.of(context).colorScheme.primary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  );
+                },
+              ),
       );
     }
+    final label = useHumanLabel ? rawLabel : 'Memory reference';
     return Text(
       'Memory: $label',
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -176,6 +207,17 @@ class _AttributionDisplayWidgetState extends State<AttributionDisplayWidget> {
       ),
       overflow: TextOverflow.ellipsis,
     );
+  }
+
+  Future<String> _entryDisplayTitle(String entryId) async {
+    try {
+      final entry = await JournalRepository().getJournalEntryById(entryId);
+      if (entry == null) return 'Journal entry';
+      if (entry.title.isNotEmpty) return entry.title.length > 60 ? '${entry.title.substring(0, 57)}...' : entry.title;
+      final first = entry.content.split('\n').first.trim();
+      if (first.isNotEmpty) return first.length > 60 ? '${first.substring(0, 57)}...' : first;
+    } catch (_) {}
+    return 'Journal entry';
   }
 
   String? _parseEntryIdFromNodeRef(String nodeRef) {

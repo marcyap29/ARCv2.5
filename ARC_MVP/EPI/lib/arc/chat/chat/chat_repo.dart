@@ -12,6 +12,7 @@ abstract class ChatRepo {
   /// Add a message to an existing session
   /// Optionally accepts messageId and timestamp to preserve IDs for favorites.
   /// When [contentParts] is provided, uses that instead of [content] for rich media (images, etc.).
+  /// [metadata] is stored on the message (e.g. attribution_traces for voice→chat).
   Future<void> addMessage({
     required String sessionId,
     required String role,
@@ -19,6 +20,7 @@ abstract class ChatRepo {
     List<ContentPart>? contentParts,
     String? messageId,
     DateTime? timestamp,
+    Map<String, dynamic>? metadata,
   });
 
   /// List active (non-archived) sessions

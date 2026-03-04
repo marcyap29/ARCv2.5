@@ -1,4 +1,3 @@
-import 'dart:convert';
 import '../models/reflective_entry_data.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import '../../prism/extractors/sentinel_risk_detector.dart';
@@ -108,24 +107,6 @@ class ChatAnalysisService {
     // Add session context if available
     if (message.sessionId.isNotEmpty) {
       keywords.add('session:${message.sessionId}');
-    }
-
-    // Add provenance context if available
-    if (message.provenance != null && message.provenance!.isNotEmpty) {
-      try {
-        final provenanceMap = jsonDecode(message.provenance!) as Map<String, dynamic>?;
-        if (provenanceMap != null) {
-          final veilEdge = provenanceMap['veil_edge'] as Map<String, dynamic>?;
-          if (veilEdge != null) {
-            final phaseGroup = veilEdge['phase_group'];
-            if (phaseGroup != null) {
-              keywords.add('phase_group:$phaseGroup');
-            }
-          }
-        }
-      } catch (e) {
-        // Provenance is not JSON, skip
-      }
     }
 
     return keywords;

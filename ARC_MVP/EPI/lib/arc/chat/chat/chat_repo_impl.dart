@@ -89,6 +89,7 @@ class ChatRepoImpl implements ChatRepo {
     List<ContentPart>? contentParts,
     String? messageId,
     DateTime? timestamp,
+    Map<String, dynamic>? metadata,
   }) async {
     _ensureInitialized();
 
@@ -118,6 +119,7 @@ class ChatRepoImpl implements ChatRepo {
         content: content,
         id: messageId,
         createdAt: timestamp,
+        metadata: metadata,
       );
       await _messagesBox!.put(message.id, message);
     }

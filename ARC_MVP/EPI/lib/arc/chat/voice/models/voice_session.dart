@@ -8,6 +8,7 @@ library;
 
 import 'package:equatable/equatable.dart';
 import '../../../../models/phase_models.dart';
+import '../../../../mira/memory/enhanced_memory_schema.dart';
 
 /// Voice Conversation Turn
 /// 
@@ -20,7 +21,9 @@ class VoiceConversationTurn extends Equatable {
   final Duration? processingLatency;
   final Map<String, String>? prismReversibleMap; // LOCAL ONLY - never send to server
   final double? userSentiment; // Optional analytics
-  
+  /// Memory attribution for this LUMARA response (for display in chat and entry links)
+  final List<AttributionTrace>? attributionTraces;
+
   const VoiceConversationTurn({
     required this.userText,
     required this.lumaraResponse,
@@ -29,8 +32,9 @@ class VoiceConversationTurn extends Equatable {
     this.processingLatency,
     this.prismReversibleMap,
     this.userSentiment,
+    this.attributionTraces,
   });
-  
+
   /// Convert to JSON for local storage (includes reversible map)
   Map<String, dynamic> toLocalJson() => {
     'user_text': userText,
@@ -40,8 +44,10 @@ class VoiceConversationTurn extends Equatable {
     'processing_latency_ms': processingLatency?.inMilliseconds,
     'prism_reversible_map': prismReversibleMap,
     'user_sentiment': userSentiment,
+    if (attributionTraces != null && attributionTraces!.isNotEmpty)
+      'attribution_traces': attributionTraces!.map((AttributionTrace t) => t.toJson()).toList(),
   };
-  
+
   /// Convert to JSON for remote storage (NO reversible map)
   Map<String, dynamic> toRemoteJson() => {
     'user_text': userText,
@@ -51,10 +57,19 @@ class VoiceConversationTurn extends Equatable {
     'processing_latency_ms': processingLatency?.inMilliseconds,
     // NO prism_reversible_map - stays local only
     'user_sentiment': userSentiment,
+    if (attributionTraces != null && attributionTraces!.isNotEmpty)
+      'attribution_traces': attributionTraces!.map((AttributionTrace t) => t.toJson()).toList(),
   };
-  
+
   /// Create from JSON
   factory VoiceConversationTurn.fromJson(Map<String, dynamic> json) {
+    List<AttributionTrace>? traces;
+    final raw = json['attribution_traces'];
+    if (raw is List && raw.isNotEmpty) {
+      try {
+        traces = raw.map((e) => AttributionTrace.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+      } catch (_) {}
+    }
     return VoiceConversationTurn(
       userText: json['user_text'] as String,
       lumaraResponse: json['lumara_response'] as String,
@@ -69,9 +84,10 @@ class VoiceConversationTurn extends Equatable {
           ? Map<String, String>.from(json['prism_reversible_map'] as Map)
           : null,
       userSentiment: json['user_sentiment'] as double?,
+      attributionTraces: traces,
     );
   }
-  
+
   @override
   List<Object?> get props => [
     userText,
@@ -81,6 +97,7 @@ class VoiceConversationTurn extends Equatable {
     processingLatency,
     prismReversibleMap,
     userSentiment,
+    attributionTraces,
   ];
 }
 

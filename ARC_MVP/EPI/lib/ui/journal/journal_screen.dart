@@ -26,11 +26,6 @@ import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/repositories/reflection_session_repository.dart';
-import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
-import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
-import 'package:my_app/arc/chat/reflection/reflection_emotional_analyzer.dart';
-import 'package:my_app/services/adaptive/adaptive_sentinel_calculator.dart';
-import 'package:my_app/services/sentinel/sentinel_config.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
 import 'package:my_app/arc/internal/mira/memory_loader.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
@@ -61,6 +56,7 @@ import 'widgets/inline_reflection_block.dart';
 // import '../../features/timeline/widgets/entry_content_renderer.dart'; // TODO: EntryContentRenderer not yet implemented
 import 'widgets/full_screen_photo_viewer.dart' show FullScreenPhotoViewer, PhotoData;
 import 'widgets/pdf_preview_screen.dart';
+import 'widgets/docx_preview_screen.dart';
 import '../../ui/widgets/location_picker_dialog.dart';
 import 'drafts_screen.dart';
 import 'package:my_app/models/journal_entry_model.dart';
@@ -78,6 +74,7 @@ import 'package:my_app/arc/chat/data/context_scope.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
 import 'package:my_app/arc/ui/widgets/attachment_menu_button.dart';
+import 'package:my_app/arc/ui/widgets/attachment_strip_widget.dart';
 import 'package:my_app/arc/ui/widgets/private_notes_panel.dart';
 import 'package:my_app/arc/ui/media/media_preview_dialog.dart';
 import 'package:my_app/models/engagement_discipline.dart';
@@ -150,12 +147,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _reflectionHandler = ReflectionHandler(
       sessionRepo: ReflectionSessionRepository(box),
       journalRepo: _journalRepository,
-      aurora: AuroraReflectionService(
-        patternAnalyzer: ReflectionPatternAnalyzer(),
-        emotionalAnalyzer: ReflectionEmotionalAnalyzer(
-          AdaptiveSentinelCalculator(SentinelConfig.weekly()),
-        ),
-      ),
       lumaraApi: _enhancedLumaraApi,
     );
     return _reflectionHandler!;
@@ -788,11 +779,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     _generateLumaraReflection();
   }
 
-  /// Selection from the caret menu: either engagement (Reflect/Deeper) or response style (Conversation/Detailed analysis).
-  static const _kCaretEngagementReflect = 0;
-  static const _kCaretEngagementDeeper = 1;
-  static const _kCaretResponseConversation = 2;
-  static const _kCaretResponseDetailed = 3;
+  /// Selection from the caret menu: response style (Conversation/Detailed analysis).
+  static const _kCaretResponseConversation = 0;
+  static const _kCaretResponseDetailed = 1;
 
   Future<void> _showEngagementModeMenu(BuildContext context) async {
     final anchorContext = _engagementModeMenuKey.currentContext;
@@ -806,8 +795,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
 
     final settingsService = LumaraReflectionSettingsService.instance;
-    final currentSettings = await settingsService.getEngagementSettings();
-    final currentMode = currentSettings.activeMode;
     final useDetailed = await settingsService.getUseDetailedAnalysis();
 
     final selection = await showMenu<int>(
@@ -819,45 +806,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         overlayBox.size.height - offset.dy - box.size.height,
       ),
       items: [
-        // Engagement section
-        ...[EngagementMode.reflect, EngagementMode.deeper].map((mode) {
-          final value = mode == EngagementMode.reflect ? _kCaretEngagementReflect : _kCaretEngagementDeeper;
-          final isSelected = mode == currentMode;
-          return PopupMenuItem<int>(
-            value: value,
-            child: Row(
-              children: [
-                if (isSelected)
-                  const Icon(Icons.check, size: 18, color: Colors.blue)
-                else
-                  const SizedBox(width: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Engagement: ${mode.displayName}',
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
-                      Text(
-                        mode.description,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-        const PopupMenuDivider(),
         // Response style section
         PopupMenuItem<int>(
           value: _kCaretResponseConversation,
@@ -924,28 +872,18 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
     if (selection == null) return;
 
-    if (selection == _kCaretEngagementReflect || selection == _kCaretEngagementDeeper) {
-      final mode = selection == _kCaretEngagementReflect ? EngagementMode.reflect : EngagementMode.deeper;
-      final updated = currentSettings.copyWith(conversationOverride: mode);
-      await settingsService.setEngagementSettings(updated);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Engagement mode set to ${mode.displayName}')),
-      );
-    } else {
-      final useDetailedAnalysis = selection == _kCaretResponseDetailed;
-      await settingsService.setUseDetailedAnalysis(useDetailedAnalysis);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            useDetailedAnalysis
-                ? 'Response style set to Detailed analysis'
-                : 'Response style set to Conversation (perceptive)',
-          ),
+    final useDetailedAnalysis = selection == _kCaretResponseDetailed;
+    await settingsService.setUseDetailedAnalysis(useDetailedAnalysis);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          useDetailedAnalysis
+              ? 'Response style set to Detailed analysis'
+              : 'Response style set to Conversation (perceptive)',
         ),
-      );
-    }
+      ),
+    );
   }
 
   void _onLumaraLongPress() async {
@@ -2208,6 +2146,26 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     ).then((result) {
       // Handle save result - if saved successfully, go back to home
       if (result != null && result['save'] == true) {
+        // Notify when document content was saved for LUMARA and Chronicle
+        final hadDocumentAttachments = _entryState.attachments
+            .whereType<FileAttachment>()
+            .any((a) => a.extractedText != null && a.extractedText!.trim().isNotEmpty);
+        if (hadDocumentAttachments && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.library_books, color: Theme.of(context).colorScheme.onInverseSurface, size: 20),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Document content saved. LUMARA will use it for context and Chronicle.'),
+                  ),
+                ],
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
         // Complete the draft since entry was saved
         _completeDraft();
         // Clear the session cache since entry was saved
@@ -2364,12 +2322,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                         if (_entryState.attachments.whereType<PhotoAttachment>().isNotEmpty)
                           const SizedBox(height: 16),
 
-                        // File attachments (PDF, DocX, etc.) — displayed below photos, before main text
+                        // File attachments (PDF, DocX, etc.) — same strip as chat for unified UX
                         if (_entryState.attachments.whereType<FileAttachment>().isNotEmpty) ...[
-                          _buildFileAttachmentList(
-                            _entryState.attachments.whereType<FileAttachment>().toList(),
-                            theme,
-                          ),
+                          _buildJournalFileAttachmentStrip(theme),
                           const SizedBox(height: 16),
                         ],
 
@@ -3088,66 +3043,22 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
-  /// Build list of file attachments (PDF, .md, Doc)
-  Widget _buildFileAttachmentList(List<FileAttachment> files, ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.attach_file,
-                size: 18,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Files (${files.length})',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: files.map((file) {
-              final index = _entryState.attachments.indexOf(file);
-              return _buildFileAttachmentChip(file, index, theme);
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFileAttachmentChip(FileAttachment file, int index, ThemeData theme) {
-    IconData icon = Icons.insert_drive_file;
-    if (file.fileName.toLowerCase().endsWith('.pdf')) {
-      icon = Icons.picture_as_pdf;
-    } else if (file.fileName.toLowerCase().endsWith('.md')) {
-      icon = Icons.description;
-    } else if (file.fileName.toLowerCase().endsWith('.txt')) {
-      icon = Icons.text_snippet;
-    } else if (file.fileName.toLowerCase().endsWith('.docx') || file.fileName.toLowerCase().endsWith('.doc')) {
-      icon = Icons.description;
-    }
-    return GestureDetector(
-      onTap: () async {
+  /// File attachment strip — shared format with chat (AttachmentStripWidget).
+  Widget _buildJournalFileAttachmentStrip(ThemeData theme) {
+    final fileList = _entryState.attachments.whereType<FileAttachment>().toList();
+    return AttachmentStripWidget(
+      files: fileList
+          .map((f) => AttachmentFileItem(
+                path: f.filePath,
+                fileName: f.fileName,
+                mimeType: f.mimeType,
+                extractedText: f.extractedText,
+              ))
+          .toList(),
+      onTapFile: (i) {
+        final file = fileList[i];
         final path = file.filePath.replaceFirst(RegExp(r'^file://'), '');
-        final f = File(path);
-        if (!await f.exists()) {
+        if (!File(path).existsSync()) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('File not found: ${file.fileName}')),
@@ -3155,42 +3066,35 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           }
           return;
         }
-        final isPdf = file.fileName.toLowerCase().endsWith('.pdf');
-        if (isPdf) {
-          _showFileOpenOptions(file, path);
+        final lower = file.fileName.toLowerCase();
+        if (lower.endsWith('.pdf')) {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => PdfPreviewScreen(filePath: path, fileName: file.fileName),
+            ),
+          );
+        } else if (lower.endsWith('.docx') || lower.endsWith('.doc')) {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => DocxPreviewScreen(
+                filePath: path,
+                fileName: file.fileName,
+                extractedText: file.extractedText,
+              ),
+            ),
+          );
         } else {
           _openFileInSystem(path, file.fileName);
         }
       },
-      onLongPress: () => _showFileContextMenu(file, index),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                file.fileName,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-          ],
-        ),
-      ),
+      onLongPressFile: (i) => _showFileContextMenu(fileList[i], _entryState.attachments.indexOf(fileList[i])),
     );
   }
 
   void _showFileContextMenu(FileAttachment file, int fileIndex) {
     final path = file.filePath.replaceFirst(RegExp(r'^file://'), '');
     final isPdf = file.fileName.toLowerCase().endsWith('.pdf');
+    final isDocx = file.fileName.toLowerCase().endsWith('.docx') || file.fileName.toLowerCase().endsWith('.doc');
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -3199,11 +3103,13 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           children: [
             ListTile(
               leading: const Icon(Icons.open_in_new),
-              title: Text(isPdf ? 'Preview or open in app' : 'Open in default app'),
+              title: Text((isPdf || isDocx) ? 'Preview or open in app' : 'Open in default app'),
               onTap: () {
                 Navigator.of(context).pop();
                 if (isPdf) {
                   _showFileOpenOptions(file, path);
+                } else if (isDocx) {
+                  _showDocxFileOpenOptions(file, path);
                 } else {
                   _openFileInSystem(path, file.fileName);
                 }
@@ -3260,6 +3166,46 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               leading: const Icon(Icons.open_in_new),
               title: const Text('Open in default app'),
               subtitle: const Text('Browser or system PDF viewer'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _openFileInSystem(normalizedPath, file.fileName);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Show options for DOCX: in-app preview (extracted text) or open in system app.
+  void _showDocxFileOpenOptions(FileAttachment file, String normalizedPath) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.description),
+              title: const Text('Preview'),
+              subtitle: const Text('View content in app'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (context) => DocxPreviewScreen(
+                      filePath: normalizedPath,
+                      fileName: file.fileName,
+                      extractedText: file.extractedText,
+                    ),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: const Text('Open in default app'),
+              subtitle: const Text('Word or system document viewer'),
               onTap: () {
                 Navigator.of(context).pop();
                 _openFileInSystem(normalizedPath, file.fileName);
@@ -5998,8 +5944,18 @@ $originalEntryTextToInclude
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Reading PDF: $fileName…'),
-                  duration: const Duration(seconds: 2),
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onInverseSurface),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text('Extracting text from PDF: $fileName…')),
+                    ],
+                  ),
+                  duration: const Duration(seconds: 3),
                 ),
               );
             }
@@ -6021,6 +5977,24 @@ $originalEntryTextToInclude
               }
             } catch (_) {}
           } else if (ext == 'docx') {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onInverseSurface),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text('Extracting text from document: $fileName…')),
+                    ],
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
             try {
               final file = File(path);
               if (await file.exists()) {
@@ -6047,14 +6021,29 @@ $originalEntryTextToInclude
           added++;
         }
         if (mounted && added > 0) {
+          final hasExtracted = _entryState.attachments
+              .whereType<FileAttachment>()
+              .any((a) => a.extractedText != null && a.extractedText!.trim().isNotEmpty);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                added == 1
-                    ? 'Added 1 file. Content will be used for reflection and timeline.'
-                    : 'Added $added files.',
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Theme.of(context).colorScheme.onInverseSurface, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      hasExtracted
+                          ? (added == 1
+                              ? 'Text extracted. LUMARA will use this for context and Chronicle.'
+                              : 'Text extracted from $added files. LUMARA will use them for context and Chronicle.')
+                          : (added == 1
+                              ? 'Added 1 file.'
+                              : 'Added $added files.'),
+                    ),
+                  ),
+                ],
               ),
-              duration: const Duration(seconds: 2),
+              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -6532,7 +6521,14 @@ $originalEntryTextToInclude
                 query: queryContext,
                 maxSentences: 3,
               );
-              
+              // Human-readable title only (never UUID): entry title or first line suggesting subject
+              final rawTitle = entry.title.isNotEmpty
+                  ? entry.title
+                  : entry.content.split('\n').first.trim();
+              final displayTitle = rawTitle.isEmpty ? 'Journal entry' : rawTitle;
+              final safeTitle = displayTitle.length > 60
+                  ? '${displayTitle.substring(0, 57)}...'
+                  : displayTitle;
               enrichedTrace = AttributionTrace(
                 nodeRef: trace.nodeRef,
                 relation: trace.relation,
@@ -6541,9 +6537,10 @@ $originalEntryTextToInclude
                 reasoning: trace.reasoning,
                 phaseContext: trace.phaseContext,
                 excerpt: actualContent,
+                entryId: entry.id,
+                displayTitle: safeTitle,
               );
-              
-              print('Journal: Enriched trace ${trace.nodeRef} with ${actualContent.split(RegExp(r'[.!?]+')).where((s) => s.trim().isNotEmpty).length} relevant sentences (${actualContent.length} chars)');
+              print('Journal: Enriched trace ${trace.nodeRef} with entryId=${entry.id}, displayTitle (${safeTitle.length} chars), ${actualContent.split(RegExp(r'[.!?]+')).where((s) => s.trim().isNotEmpty).length} sentences');
             }
           } catch (e) {
             print('Journal: Could not find entry $entryId for trace ${trace.nodeRef}: $e');

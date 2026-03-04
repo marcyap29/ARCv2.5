@@ -11,6 +11,7 @@
 | File / Folder | Purpose |
 |---------------|---------|
 | **README.md** | Project overview and key documents (adapt for your project) |
+| **Overview.md** | Quick orientation: what the project is, core components, where to read more |
 | **claude.md** | AI context guide — onboarding, quick reference, role prompts |
 | **CONFIGURATION_MANAGEMENT.md** | Central docs inventory, change log, sync tracking |
 | **CHANGELOG.md** | Version history template |
@@ -44,6 +45,7 @@
 your-repo/
 ├── DOCS/
 │   ├── README.md
+│   ├── Overview.md
 │   ├── claude.md
 │   ├── CONFIGURATION_MANAGEMENT.md
 │   ├── CHANGELOG.md

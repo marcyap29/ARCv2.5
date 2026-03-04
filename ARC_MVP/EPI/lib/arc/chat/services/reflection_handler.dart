@@ -1,5 +1,4 @@
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
 import 'package:my_app/models/reflection_session.dart';
 import 'package:my_app/repositories/reflection_session_repository.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as models;
@@ -44,25 +43,22 @@ class ReflectionResponse {
         attributionTraces = null;
 }
 
-/// Handles reflection sessions with safety monitoring.
+/// Handles reflection sessions and delegates to LUMARA.
 class ReflectionHandler {
   final ReflectionSessionRepository _sessionRepo;
   final JournalRepository _journalRepo;
-  final AuroraReflectionService _aurora;
   final EnhancedLumaraApi _lumaraApi;
 
   ReflectionHandler({
     required ReflectionSessionRepository sessionRepo,
     required JournalRepository journalRepo,
-    required AuroraReflectionService aurora,
     required EnhancedLumaraApi lumaraApi,
   })  : _sessionRepo = sessionRepo,
         _journalRepo = journalRepo,
-        _aurora = aurora,
         _lumaraApi = lumaraApi;
 
-  /// Handles reflection with optional session/AURORA when [entryId] is set.
-  /// When [entryId] is null (e.g. voice, overview), skips session tracking and AURORA and calls LUMARA only.
+  /// Handles reflection with optional session tracking when [entryId] is set.
+  /// When [entryId] is null (e.g. voice, overview), skips session tracking and calls LUMARA only.
   /// When [onStreamChunk] is set, response text is streamed to the callback as it arrives.
   Future<ReflectionResponse> handleReflectionRequest({
     required String userQuery,
@@ -130,25 +126,13 @@ class ReflectionHandler {
       );
     }
 
-    // 2. Get entry for AURORA assessment
+    // 2. Get entry
     final entry = await _journalRepo.getJournalEntryById(entryId);
     if (entry == null) {
       throw Exception('Entry not found: $entryId');
     }
 
-    // 3. Check AURORA for intervention
-    final intervention =
-        await _aurora.assessReflectionRisk(entry, session);
-
-    if (intervention?.shouldPause == true) {
-      await _sessionRepo.pauseSession(session.id, intervention!.duration!);
-      return ReflectionResponse.intervention(
-        message: intervention.message,
-        pausedUntil: DateTime.now().add(intervention.duration!),
-      );
-    }
-
-    // 4. Process with LUMARA (existing API)
+    // 3. Process with LUMARA
     final request = models.LumaraReflectionRequest(
       userText: userQuery,
       entryType: models.EntryType.journal,
@@ -168,10 +152,10 @@ class ReflectionHandler {
 
     final lumaraResponse = result.reflection;
 
-    // 5. Detect CHRONICLE usage
+    // 4. Detect CHRONICLE usage
     final citedChronicle = _checkForChronicleUsage(lumaraResponse);
 
-    // 6. Track exchange
+    // 5. Track exchange
     session.exchanges.add(ReflectionExchange(
       timestamp: DateTime.now(),
       userQuery: userQuery,
@@ -183,7 +167,6 @@ class ReflectionHandler {
 
     return ReflectionResponse.success(
       text: lumaraResponse,
-      notice: intervention?.message,
       sessionId: session.id,
       attributionTraces: result.attributionTraces,
     );

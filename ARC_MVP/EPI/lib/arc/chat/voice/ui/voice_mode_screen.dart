@@ -18,6 +18,9 @@ import '../services/voice_session_service.dart';
 import '../services/voice_usage_service.dart';
 import '../models/voice_session.dart';
 import '../storage/voice_timeline_storage.dart';
+import '../../chat/chat_repo_impl.dart';
+import '../../chat/chat_models.dart';
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import '../../../../models/engagement_discipline.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
@@ -422,30 +425,61 @@ class _VoiceModeScreenState extends State<VoiceModeScreen> {
       debugPrint('VoiceModeScreen: Recorded ${duration.inSeconds} seconds of voice usage');
     }
     
-    // Save session to timeline
+    // Create chat session from voice turns (so tap opens as chat with memory attribution, user can continue)
     try {
+      final chatRepo = ChatRepoImpl.instance;
+      await chatRepo.initialize();
+
+      final title = session.turns.isEmpty
+          ? 'Voice conversation'
+          : (session.turns.first.userText.length > 50
+              ? '${session.turns.first.userText.substring(0, 47)}...'
+              : session.turns.first.userText);
+      final chatSessionId = await chatRepo.createSession(
+        subject: title,
+        tags: ['voice'],
+      );
+      await chatRepo.updateSessionMetadata(chatSessionId, {'isVoiceSession': true});
+
+      for (final turn in session.turns) {
+        await chatRepo.addMessage(
+          sessionId: chatSessionId,
+          role: MessageRole.user,
+          content: turn.userText,
+          timestamp: turn.timestamp,
+        );
+        final attributionPayload = turn.attributionTraces != null && turn.attributionTraces!.isNotEmpty
+            ? turn.attributionTraces!.map((AttributionTrace t) => t.toJson()).toList()
+            : null;
+        await chatRepo.addMessage(
+          sessionId: chatSessionId,
+          role: MessageRole.assistant,
+          content: turn.lumaraResponse,
+          timestamp: turn.timestamp,
+          metadata: attributionPayload != null ? {'attribution_traces': attributionPayload} : null,
+        );
+      }
+
       final journalRepository = JournalRepository();
       final voiceStorage = VoiceTimelineStorage(journalRepository: journalRepository);
-      final entryId = await voiceStorage.saveVoiceSession(session);
-      
-      debugPrint('VoiceModeScreen: Session saved to timeline (entry ID: $entryId)');
-      
+      final entryId = await voiceStorage.saveVoiceSession(session, chatSessionId: chatSessionId);
+
+      debugPrint('VoiceModeScreen: Session saved to timeline (entry ID: $entryId, chatSessionId: $chatSessionId)');
+
       if (!mounted) return;
-      
-      // Show success message
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Voice conversation saved (${session.turnCount} turns)'),
+          content: Text('Voice conversation saved (${session.turnCount} turns). Tap to continue in chat.'),
           backgroundColor: Colors.green.shade700,
           duration: const Duration(seconds: 2),
         ),
       );
     } catch (e) {
       debugPrint('VoiceModeScreen: Error saving session: $e');
-      
+
       if (!mounted) return;
-      
-      // Show error message
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving conversation: $e'),

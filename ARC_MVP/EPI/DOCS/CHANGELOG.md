@@ -1,7 +1,43 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.64
+**Version:** 3.3.65
 **Last Updated:** February 25, 2026
+
+---
+
+## [3.3.65] - February 25, 2026
+
+### Veil Edge removal; reflection simplifications; journal/voice/timeline/feed refinements; overview docs
+
+**Removed:**
+- **Veil Edge module:** rivet_policy_engine, veil_edge_router, lumara_veil_edge_integration, veil_edge_models, prompt_registry, veil_edge_service, veil_edge.dart deleted.
+- **PRISM:** veil_edge_policy engine removed.
+- **Reflection analyzers:** reflection_emotional_analyzer, reflection_pattern_analyzer deleted.
+- **Aurora:** aurora_reflection_service deleted.
+
+**Chat & LUMARA:**
+- **lumara_assistant_cubit.dart:** Assistant logic and API progress handling.
+- **lumara_chat_redesign_screen.dart:** Chat UI expansion.
+- **lumara_message.dart, chat_repo, chat_repo_impl:** Model and repo updates.
+- **reflection_handler.dart:** Reflection handling simplifications.
+- **lumara_intent_classifier.dart, lumara_chat_orchestrator.dart:** Intent and orchestrator updates.
+
+**Voice:** voice_session, voice_session_service, voice_timeline_storage, voice_mode_screen, voice_sigil, attribution_display_widget updates.
+
+**Timeline & feed:** timeline_cubit, timeline_view, calendar_week_timeline, entry_content_renderer, interactive_timeline_view; feed_repository, feed_helpers, expanded_entry_view, unified_feed_screen.
+
+**Journal:** journal_screen refactor; journal_capture_cubit, layer0_populator updates.
+
+**New:**
+- **LUMARA_Overview.md, Swarmspace_Overview.md:** Overview docs.
+- **lumara_api_progress_screen.dart:** API progress UI.
+- **attachment_strip_widget.dart:** Attachment strip.
+- **document_content_service.dart:** Document content service.
+- **swarmspace_plugin_approval_store.dart:** Plugin approval store.
+- **docx_preview_screen.dart:** DOCX preview widget.
+- **Starter Repo/Overview.md.**
+
+**Other:** lumara_master_prompt, chat_analysis_service, swarmspace_web_search_tool, swarmspace_client, prism_joiner, engagement_discipline, chat_multimodal_processor. claude.md, FLUTTER_COMMANDS.md, README.md updates.
 
 ---
 

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:docx_to_text/docx_to_text.dart';
 import 'package:my_app/arc/chat/chat/content_parts.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
 import 'package:my_app/core/services/pdf_content_service.dart';
@@ -201,6 +202,11 @@ class ChatMultimodalProcessor {
         keywords.addAll(result.keywords);
       } else if (mime == 'text/markdown' || uri.toLowerCase().endsWith('.md')) {
         raw = String.fromCharCodes(bytes);
+      } else if (mime == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          mime == 'application/msword' ||
+          uri.toLowerCase().endsWith('.docx') ||
+          uri.toLowerCase().endsWith('.doc')) {
+        raw = docxToText(bytes);
       }
 
       final fileName = uri.split(RegExp(r'[/\\]')).last;

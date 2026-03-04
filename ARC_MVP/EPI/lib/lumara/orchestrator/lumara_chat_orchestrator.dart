@@ -77,10 +77,11 @@ class LumaraChatOrchestrator {
   }) async {
     final intent = await _classifier.classifyIntent(message);
 
+    // No "what triggered this?" interrupt — #corereflection is used for that.
     if (intent.confidence < 0.6) {
-      return ChatOrchestratorResponse(
-        type: ChatResponseType.clarification,
-        message: _generateClarification(),
+      return const ChatOrchestratorResponse(
+        type: ChatResponseType.useReflectionPath,
+        message: '',
       );
     }
 
@@ -116,14 +117,7 @@ class LumaraChatOrchestrator {
     required UserIntent intent,
     required void Function(String) onProgressUpdate,
   }) async {
-    // When the query is broad, ask for research focus to deliver more useful results
-    final scopeClarification = _maybeAskResearchScope(intent.originalMessage);
-    if (scopeClarification != null) {
-      return ChatOrchestratorResponse(
-        type: ChatResponseType.clarification,
-        message: scopeClarification,
-      );
-    }
+    // No scope-clarification interrupt — #corereflection used for context.
 
     onProgressUpdate(
       "Starting research session with Research Agent. "
@@ -160,8 +154,7 @@ class LumaraChatOrchestrator {
       );
     } catch (e) {
       onProgressUpdate(
-        "Research encountered an error: $e\n\n"
-        "You can try rephrasing your question or ask me to reflect on the topic instead.",
+        "Research ran into a problem. You can try rephrasing, or ask me to work from what I already know.",
       );
       return const ChatOrchestratorResponse(
         type: ChatResponseType.useReflectionPath,
@@ -272,46 +265,6 @@ $preview
       default:
         return ContentType.linkedIn;
     }
-  }
-
-  String _generateClarification() {
-    return "I'm not quite sure what you'd like me to do. Could you clarify:\n"
-        "• **Research** something? (e.g., \"Research SBIR requirements\")\n"
-        "• **Write** content? (e.g., \"Write a LinkedIn post about X\")\n"
-        "• **Reflect** on something? (e.g., \"Help me think through this\")";
-  }
-
-  /// When the research query is broad, ask what route to focus on. Returns null if we can proceed.
-  String? _maybeAskResearchScope(String query) {
-    final trimmed = query.trim();
-    if (trimmed.length < 20) {
-      return "To give you the most useful research, what would you like me to focus on?\n\n"
-          "For example:\n"
-          "• **Market trends** — industry shifts, adoption rates\n"
-          "• **What people are saying** — user sentiment, reviews, discussions\n"
-          "• **Competitive landscape** — who else is in this space\n"
-          "• **Technical comparison** — features, specs, how things work\n"
-          "• **Something else** — describe the angle you care about\n\n"
-          "Reply with your preferred focus (or add more detail to your topic), and I'll run the research.";
-    }
-    // Check if query already specifies a clear angle
-    final lower = trimmed.toLowerCase();
-    final scopeKeywords = [
-      'market', 'trends', 'competitors', 'competitive', 'users', 'people',
-      'sentiment', 'reviews', 'technical', 'features', 'comparison',
-      'what people say', 'what are people saying', 'landscape', 'analysis',
-    ];
-    if (scopeKeywords.any((k) => lower.contains(k))) return null;
-    // Very generic topic (e.g. "research AI journaling apps") — offer to narrow
-    if (trimmed.length < 55) {
-      return "I can research that. To make it most useful, what angle matters most to you?\n\n"
-          "• **Market trends** — what's happening in the space\n"
-          "• **User perspectives** — what people are saying, reviews, sentiment\n"
-          "• **Competitive view** — who's in the space, how they compare\n"
-          "• **Technical details** — features, how things work\n\n"
-          "Or just say \"all of the above\" and I'll cover the main angles.";
-    }
-    return null;
   }
 
   /// Validates agent output for orchestration violations; returns sanitized message.

@@ -1546,7 +1546,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
           // Simplified navigation hint
           Expanded(
             child: Text(
-              'Scroll to explore your journey',
+              'Scroll to explore entries',
               style: captionStyle(context).copyWith(
                 color: kcSecondaryTextColor.withOpacity(0.6),
               ),
@@ -1592,7 +1592,7 @@ class InteractiveTimelineViewState extends State<InteractiveTimelineView>
             ),
             const SizedBox(height: 12),
             Text(
-              'All your journal entries have been deleted.\nStart a new entry to begin your journey.',
+              'All your journal entries have been deleted.\nStart a new entry to add your first one.',
               style: bodyStyle(context).copyWith(
                 color: kcSecondaryTextColor,
                 fontSize: 16,
@@ -3984,6 +3984,7 @@ class _FavoriteBookmarkButtonState extends State<_FavoriteBookmarkButton> {
             setState(() {
               _isFavorited = false;
             });
+            context.read<TimelineCubit>().refreshEntries();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Entry unfavorited'),
@@ -4028,6 +4029,7 @@ class _FavoriteBookmarkButtonState extends State<_FavoriteBookmarkButton> {
           setState(() {
             _isFavorited = true;
           });
+          context.read<TimelineCubit>().refreshEntries();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Entry favorited'),

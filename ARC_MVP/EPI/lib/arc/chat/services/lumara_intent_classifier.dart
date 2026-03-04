@@ -13,9 +13,6 @@ enum LumaraIntent {
   /// Route to agents
   writingTask,
   researchTask,
-
-  /// Open long-form reflection mode
-  longFormReflection,
 }
 
 /// Classifies user input to decide: chat vs Writing Agent vs Research Agent.

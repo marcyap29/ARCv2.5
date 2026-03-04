@@ -26,15 +26,11 @@ import '../prompts/phase_voice_prompts.dart'; // Phase-specific voice prompts
 import '../../services/enhanced_lumara_api.dart';
 import '../../services/reflection_handler.dart';
 import '../../models/lumara_reflection_options.dart' as models;
+import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import '../models/voice_session.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/reflection_session.dart';
 import 'package:my_app/repositories/reflection_session_repository.dart';
-import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
-import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
-import 'package:my_app/arc/chat/reflection/reflection_emotional_analyzer.dart';
-import 'package:my_app/services/adaptive/adaptive_sentinel_calculator.dart';
-import 'package:my_app/services/sentinel/sentinel_config.dart';
 import 'package:my_app/services/app_repos.dart';
 import '../../../../models/phase_models.dart';
 import '../../../../models/engagement_discipline.dart';
@@ -119,12 +115,6 @@ class VoiceSessionService {
     _reflectionHandler = ReflectionHandler(
       sessionRepo: ReflectionSessionRepository(box),
       journalRepo: _journalRepo,
-      aurora: AuroraReflectionService(
-        patternAnalyzer: ReflectionPatternAnalyzer(),
-        emotionalAnalyzer: ReflectionEmotionalAnalyzer(
-          AdaptiveSentinelCalculator(SentinelConfig.weekly()),
-        ),
-      ),
       lumaraApi: _lumaraApi,
     );
     return _reflectionHandler!;
@@ -645,7 +635,8 @@ class VoiceSessionService {
       // Engagement mode (reflect/explore/integrate) is still passed in control state and instructions.
       // Client-side timeout (120s) so slow Firebase/Gemini responses (e.g. 90–100s) still succeed
       final apiStart = DateTime.now();
-      String response;
+      String response = '';
+      List<AttributionTrace>? attributionTraces;
       try {
         final handler = await _getReflectionHandler();
         final reflectionResponse = await handler.handleReflectionRequest(
@@ -670,9 +661,10 @@ class VoiceSessionService {
           return;
         }
         if (reflectionResponse.notice != null && reflectionResponse.notice!.isNotEmpty) {
-          debugPrint('VoiceSession: AURORA notice: ${reflectionResponse.notice}');
+          if (reflectionResponse.notice != null) debugPrint('VoiceSession: notice: ${reflectionResponse.notice}');
         }
         response = reflectionResponse.text;
+        attributionTraces = reflectionResponse.attributionTraces;
       } on TimeoutException {
         debugPrint('VoiceSession: LUMARA request timed out (120s)');
         onError?.call('Request timed out. Please try again.');
@@ -711,7 +703,7 @@ class VoiceSessionService {
           ? DateTime.now().difference(_turnStartTime!)
           : null;
       
-      // Create turn with depth mode metadata
+      // Create turn with depth mode metadata and memory attribution (for chat view + entry links)
       final turn = VoiceConversationTurn(
         userText: _currentTranscript,
         lumaraResponse: restoredResponse,
@@ -719,6 +711,7 @@ class VoiceSessionService {
         userSpeakingDuration: turnDuration,
         processingLatency: turnDuration,
         prismReversibleMap: prismResult.reversibleMap,
+        attributionTraces: attributionTraces?.isNotEmpty == true ? attributionTraces : null,
       );
       
       // Add to session

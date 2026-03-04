@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/ui/timeline/timeline_state.dart';
 import 'package:my_app/arc/ui/timeline/timeline_entry_model.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/models/arcform_snapshot_model.dart';
 import 'package:my_app/data/models/media_item.dart';
@@ -244,6 +245,31 @@ class TimelineCubit extends Cubit<TimelineState> {
     }
   }
 
+  /// Sort entries so favorited (pinned) entries appear first.
+  /// Includes both journal_entry (entryId) and chat (sessionId) favorites.
+  Future<List<TimelineEntry>> _sortPinnedFirstAsync(List<TimelineEntry> entries) async {
+    try {
+      await FavoritesService.instance.initialize();
+      final journalFavorites = await FavoritesService.instance.getFavoriteJournalEntries();
+      final chatFavorites = await FavoritesService.instance.getSavedChats();
+      final pinnedIds = <String>{
+        ...journalFavorites.map((f) => f.entryId).whereType<String>(),
+        ...chatFavorites.map((f) => f.sessionId).whereType<String>(),
+      };
+      if (pinnedIds.isEmpty) return entries;
+      return entries
+        ..sort((a, b) {
+          final aPinned = pinnedIds.contains(a.id);
+          final bPinned = pinnedIds.contains(b.id);
+          if (aPinned && !bPinned) return -1;
+          if (!aPinned && bPinned) return 1;
+          return b.createdAt.compareTo(a.createdAt); // Newest first within same pin status
+        });
+    } catch (_) {
+      return entries;
+    }
+  }
+
   /// Apply search filter to timeline entries
   List<TimelineMonthGroup> _applySearchFilter(
     List<TimelineMonthGroup> groups,
@@ -318,6 +344,10 @@ class TimelineCubit extends Cubit<TimelineState> {
         }
         // Search in keywords
         if (entry.keywords.any((keyword) => keyword.toLowerCase().contains(searchLower))) {
+          return true;
+        }
+        // Search in phase (theme)
+        if (entry.phase != null && entry.phase!.toLowerCase().contains(searchLower)) {
           return true;
         }
         // Search in date string representation
@@ -447,8 +477,11 @@ class TimelineCubit extends Cubit<TimelineState> {
       }
 
       // Convert to timeline entries
-      final allTimelineEntries = _mapToTimelineEntries(filteredEntries);
-      
+      var allTimelineEntries = _mapToTimelineEntries(filteredEntries);
+
+      // Pin favorited entries to top
+      allTimelineEntries = await _sortPinnedFirstAsync(allTimelineEntries);
+
       // For single scroll timeline, we don't need complex grouping
       var groupedEntries = [TimelineMonthGroup(month: 'All', entries: allTimelineEntries)];
 

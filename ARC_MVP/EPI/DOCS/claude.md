@@ -57,6 +57,7 @@
 | **backend.md** | Backend architecture | `DOCS/backend.md` |
 | **CONFIGURATION_MANAGEMENT.md** | Docs inventory and change log | `DOCS/CONFIGURATION_MANAGEMENT.md` |
 | **bugtracker/** | Bug tracker (records and index) | `DOCS/bugtracker/` |
+| **Bug prevention** | Avoid reintroducing known bugs (summary in claude.md) | [Bug prevention](#bug-prevention-avoid-reintroducing) |
 | **CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md** | Full-repo Code Simplifier plan: scan, divisible phases, agent roles | `DOCS/CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md` |
 | **Documentation, Config & Git Backup** | Universal prompt for docs, config, and backup sync | This file: section "Ultimate Documentation, Configuration Management and Git Backup Prompt" |
 
@@ -132,7 +133,53 @@ Location: `DOCS/backend.md`
 Location: `DOCS/bugtracker/`
 - All bugs encountered and fixes
 - `bug_tracker.md` - Main tracker index
+- `bug_tracker_part1.md` - Dec 2025–Jan 2026 (v2.1.43–v2.1.86)
+- `bug_tracker_part2.md` - Nov 2025 (v2.1.27–v2.1.42)
+- `bug_tracker_part3.md` - Jan–Oct 2025 (v2.0.0–v2.1.26)
 - `records/` - Individual bug records (including recent fixes)
+
+### ⛔ Bug prevention (avoid reintroducing)
+
+When generating or modifying code, **do not reintroduce** the following. Full details and fix instructions are in `DOCS/bugtracker/` (see above).
+
+**LUMARA & journal**
+- **Never** send an empty user string to Gemini/journal reflection APIs (rejection). Validate non-empty before calling.
+- **Never** let user prompt override master prompt constraints; keep system/user roles and instruction hierarchy clear.
+- **Always** send text through PRISM scrub before any cloud LLM call—including softer/deeper reflection paths and inline/journal APIs (BUG-PRISM-001). No bypass.
+- **Avoid double LLM calls**: Use a keyword pre-filter so non-agent messages do not trigger the chat agent path (avoids duplicate proxyGroq and GTMSessionFetcher "already running") (BUG-LUMARA-GTM-001). Move `_savePendingInput` before first await; consider retry on `[firebase_functions/internal]` in groq_send.
+- Mark **current entry** as `**CURRENT ENTRY (PRIMARY FOCUS)**` in context; do not mix it equally with historical entries. Historical entries as "REFERENCE ONLY."
+- **No** hardcoded repetitive closing phrases; use therapeutic presence / varied endings from data.
+- **Entry classification** before full LUMARA synthesis: factual → direct short answers; reflective → full synthesis. PRISM semantic summary must be classification-aware (technical vs personal); avoid generic "brief entry about learning" for technical content.
+- **Journal reflections**: Pre-abstract entry text before building the prompt; use natural language instructions (not raw JSON); skip transformation for journal so LUMARA sees natural language.
+- **LUMARA favorites**: Export always (not gated by `includePhaseRegimes`); write to `extensions/lumara_favorites.json`. Import from `extensions/` first, fallback `PhaseRegimes/`; enrich with phase/phase_regime_id on export.
+
+**CHRONICLE**
+- **Yearly layer routing**: For month &lt; 4 (Jan–Mar), use monthly layer (or equivalent fallback); yearly can return empty context early in the year (BUG-CHRONICLE-001).
+- **Journal context**: Do not include the current entry twice (e.g. as "OLDER ENTRY"); deduplicate in context builder (BUG-JOURNAL-001).
+
+**Timeline & UI**
+- **Jump-to-date**: Use the same filtering and deduplication as the displayed timeline so scroll index matches visible entries.
+- Use `_timelineCardHeight` ~180 (not 280); suppress calendar week updates during programmatic scroll (`_isProgrammaticScroll`).
+- Calendar header height 108px; arcform preview top margin 16px to avoid clipping.
+- **Share / image capture**: Capture Arcform (or similar) **before** navigating to composition screen; pass bytes to the next screen. Do not capture after navigation when the widget tree is unavailable.
+
+**Export / import / storage**
+- **Disk space**: Detect errno 28 (no space) vs errno 13 (permission); show clear, actionable messages and required space.
+- **Stripe / Firebase**: Cloud Functions that need to be called from client (e.g. checkout) must have `invoker: "public"` where appropriate; refresh ID token before calling (`getIdToken(true)`); validate auth and handle missing secrets with clear errors.
+- **Sign-out**: Clear subscription and other caches (e.g. `SubscriptionService.instance.clearCache()`, `AssemblyAIService.instance.clearCache()`); use `Navigator.pushNamedAndRemoveUntil(..., (route) => false)` so premium state and stack are cleared.
+- **Singletons**: If a service is cleared on sign-out or used cross-service, expose a static `instance` getter (e.g. `AssemblyAIService.instance`).
+
+**Build & platform**
+- **Imports**: `AppLifecycleState` from `dart:ui` (not from elsewhere). Add required imports when using FirebaseAuth, etc.
+- **FeedRepository / chat**: Use correct types for `createdAt`, `metadata ?? {}`, and `msg.id`; avoid duplicate or out-of-order widget build (e.g. `_buildRunAnalysisCard` before `_buildArcformContent`).
+- **Generated code**: For `rivet_models.g.dart` (or similar) when a field is `Set<String>` but source is List, use `.toSet()` in read.
+- **iOS**: Ensure `NativeEmbeddingChannel` (or any Swift type used in AppDelegate) is in the Runner target and compile sources. For embedding, use the correct type at call sites (`EmbeddingService` vs `LocalEmbeddingService`).
+- **Wispr / config**: Clear config cache when user saves new API key so the new key is used without restart.
+
+**Privacy & security**
+- All user content sent to cloud LLMs must pass through PRISM (scrub/PII); no code paths that send raw journal or chat text to external APIs without scrub.
+
+Before implementing features that touch LUMARA, CHRONICLE, timeline, export/import, or auth/subscription, skim `DOCS/bugtracker/bug_tracker.md` and the relevant part file or record to avoid regressions.
 
 ---
 
@@ -143,9 +190,8 @@ Response length is determined by **Engagement Mode** (primary driver), with **Pe
 
 | Engagement Mode | Base Words | Base Sentences | Description |
 |-----------------|-----------|----------------|-------------|
-| **REFLECT** | 200 | 5 | Brief surface-level observations |
-| **EXPLORE** | 400 | 10 | Deeper investigation with follow-up questions |
-| **INTEGRATE** | 500 | 15 | Comprehensive cross-domain synthesis |
+| **DEEPER** (default) | 400 | 10 | Deeper investigation with follow-up questions; patterns and synthesis across history |
+| **EXPLORE** / **INTEGRATE** | 500 | 15 | Legacy aliases for Deeper; comprehensive cross-domain synthesis |
 
 | Persona | Density Modifier |
 |---------|-----------------|

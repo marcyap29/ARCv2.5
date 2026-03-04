@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../engines/atlas_engine.dart';
-import '../engines/veil_edge_policy.dart';
 
 class PrismJoiner {
   final Directory root; // repo root containing /mcp
@@ -37,9 +36,6 @@ class PrismJoiner {
         await File(outPath).create(recursive: true);
         final sink = outByMonth.putIfAbsent(outPath, () => File(outPath).openWrite(mode: FileMode.append));
         sink.writeln(jsonEncode(fused));
-
-        // Also write compact VEIL policy stream
-        await _writeVeilPolicy(fused['day_key'] as String, fused['veil_policy'] as Map<String, dynamic>);
       }
     } finally {
       for (final s in outByMonth.values) {
@@ -164,30 +160,11 @@ class PrismJoiner {
       },
     };
 
-    // Enrich with ATLAS and VEIL
+    // Enrich with ATLAS
     final atlas = AtlasEngine.analyzeDay(fusedBase);
-    final veil = VeilEdgePolicy.planDay(fusedBase, atlas);
-
     fusedBase['atlas'] = atlas;
-    fusedBase['veil_policy'] = veil;
 
     return fusedBase;
-  }
-
-  Future<void> _writeVeilPolicy(String dayKey, Map<String, dynamic> veil) async {
-    final monthKey = dayKey.substring(0, 7);
-    final path = root.uri.resolve('mcp/policies/veil/$monthKey.jsonl').toFilePath();
-    await File(path).create(recursive: true);
-    final sink = File(path).openWrite(mode: FileMode.append);
-    final line = {
-      'type': 'veil.policy.daily',
-      'day_key': dayKey,
-      'source': 'veil-edge',
-      'generated_at': DateTime.now().toUtc().toIso8601String(),
-      ...veil,
-    };
-    sink.writeln(jsonEncode(line));
-    await sink.close();
   }
 
   Future<Map<String, Map<String, dynamic>>> _loadByDay(

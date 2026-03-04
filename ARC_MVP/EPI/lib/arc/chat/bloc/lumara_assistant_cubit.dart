@@ -1,5 +1,7 @@
-import 'package:my_app/lumara/agents/research/swarmspace_web_search_tool.dart';
+import 'dart:async';
 import 'dart:convert';
+import 'package:my_app/lumara/agents/research/swarmspace_web_search_tool.dart';
+import 'package:my_app/services/swarmspace/swarmspace_client.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
@@ -46,11 +48,6 @@ import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as models
 import '../services/reflection_handler.dart';
 import '../services/chat_phase_service.dart';
 import 'package:my_app/repositories/reflection_session_repository.dart';
-import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
-import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
-import 'package:my_app/arc/chat/reflection/reflection_emotional_analyzer.dart';
-import 'package:my_app/services/adaptive/adaptive_sentinel_calculator.dart';
-import 'package:my_app/services/sentinel/sentinel_config.dart';
 import 'package:hive/hive.dart';
 import 'package:my_app/models/reflection_session.dart';
 import 'package:my_app/crossroads/crossroads_service.dart';
@@ -74,7 +71,16 @@ import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/dual/intelligence/agentic_loop_orchestrator.dart';
 import 'package:my_app/chronicle/dual/intelligence/interrupt/interrupt_decision_engine.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
+import 'package:my_app/core/services/document_content_service.dart';
 import 'package:my_app/core/services/media_pick_and_analyze_service.dart';
+
+/// Pending SwarmSpace plugin consent (first-use interrupt per LUMARA–SwarmSpace docking spec).
+class SwarmSpaceConsentRequest {
+  final String pluginId;
+  final String displayName;
+
+  const SwarmSpaceConsentRequest({required this.pluginId, required this.displayName});
+}
 
 /// LUMARA Assistant Cubit State
 abstract class LumaraAssistantState {}
@@ -107,6 +113,10 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
   final bool useDetailedAnalysis;
   /// Live status messages shown in the thinking bubble while processing.
   final List<String> processingSteps;
+  /// First-use SwarmSpace plugin consent (show Approve/Decline sheet).
+  final SwarmSpaceConsentRequest? pendingSwarmSpaceConsent;
+  /// When true, chat UI should push the API progress screen (voice-style sigil + status).
+  final bool showApiProgressScreen;
 
   LumaraAssistantLoaded({
     required this.messages,
@@ -126,6 +136,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     this.pendingAgenticLoopContext,
     this.useDetailedAnalysis = false,
     this.processingSteps = const [],
+    this.pendingSwarmSpaceConsent,
+    this.showApiProgressScreen = false,
   });
 
   LumaraAssistantLoaded copyWith({
@@ -146,6 +158,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     AgenticLoopContext? pendingAgenticLoopContext,
     bool? useDetailedAnalysis,
     List<String>? processingSteps,
+    SwarmSpaceConsentRequest? pendingSwarmSpaceConsent,
+    bool? showApiProgressScreen,
   }) {
     return LumaraAssistantLoaded(
       messages: messages ?? this.messages,
@@ -165,6 +179,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticLoopContext: pendingAgenticLoopContext ?? this.pendingAgenticLoopContext,
       useDetailedAnalysis: useDetailedAnalysis ?? this.useDetailedAnalysis,
       processingSteps: processingSteps ?? this.processingSteps,
+      pendingSwarmSpaceConsent: pendingSwarmSpaceConsent ?? this.pendingSwarmSpaceConsent,
+      showApiProgressScreen: showApiProgressScreen ?? this.showApiProgressScreen,
     );
   }
 
@@ -187,6 +203,9 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticGapId: null,
       pendingAgenticLoopContext: null,
       useDetailedAnalysis: useDetailedAnalysis,
+      processingSteps: processingSteps,
+      pendingSwarmSpaceConsent: pendingSwarmSpaceConsent,
+      showApiProgressScreen: showApiProgressScreen,
     );
   }
 
@@ -209,6 +228,9 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticGapId: pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext,
       useDetailedAnalysis: useDetailedAnalysis,
+      processingSteps: processingSteps,
+      pendingSwarmSpaceConsent: pendingSwarmSpaceConsent,
+      showApiProgressScreen: showApiProgressScreen,
     );
   }
 
@@ -231,6 +253,9 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticGapId: pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext,
       useDetailedAnalysis: useDetailedAnalysis,
+      processingSteps: processingSteps,
+      pendingSwarmSpaceConsent: pendingSwarmSpaceConsent,
+      showApiProgressScreen: showApiProgressScreen,
     );
   }
 
@@ -253,6 +278,9 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticGapId: pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext,
       useDetailedAnalysis: useDetailedAnalysis,
+      processingSteps: processingSteps,
+      pendingSwarmSpaceConsent: pendingSwarmSpaceConsent,
+      showApiProgressScreen: showApiProgressScreen,
     );
   }
 }
@@ -321,12 +349,6 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     _reflectionHandler = ReflectionHandler(
       sessionRepo: ReflectionSessionRepository(box),
       journalRepo: _journalRepository,
-      aurora: AuroraReflectionService(
-        patternAnalyzer: ReflectionPatternAnalyzer(),
-        emotionalAnalyzer: ReflectionEmotionalAnalyzer(
-          AdaptiveSentinelCalculator(SentinelConfig.weekly()),
-        ),
-      ),
       lumaraApi: _enhancedApi,
     );
     return _reflectionHandler!;
@@ -341,6 +363,9 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
   // Chat-based agent orchestration (Research / Writing from LUMARA chat)
   LumaraChatOrchestrator? _chatOrchestrator;
+
+  // SwarmSpace first-use consent (LUMARA–SwarmSpace docking): completer completed by UI
+  Completer<bool>? _pendingSwarmSpaceConsentCompleter;
 
   LumaraAssistantCubit({
     required ContextProvider contextProvider,
@@ -542,18 +567,22 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   /// Send a message to LUMARA
   ///
   /// [attachments] - Optional analyzed media (images with keywords from vision analysis)
+  /// [fileAttachments] - Optional file attachments (path, fileName, mimeType) for PDF/DOCX etc.
   /// [conversationMode] - Optional conversation mode (from UI buttons)
   /// [persona] - Optional persona override (from UI selector, 'companion' default)
   Future<void> sendMessage(
     String text, {
     List<AnalyzedMedia>? attachments,
+    List<({String path, String fileName, String mimeType})>? fileAttachments,
     JournalEntry? currentEntry,
     models.ConversationMode? conversationMode,
     String? persona, // 'companion', 'strategist', 'therapist', 'challenger'
     bool skipCrossroadsCheck = false, // true when resending after user declined Crossroads
     bool isEditRegenerate = false, // true when called from editMessageAndRegenerate (message already in state)
   }) async {
-    if (text.trim().isEmpty && (attachments == null || attachments.isEmpty)) return;
+    final hasImages = attachments != null && attachments.isNotEmpty;
+    final hasFiles = fileAttachments != null && fileAttachments.isNotEmpty;
+    if (text.trim().isEmpty && !hasImages && !hasFiles) return;
 
     final currentState = state;
     if (currentState is! LumaraAssistantLoaded) return;
@@ -562,26 +591,47 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
       return;
     }
 
-    // Build effective text with image keywords for LLM context
+    // Build effective text with image keywords and file names for LLM context
     String effectiveText = text.trim();
     List<ContentPart>? contentPartsForPersistence;
-    if (attachments != null && attachments.isNotEmpty) {
+    final parts = <ContentPart>[];
+    if (hasImages) {
       final keywordParts = attachments.map((a) => a.keywords).join('; ');
       effectiveText = '📷 [Attached image(s). Keywords: $keywordParts]\n\n$effectiveText'.trim();
+      parts.addAll(attachments.map((a) => MediaContentPart(
+        mime: 'image/jpeg',
+        pointer: MediaPointer(uri: a.imagePath, metadata: {'keywords': a.keywords, 'altText': a.altText}),
+        alt: a.altText,
+      )));
+    }
+    if (hasFiles) {
+      final fileNames = fileAttachments.map((f) => f.fileName).join(', ');
+      effectiveText = '📎 [Attached: $fileNames]\n\n$effectiveText'.trim();
+      for (final f in fileAttachments) {
+        final path = f.path.replaceFirst(RegExp(r'^file://'), '');
+        parts.add(MediaContentPart(
+          mime: f.mimeType,
+          pointer: MediaPointer(uri: path, metadata: {'fileName': f.fileName}),
+          alt: f.fileName,
+        ));
+      }
+    }
+    if (parts.isNotEmpty) {
       contentPartsForPersistence = [
-        ...attachments.map((a) => MediaContentPart(
-          mime: 'image/jpeg',
-          pointer: MediaPointer(uri: a.imagePath, metadata: {'keywords': a.keywords, 'altText': a.altText}),
-          alt: a.altText,
-        )),
+        ...parts,
         if (text.trim().isNotEmpty) TextContentPart(text: text.trim()),
       ];
     }
 
     // Add user message to chat immediately (optimistic) — skip when edit-regenerate (already in state)
-    final displayContent = text.trim().isEmpty && attachments != null && attachments.isNotEmpty
-        ? '📷 [Image attached]'
-        : text.trim();
+    String displayContent = text.trim();
+    if (displayContent.isEmpty && (hasImages || hasFiles)) {
+      displayContent = hasImages && hasFiles
+          ? '📷📎 [Attachments]'
+          : hasImages
+              ? '📷 [Image attached]'
+              : '📎 [File attached]';
+    }
     final List<LumaraMessage> updatedMessages;
     if (isEditRegenerate) {
       updatedMessages = List<LumaraMessage>.from(currentState.messages);
@@ -783,11 +833,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     print('LUMARA Debug: Added user message, new count: ${updatedMessages.length}');
 
-    // Infer seeking type for agentic loop — Research/Writing skip the "what triggered this?" interrupt
+    // Infer seeking type for agentic loop.
     final seekingType = _inferSeekingType(text);
 
     // Dual chronicle: run agentic loop (chat modality). If interrupt, show clarifying question and wait for reply.
-    // Research/Writing intents skip interrupt; they use research-scoping questions instead.
+    // No "what triggered this?" / scope clarification in chat — #corereflection is used for that.
     final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
     String phaseName = await UserPhaseService.getCurrentPhase();
     if (phaseName.isEmpty) phaseName = 'unknown';
@@ -1487,17 +1537,37 @@ Continue naturally.''';
     masterPrompt = LumaraMasterPrompt.injectDateContext(masterPrompt);
 
     // Phase metadata suppression: do not surface entry counts or phase labels in chat
-    masterPrompt = '$masterPrompt\n\n<response_style>\n'
-        'You are LUMARA having a conversation. Use phase/context to calibrate tone and intensity only.\n'
+    String responseStyleBlock = 'You are LUMARA having a conversation. Use phase/context to calibrate tone and intensity only.\n'
         'DO NOT mention entry counts in your response.\n'
         'DO NOT say "Based on X entries..." or "Your current phase is...".\n'
         'DO NOT surface phase metadata or CHRONICLE stats in response text.\n'
         'Respond like a trusted friend. Conversational. Direct. Personal.\n'
         'Answer questions directly with substance—avoid generic or deflecting responses.\n'
-        'NEVER respond in third person about LUMARA. NEVER write product copy unless asked.\n'
-        '</response_style>\n';
+        'NEVER respond in third person about LUMARA. NEVER write product copy unless asked.\n';
+
+    // User asked for a simple answer — keep response brief, minimal linking, direct
+    if (_userWantsSimpleAnswer(userMessage)) {
+      responseStyleBlock += '\n**USER REQUESTED SIMPLE ANSWER:** Keep your response brief and direct. '
+          'Minimal linking, no lengthy elaboration. Answer the question concisely in 2–4 sentences. '
+          'Avoid bullet lists, headers, or excessive structure unless the question requires it.\n';
+    }
+
+    masterPrompt = '$masterPrompt\n\n<response_style>\n$responseStyleBlock</response_style>\n';
 
     return masterPrompt;
+  }
+
+  /// Detect if user asked for a simple/brief answer.
+  bool _userWantsSimpleAnswer(String? message) {
+    if (message == null || message.trim().isEmpty) return false;
+    final lower = message.toLowerCase();
+    const phrases = [
+      'keep it simple', 'keep the answer simple', 'keep it brief',
+      'give me a simple answer', 'simple answer', 'just answer simply',
+      'minimal linking', 'answer simply', 'brief answer', 'short answer',
+      'just give me an answer', 'just answer', 'be concise',
+    ];
+    return phrases.any((p) => lower.contains(p));
   }
 
   /// Map task type to LUMARA intent
@@ -1872,9 +1942,16 @@ Continue naturally.''';
       if (currentEntry.media.isNotEmpty) {
         buffer.writeln('\n=== MEDIA CONTENT FROM CURRENT ENTRY ===');
         for (final mediaItem in currentEntry.media) {
-          if (mediaItem.ocrText != null && mediaItem.ocrText!.isNotEmpty) {
+          String? fileText = mediaItem.ocrText;
+          if (mediaItem.type == MediaType.file &&
+              (fileText == null || fileText.isEmpty)) {
+            // Already-attached files without stored text: extract on demand
+            final path = mediaItem.uri.replaceFirst(RegExp(r'^file://'), '');
+            fileText = await DocumentContentService.extractTextFromPath(path);
+          }
+          if (fileText != null && fileText.isNotEmpty) {
             final label = mediaItem.type == MediaType.file ? 'File content' : 'Photo OCR';
-            buffer.writeln('$label: ${mediaItem.ocrText}');
+            buffer.writeln('$label: $fileText');
           }
           if (mediaItem.altText != null && mediaItem.altText!.isNotEmpty) {
             buffer.writeln('Photo description: ${mediaItem.altText}');
@@ -2759,6 +2836,32 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     emit(currentState.clearedPendingOutcome().copyWith(messages: updatedMessages));
   }
 
+  /// Called when SwarmSpace is about to use a plugin for the first time (docking spec).
+  /// Emits consent state; UI shows sheet and calls [respondToSwarmSpaceConsent]. Returns once user approves/declines.
+  Future<bool> _requestSwarmSpaceConsent(String pluginId) async {
+    final displayName = SwarmSpaceClient.pluginDisplayName(pluginId);
+    _pendingSwarmSpaceConsentCompleter = Completer<bool>();
+    final current = state;
+    if (current is LumaraAssistantLoaded) {
+      emit(current.copyWith(
+        pendingSwarmSpaceConsent: SwarmSpaceConsentRequest(pluginId: pluginId, displayName: displayName),
+      ));
+    }
+    try {
+      return await _pendingSwarmSpaceConsentCompleter!.future;
+    } finally {
+      _pendingSwarmSpaceConsentCompleter = null;
+      if (state is LumaraAssistantLoaded) {
+        emit((state as LumaraAssistantLoaded).copyWith(pendingSwarmSpaceConsent: null));
+      }
+    }
+  }
+
+  /// Call when user taps Approve or Decline on the SwarmSpace plugin consent sheet.
+  void respondToSwarmSpaceConsent(bool approved) {
+    _pendingSwarmSpaceConsentCompleter?.complete(approved);
+  }
+
   /// Lazy-create chat orchestrator (Research + Writing agents) for LUMARA chat.
   /// Uses Lumara cloud (proxy or keys) when available, else Groq key, else null.
   Future<LumaraChatOrchestrator?> _getChatOrchestrator() async {
@@ -2790,7 +2893,9 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
             maxTokens: maxTokens ?? 1200,
           );
         },
-        searchTool: SwarmSpaceWebSearchTool(),
+        searchTool: SwarmSpaceWebSearchTool(
+          onConsentRequired: _requestSwarmSpaceConsent,
+        ),
       );
 
       final writingAgent = WritingAgent(
@@ -2818,7 +2923,6 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
   }
 
   /// Lightweight heuristic to infer seeking type for agentic loop.
-  /// Research/Writing skip the "what triggered this?" interrupt.
   String? _inferSeekingType(String text) {
     final lower = text.toLowerCase().trim();
     if (lower.length < 10) return null;
@@ -2826,6 +2930,8 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       'research', 'investigate', 'find out', 'search for', 'look up',
       'what do people say', 'what are people saying', 'what\'s the buzz',
       'analyze', 'find information', 'compile', 'gather info',
+      'news', 'headlines', 'latest news', 'get me the latest', 'breaking news',
+      'get me news on', 'get me news about', 'get me news concerning',
     ];
     final writingKeywords = [
       'write ', 'draft ', 'article', 'essay', 'post about', 'compose',
@@ -2869,7 +2975,13 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       lowerText.contains('what\'s the buzz') ||
       lowerText.contains('summarize') ||
       lowerText.contains('compile') ||
-      lowerText.contains('analyze ')
+      lowerText.contains('analyze ') ||
+      lowerText.contains('news') ||
+      lowerText.contains('headlines') ||
+      lowerText.contains('latest news') ||
+      lowerText.contains('get me the latest') ||
+      lowerText.contains('breaking news') ||
+      lowerText.contains('current events')
     );
     if (!mightNeedAgent) return false;
 
@@ -2878,22 +2990,8 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     final intent = await orchestrator.classifyIntent(text);
     final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
 
-    // Low confidence: ask for clarification
-    if (intent.confidence < 0.6) {
-      final response = await orchestrator.handleMessage(
-        userId: userId,
-        message: text,
-        onProgressUpdate: (_) {},
-      );
-      if (response.type == ChatResponseType.clarification) {
-        final assistantMsg = LumaraMessage.assistant(content: response.message);
-        final finalMessages = [...updatedMessages, assistantMsg];
-        await _addToChatSession(response.message, 'assistant', messageId: assistantMsg.id, timestamp: assistantMsg.timestamp);
-        emit(currentState.copyWith(messages: finalMessages, isProcessing: false));
-        return true;
-      }
-      return false;
-    }
+    // Low confidence: no interrupt — send to reflection path (#corereflection).
+    if (intent.confidence < 0.6) return false;
 
     // Pattern: show "coming soon"
     if (intent.type == ChatIntentType.pattern) {
@@ -2921,7 +3019,12 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       ...updatedMessages,
       LumaraMessage.assistant(content: 'Working...', id: placeholderId),
     ];
-    emit(currentState.copyWith(messages: messagesWithPlaceholder, isProcessing: true));
+    // Trigger gentle transition to voice-style API progress screen (sigil + status text)
+    emit(currentState.copyWith(
+      messages: messagesWithPlaceholder,
+      isProcessing: true,
+      showApiProgressScreen: true,
+    ));
 
     try {
       final response = await orchestrator.handleMessage(

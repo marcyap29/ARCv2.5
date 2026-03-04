@@ -230,7 +230,7 @@ class EngagementSettings {
   final bool adaptToAtlasPhase; // Whether to let ATLAS phase influence engagement
 
   const EngagementSettings({
-    this.defaultMode = EngagementMode.reflect,
+    this.defaultMode = EngagementMode.deeper,
     this.conversationOverride,
     this.synthesisPreferences = const SynthesisPreferences(),
     this.responseDiscipline = const ResponseDiscipline(),

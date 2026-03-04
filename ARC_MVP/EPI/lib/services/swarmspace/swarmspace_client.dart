@@ -19,6 +19,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/services/firebase_service.dart';
+import 'package:my_app/services/swarmspace/swarmspace_plugin_approval_store.dart';
 
 /// Result of a SwarmSpace plugin invocation.
 class SwarmSpaceResult {
@@ -134,6 +135,30 @@ class PluginCatalogResult {
   }
 }
 
+/// User-facing message when a plugin is unavailable (per LUMARA–SwarmSpace docking spec).
+String _pluginUnavailableMessage(String pluginId) {
+  final name = _pluginDisplayName(pluginId);
+  return '$name isn\'t available right now. I\'ll continue with other sources.';
+}
+
+/// Display name for consent/error UI.
+String _pluginDisplayName(String pluginId) {
+  switch (pluginId) {
+    case 'brave-search':
+      return 'Brave Search';
+    case 'tavily-search':
+      return 'Tavily Search';
+    case 'wikipedia':
+      return 'Wikipedia';
+    case 'news':
+      return 'News';
+    case 'url-reader':
+      return 'URL Reader';
+    default:
+      return pluginId.replaceAll('-', ' ').split(' ').map((s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}').join(' ');
+  }
+}
+
 /// Cloud Function URL — same region/project as proxyGroq.
 const _swarmspaceRouterUrl =
     'https://us-central1-arc-epi.cloudfunctions.net/swarmspaceRouter';
@@ -156,19 +181,39 @@ class SwarmSpaceClient {
   ///
   /// [pluginId] — e.g. 'brave-search', 'weather', 'gemini-flash'
   /// [params]   — plugin-specific request body (see each plugin's input_schema)
+  /// [onConsentRequired] — when set, first-use unapproved plugins trigger this; if it returns true, approval is persisted and invoke continues.
   Future<SwarmSpaceResult> invoke(
     String pluginId,
-    Map<String, dynamic> params,
-  ) async {
+    Map<String, dynamic> params, {
+    Future<bool> Function(String pluginId)? onConsentRequired,
+  }) async {
+    final store = SwarmSpacePluginApprovalStore.instance;
+    final approved = await store.isApproved(pluginId);
+    if (!approved) {
+      if (onConsentRequired != null) {
+        final userApproved = await onConsentRequired(pluginId);
+        if (!userApproved) {
+          return SwarmSpaceResult.error('Plugin skipped by user');
+        }
+        await store.setApproved(pluginId);
+      } else {
+        return SwarmSpaceResult.error('Plugin skipped by user');
+      }
+    }
+
     await FirebaseService.instance.ensureReady();
     final firebaseUser = FirebaseAuthService.instance.currentUser;
     if (firebaseUser == null) {
-      return SwarmSpaceResult.error('Not authenticated. Sign in to use SwarmSpace.');
+      return SwarmSpaceResult.error(
+        'LUMARA couldn\'t connect to SwarmSpace. Try signing out and back in.',
+      );
     }
     // Force refresh to avoid stale token (Firebase docs recommend for callables)
     final idToken = await firebaseUser.getIdToken(true);
     if (idToken == null || idToken.isEmpty) {
-      return SwarmSpaceResult.error('Could not obtain auth token. Try signing out and back in.');
+      return SwarmSpaceResult.error(
+        'LUMARA couldn\'t connect to SwarmSpace. Try signing out and back in.',
+      );
     }
 
     final requestData = <String, dynamic>{
@@ -194,11 +239,12 @@ class SwarmSpaceClient {
       final body = await httpResponse.transform(utf8.decoder).join();
 
       if (httpResponse.statusCode != 200) {
-        String errorMsg = 'SwarmSpace HTTP ${httpResponse.statusCode}';
+        String userMsg = httpResponse.statusCode == 401
+            ? 'LUMARA couldn\'t connect to SwarmSpace. Try signing out and back in.'
+            : _pluginUnavailableMessage(pluginId);
         try {
           final errData = jsonDecode(body) as Map<String, dynamic>;
           final errObj = errData['error'] as Map<String, dynamic>?;
-          errorMsg = errObj?['message'] as String? ?? errorMsg;
           final details = errObj?['details'] as Map<String, dynamic>?;
 
           if (details != null && details['quota'] != null) {
@@ -210,13 +256,13 @@ class SwarmSpaceClient {
         } catch (_) {}
 
         if (kDebugMode) {
-          print('SwarmSpace: invoke($pluginId) error: $errorMsg');
+          print('SwarmSpace: invoke($pluginId) error: $userMsg');
           if (httpResponse.statusCode == 401 && body.isNotEmpty) {
             final preview = body.length > 300 ? '${body.substring(0, 300)}...' : body;
             print('SwarmSpace: 401 response body: $preview');
           }
         }
-        return SwarmSpaceResult.error(errorMsg);
+        return SwarmSpaceResult.error(userMsg);
       }
 
       final data = jsonDecode(body) as Map<String, dynamic>;
@@ -232,10 +278,14 @@ class SwarmSpaceClient {
       return swResult;
     } on SocketException catch (e) {
       if (kDebugMode) print('SwarmSpace: invoke($pluginId) network error: $e');
-      return SwarmSpaceResult.error('Network error: $e');
+      return SwarmSpaceResult.error(
+        'Research ran into a problem. You can try rephrasing, or ask me to work from what I already know.',
+      );
     } catch (e) {
       if (kDebugMode) print('SwarmSpace: invoke($pluginId) unexpected error: $e');
-      return SwarmSpaceResult.error('Unexpected error: $e');
+      return SwarmSpaceResult.error(
+        'Research ran into a problem. You can try rephrasing, or ask me to work from what I already know.',
+      );
     } finally {
       client.close();
     }
@@ -316,4 +366,7 @@ class SwarmSpaceClient {
 
   /// Get cached quota for a plugin (updated after each invocation).
   SwarmSpaceQuota? getCachedQuota(String pluginId) => _quotaCache[pluginId];
+
+  /// Display name for a plugin (consent sheet and error messages).
+  static String pluginDisplayName(String pluginId) => _pluginDisplayName(pluginId);
 }

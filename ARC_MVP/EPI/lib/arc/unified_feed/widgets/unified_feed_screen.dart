@@ -10,7 +10,7 @@
 /// - Date dividers between groups
 /// - Input bar at the bottom
 ///
-/// App bar actions: Timeline (calendar), Voice memo, Settings
+/// App bar actions: Search & Timeline (magnifying glass), Settings
 /// Behind feature flag: FeatureFlags.USE_UNIFIED_FEED
 library;
 
@@ -394,12 +394,13 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       }
       return;
     }
-    // Chat entries: open directly in chat (skip preview)
+    // Chat entries and voice sessions (saved as chat): open directly in chat
     if ((entry.type == FeedEntryType.savedConversation ||
-            entry.type == FeedEntryType.activeConversation) &&
+            entry.type == FeedEntryType.activeConversation ||
+            entry.type == FeedEntryType.voiceMemo) &&
         entry.chatSessionId != null &&
         entry.chatSessionId!.isNotEmpty) {
-      _openChatSession(entry.chatSessionId!);
+      _openChatSession(entry.chatSessionId!, isVoiceSession: entry.type == FeedEntryType.voiceMemo);
       return;
     }
     // All other entries: navigate to expanded entry view
@@ -419,7 +420,8 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   }
 
   /// Open a saved/active chat session directly in the chat screen.
-  Future<void> _openChatSession(String sessionId) async {
+  /// When [isVoiceSession] is true, the chat screen shows "Started as voice" so user knows it began in voice mode.
+  Future<void> _openChatSession(String sessionId, {bool isVoiceSession = false}) async {
     try {
       final cubit = context.read<LumaraAssistantCubit>();
       await cubit.switchToSession(sessionId);
@@ -430,7 +432,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (context) => const LumaraChatRedesignScreen(),
+        builder: (context) => LumaraChatRedesignScreen(isVoiceSession: isVoiceSession),
       ),
     ).then((_) => _feedRepo.refresh());
   }
@@ -763,14 +765,14 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
               _selectedEntryIds.clear();
             }),
           ),
-          // Timeline (calendar)
+          // Search & Timeline (magnifying glass)
           IconButton(
             icon: Icon(
-              Icons.calendar_month,
+              Icons.search,
               color: kcSecondaryTextColor.withOpacity(0.6),
               size: 22,
             ),
-            tooltip: 'Timeline',
+            tooltip: 'Search & Timeline',
             onPressed: _openTimelineModal,
           ),
           // Settings: LUMARA settings + Chat history

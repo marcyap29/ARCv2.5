@@ -136,6 +136,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 **2026-02-25 (follow-up):** Doc sync v3.3.64 — newsDataInvoke Cloud Function; swarmspace_web_search_tool expansion; chat_intent_classifier; transcript_cleaner. main merged into test; backup-2026-02-25 updated.
 
+**2026-02-25 (follow-up):** Doc sync v3.3.65 — Veil Edge removal; reflection simplifications; journal/voice/timeline/feed refinements; LUMARA_Overview.md, Swarmspace_Overview.md. main merged into test; backup-2026-02-25 updated.
+
 **Status:** ✅ Ready for commit and push.
 
 ---

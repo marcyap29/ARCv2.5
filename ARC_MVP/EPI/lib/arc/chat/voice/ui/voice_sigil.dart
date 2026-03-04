@@ -33,9 +33,14 @@ enum VoiceSigilState {
 /// Voice Sigil Widget
 /// 
 /// The centerpiece of the voice interaction UI
+/// Single accent color when [colorOverride] is set (e.g. API progress screen).
+const Color kSigilSingleColor = Color(0xFF7C3AED);
+
 class VoiceSigil extends StatefulWidget {
   final VoiceSigilState state;
   final PhaseLabel currentPhase;
+  /// When set, use this color for glow/shimmer/particles instead of phase-based color.
+  final Color? colorOverride;
   final double audioLevel; // 0.0 to 1.0
   final CommitmentLevel? commitmentLevel;
   final VoidCallback? onTap;
@@ -45,6 +50,7 @@ class VoiceSigil extends StatefulWidget {
     super.key,
     required this.state,
     required this.currentPhase,
+    this.colorOverride,
     this.audioLevel = 0.0,
     this.commitmentLevel,
     this.onTap,
@@ -173,6 +179,7 @@ class _VoiceSigilState extends State<VoiceSigil> with TickerProviderStateMixin {
   }
   
   Color _getPhaseColor() {
+    if (widget.colorOverride != null) return widget.colorOverride!;
     // Colors matching the rest of the app (see calendar_week_timeline.dart)
     switch (widget.currentPhase) {
       case PhaseLabel.discovery:

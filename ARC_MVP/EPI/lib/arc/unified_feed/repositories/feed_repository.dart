@@ -219,9 +219,13 @@ class FeedRepository {
     final bool isConversation = entry.lumaraBlocks.isNotEmpty;
     final bool isVoiceMemo =
         entry.audioUri != null && entry.audioUri!.isNotEmpty;
+    final bool isVoiceConversation =
+        entry.metadata?['entryType'] == 'voice_conversation' ||
+        entry.metadata?['isVoiceEntry'] == true;
+    final String? voiceChatSessionId = entry.metadata?['chatSessionId'] as String?;
 
     FeedEntryType type;
-    if (isVoiceMemo) {
+    if (isVoiceMemo || (isVoiceConversation && voiceChatSessionId != null && voiceChatSessionId.isNotEmpty)) {
       type = FeedEntryType.voiceMemo;
     } else if (isConversation) {
       type = FeedEntryType.savedConversation;
@@ -248,6 +252,14 @@ class FeedRepository {
       preview = '${preview.substring(0, 197)}...';
     }
 
+    int? exchangeCount;
+    if (isConversation) {
+      exchangeCount = entry.lumaraBlocks.length;
+    } else if (type == FeedEntryType.voiceMemo && entry.metadata?['voiceSession'] != null) {
+      final vs = entry.metadata!['voiceSession'] as Map<String, dynamic>?;
+      exchangeCount = vs?['turnCount'] as int?;
+    }
+
     return FeedEntry(
       id: 'journal_${entry.id}',
       type: type,
@@ -256,7 +268,7 @@ class FeedRepository {
       title: entry.title.isNotEmpty ? entry.title : _generateTitle(entry),
       content: entry.content,
       themes: themes,
-      exchangeCount: isConversation ? entry.lumaraBlocks.length : null,
+      exchangeCount: exchangeCount,
       phase: phase,
       phaseColor: phaseColor,
       mood: entry.emotion ?? entry.mood,
@@ -268,6 +280,7 @@ class FeedRepository {
       tags: entry.tags,
       journalEntryId: entry.id,
       audioPath: isVoiceMemo ? entry.audioUri : null,
+      chatSessionId: voiceChatSessionId,
       metadata: entry.metadata ?? {},
     );
   }

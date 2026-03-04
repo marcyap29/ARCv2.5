@@ -5,6 +5,7 @@ import '../../../arc/chat/chat/content_parts.dart';
 import '../../../data/models/media_item.dart';
 import '../../../models/journal_entry_model.dart';
 import '../../../prism/atlas/phase/phase_history_repository.dart';
+import '../../../core/services/document_content_service.dart';
 import '../../../core/services/pdf_content_service.dart';
 import '../../../crossroads/models/decision_capture.dart';
 import 'layer0_repository.dart';
@@ -98,6 +99,13 @@ class Layer0Populator {
         } else if (media.ocrText != null && media.ocrText!.trim().isNotEmpty) {
           // txt, md, docx: use pre-extracted text from MediaItem.ocrText
           content += '\n\n[Attachment: $name]\n${media.ocrText!.trim()}';
+        } else {
+          // Already-attached files without stored text: extract on demand so Chronicle gets content
+          final onDemand = await DocumentContentService.extractTextFromPath(path);
+          if (onDemand.trim().isNotEmpty) {
+            content += '\n\n[Attachment: $name]\n${onDemand.trim()}';
+            _addKeywordsFromText(onDemand, keywords);
+          }
         }
       }
 

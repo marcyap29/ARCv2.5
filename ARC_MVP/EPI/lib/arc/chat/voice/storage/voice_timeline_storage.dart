@@ -27,20 +27,25 @@ class VoiceTimelineStorage {
   /// Creates a JournalEntry with:
   /// - metadata['entryType'] = 'voice_conversation'
   /// - metadata['voiceSession'] = session details
+  /// - metadata['chatSessionId'] = [chatSessionId] when provided (tap opens as chat)
   /// - content = formatted conversation transcript
-  Future<String> saveVoiceSession(VoiceSession session) async {
+  /// When [chatSessionId] is set, the feed will show voice icon but tap opens chat screen so user can continue the session.
+  Future<String> saveVoiceSession(VoiceSession session, {String? chatSessionId}) async {
     try {
       final entryId = const Uuid().v4();
-      
+
+      // Build metadata (include chatSessionId so feed/timeline opens this as chat)
+      final metadata = _buildMetadata(session);
+      if (chatSessionId != null && chatSessionId.isNotEmpty) {
+        metadata['chatSessionId'] = chatSessionId;
+      }
+
       // Format conversation transcript
       final transcript = _formatConversationTranscript(session);
-      
+
       // Create title from first user message
       final title = _generateTitle(session);
-      
-      // Build metadata
-      final metadata = _buildMetadata(session);
-      
+
       // Create JournalEntry
       final entry = JournalEntry(
         id: entryId,
@@ -56,11 +61,11 @@ class VoiceTimelineStorage {
         metadata: metadata,
         keywords: await _extractKeywords(session),
       );
-      
+
       // Save to repository
       await _journalRepository.createJournalEntry(entry);
-      
-      debugPrint('VoiceStorage: Session saved to timeline (entry ID: $entryId)');
+
+      debugPrint('VoiceStorage: Session saved to timeline (entry ID: $entryId${chatSessionId != null ? ", chatSessionId: $chatSessionId" : ""})');
       return entryId;
       
     } catch (e) {

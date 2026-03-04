@@ -93,8 +93,18 @@ class LumaraMessage extends Equatable {
     );
   }
 
-  /// Create LumaraMessage from ChatMessage (preserves ID for favorites)
+  /// Create LumaraMessage from ChatMessage (preserves ID for favorites).
+  /// Restores attribution from metadata when present (e.g. voice→chat sessions).
   factory LumaraMessage.fromChatMessage(ChatMessage chatMessage) {
+    List<AttributionTrace>? attributionTraces;
+    final raw = chatMessage.metadata?['attribution_traces'];
+    if (raw is List && raw.isNotEmpty) {
+      try {
+        attributionTraces = raw
+            .map((e) => AttributionTrace.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
+      } catch (_) {}
+    }
     return LumaraMessage(
       id: chatMessage.id, // Preserve original ID for favorites
       role: chatMessage.role == MessageRole.user
@@ -106,7 +116,7 @@ class LumaraMessage extends Equatable {
       timestamp: chatMessage.createdAt,
       sources: const [],
       metadata: chatMessage.metadata ?? {},
-      attributionTraces: null, // Can be loaded separately if needed
+      attributionTraces: attributionTraces,
     );
   }
 

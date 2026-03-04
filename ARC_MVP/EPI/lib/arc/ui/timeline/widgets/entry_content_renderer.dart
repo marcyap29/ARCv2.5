@@ -5,6 +5,8 @@ import 'package:my_app/data/models/media_item.dart';
 import 'package:my_app/ui/widgets/full_image_viewer.dart';
 import 'package:my_app/services/media_resolver_service.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
+import 'package:my_app/ui/journal/widgets/pdf_preview_screen.dart';
+import 'package:my_app/ui/journal/widgets/docx_preview_screen.dart';
 
 /// Renders journal entry content with inline photo thumbnails
 class EntryContentRenderer extends StatelessWidget {
@@ -93,8 +95,78 @@ class EntryContentRenderer extends StatelessWidget {
       runSpacing: 8,
       children: mediaItems.map((mediaItem) {
         print('🖼️ EntryContentRenderer: Creating widget for media: ${mediaItem.id}, uri: ${mediaItem.uri}');
+        if (mediaItem.type == MediaType.file) {
+          return _buildFileChip(context, mediaItem);
+        }
         return _buildPhotoWidget(context, mediaItem);
       }).toList(),
+    );
+  }
+
+  /// Build tappable file chip for PDF/DOCX attachments; opens in-app viewer in reflections.
+  Widget _buildFileChip(BuildContext context, MediaItem mediaItem) {
+    final path = mediaItem.uri.replaceFirst(RegExp(r'^file://'), '');
+    final fileName = mediaItem.altText ?? path.split(RegExp(r'[/\\]')).last;
+    final lower = fileName.toLowerCase();
+    final isPdf = lower.endsWith('.pdf');
+    final isDocx = lower.endsWith('.docx') || lower.endsWith('.doc');
+    final theme = Theme.of(context);
+    IconData icon = Icons.insert_drive_file;
+    if (isPdf) icon = Icons.picture_as_pdf;
+    if (isDocx) icon = Icons.description;
+
+    return GestureDetector(
+      onTap: () {
+        final file = File(path);
+        if (!file.existsSync()) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('File not found: $fileName')),
+          );
+          return;
+        }
+        if (isPdf) {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => PdfPreviewScreen(
+                filePath: path,
+                fileName: fileName,
+              ),
+            ),
+          );
+        } else if (isDocx) {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => DocxPreviewScreen(
+                filePath: path,
+                fileName: fileName,
+                extractedText: mediaItem.ocrText,
+              ),
+            ),
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                fileName,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

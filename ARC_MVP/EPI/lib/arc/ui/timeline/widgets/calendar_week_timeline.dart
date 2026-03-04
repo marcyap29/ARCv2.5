@@ -2,11 +2,6 @@
 // Calendar week view for timeline visualization
 
 import 'package:flutter/material.dart';
-import 'package:my_app/models/phase_models.dart';
-import 'package:my_app/services/phase_index.dart';
-import 'package:my_app/services/phase_regime_service.dart';
-import 'package:my_app/services/analytics_service.dart';
-import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
@@ -29,7 +24,6 @@ class CalendarWeekTimeline extends StatefulWidget {
 }
 
 class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
-  PhaseIndex? _phaseIndex;
   DateTime _currentWeekStart = _getWeekStart(DateTime.now());
   bool _isLoading = true;
   Set<DateTime> _datesWithEntries = {};
@@ -85,12 +79,6 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
 
   Future<void> _loadData() async {
     try {
-      // Load phase data
-      final analyticsService = AnalyticsService();
-      final rivetSweepService = RivetSweepService(analyticsService);
-      final phaseRegimeService = PhaseRegimeService(analyticsService, rivetSweepService);
-      await phaseRegimeService.initialize();
-      
       // Load dates with entries from timeline cubit if available
       final cubit = context.read<TimelineCubit>();
       final currentState = cubit.state;
@@ -117,7 +105,6 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
       }
       
       setState(() {
-        _phaseIndex = phaseRegimeService.phaseIndex;
         _datesWithEntries = datesWithEntries;
         _isLoading = false;
       });
@@ -127,19 +114,6 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
         _isLoading = false;
       });
     }
-  }
-
-  Color _getPhaseColor(PhaseLabel? label) {
-    if (label == null) return Colors.grey;
-    const colors = {
-      PhaseLabel.discovery: Color(0xFF7C3AED), // Purple
-      PhaseLabel.expansion: Color(0xFF059669), // Green
-      PhaseLabel.transition: Color(0xFFD97706), // Orange
-      PhaseLabel.consolidation: Color(0xFF2563EB), // Blue
-      PhaseLabel.recovery: Color(0xFFDC2626), // Red
-      PhaseLabel.breakthrough: Color(0xFFFBBF24), // Yellow
-    };
-    return colors[label] ?? Colors.grey;
   }
   
   void _navigateToDateEntries(DateTime targetDate) {
@@ -270,13 +244,12 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: weekDays.map((day) {
-                final regime = _phaseIndex?.regimeFor(day);
-                final phaseColor = _getPhaseColor(regime?.label);
                 final isToday = day.year == DateTime.now().year &&
                     day.month == DateTime.now().month &&
                     day.day == DateTime.now().day;
                 final dayDateOnly = DateTime(day.year, day.month, day.day);
                 final hasEntries = datesWithEntries.contains(dayDateOnly);
+                final cellColor = kcSurfaceColor;
 
                 return Expanded(
                   child: GestureDetector(
@@ -286,9 +259,9 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       decoration: BoxDecoration(
-                        color: phaseColor.withOpacity(0.3),
+                        color: cellColor,
                         border: Border.all(
-                          color: isToday ? Colors.white : phaseColor.withOpacity(0.5),
+                          color: isToday ? kcPrimaryColor : kcBorderColor,
                           width: isToday ? 2 : 1,
                         ),
                         borderRadius: BorderRadius.circular(4),
@@ -326,12 +299,8 @@ class _CalendarWeekTimelineState extends State<CalendarWeekTimeline> {
                                 width: 6,
                                 height: 6,
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: kcPrimaryColor,
                                   shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: phaseColor,
-                                    width: 1,
-                                  ),
                                 ),
                               ),
                             ),

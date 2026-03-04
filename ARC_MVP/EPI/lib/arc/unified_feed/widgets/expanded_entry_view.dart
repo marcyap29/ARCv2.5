@@ -450,18 +450,15 @@ class ExpandedEntryView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: _buildParagraphWidgets(
-            context,
-            entry.content?.toString() ?? entry.preview,
-            TextStyle(
-              color: kcPrimaryTextColor.withOpacity(0.85),
-              fontSize: 15,
-              height: 1.6,
-              fontStyle: FontStyle.italic,
-            ),
+        // Use LumaraMessageBody so entry refs like [title](entry:uuid) in LUMARA responses are clickable
+        LumaraMessageBody(
+          content: entry.content?.toString() ?? entry.preview,
+          textStyle: TextStyle(
+            color: kcPrimaryTextColor.withOpacity(0.85),
+            fontSize: 15,
+            height: 1.6,
           ),
+          linkColor: kcPrimaryColor,
         ),
       ],
     );
@@ -954,10 +951,11 @@ class ExpandedEntryView extends StatelessWidget {
   }
 
   Future<void> _editEntry(BuildContext context) async {
-    // For saved/active conversations: open same chat UI as main Chat button (LumaraChatRedesignScreen)
+    // For saved/active conversations and voice sessions (saved as chat): open chat UI
     final sessionId = entry.chatSessionId;
     if ((entry.type == FeedEntryType.savedConversation ||
-            entry.type == FeedEntryType.activeConversation) &&
+            entry.type == FeedEntryType.activeConversation ||
+            entry.type == FeedEntryType.voiceMemo) &&
         sessionId != null &&
         sessionId.isNotEmpty) {
       try {
@@ -967,9 +965,10 @@ class ExpandedEntryView extends StatelessWidget {
         // Cubit may not be in tree; screen will handle
       }
       if (!context.mounted) return;
+      final isVoiceSession = entry.type == FeedEntryType.voiceMemo;
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (context) => const LumaraChatRedesignScreen(),
+          builder: (context) => LumaraChatRedesignScreen(isVoiceSession: isVoiceSession),
         ),
       );
       return;

@@ -47,11 +47,6 @@ import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/arc/chat/services/reflection_handler.dart';
 import 'package:my_app/arc/chat/models/lumara_reflection_options.dart' as lumara_models;
 import 'package:my_app/repositories/reflection_session_repository.dart';
-import 'package:my_app/aurora/reflection/aurora_reflection_service.dart';
-import 'package:my_app/arc/chat/reflection/reflection_pattern_analyzer.dart';
-import 'package:my_app/arc/chat/reflection/reflection_emotional_analyzer.dart';
-import 'package:my_app/services/adaptive/adaptive_sentinel_calculator.dart';
-import 'package:my_app/services/sentinel/sentinel_config.dart';
 import 'package:my_app/models/reflection_session.dart';
 import 'package:my_app/services/assemblyai_service.dart';
 import 'package:my_app/arc/chat/voice/transcription/assemblyai_provider.dart';
@@ -77,12 +72,6 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
     _reflectionHandler = ReflectionHandler(
       sessionRepo: ReflectionSessionRepository(box),
       journalRepo: _journalRepository,
-      aurora: AuroraReflectionService(
-        patternAnalyzer: ReflectionPatternAnalyzer(),
-        emotionalAnalyzer: ReflectionEmotionalAnalyzer(
-          AdaptiveSentinelCalculator(SentinelConfig.weekly()),
-        ),
-      ),
       lumaraApi: _lumaraApi!,
     );
     return _reflectionHandler;

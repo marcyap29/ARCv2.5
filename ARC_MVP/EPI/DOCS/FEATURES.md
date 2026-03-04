@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.63
+**Version:** 3.3.65
 **Last Updated:** February 25, 2026
 
 ---
@@ -209,6 +209,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Research Report Editor & Outputs Tab (v3.3.61)**: Report editor screen, report export service, expanded research_report_detail_screen; Outputs tab (outputs_tab_screen); media_pick_and_analyze_service; chat/feed/CHRONICLE refinements.
 - **Per-User LLM Model Configuration (v3.3.62)**: updateUserModelConfig Cloud Function; users can configure provider (groq, openai, anthropic, gemini, cloudflare, swarmspace), model ID, and optional API key via Settings or in-chat flow; llmRouter, groqClient, saveUserModelConfig; MODEL_CONFIG_SETUP.md.
 - **Phase Check-In Removal; SwarmSpace Plugin Catalog (v3.3.63)**: Phase check-in module removed; SwarmSpace plugin catalog screen; CHRONICLE reviews module; DOCX export helper; swarmspacePluginStatus callable.
+- **Veil Edge Removal; Overview Docs (v3.3.65)**: Veil Edge module and PRISM veil_edge_policy removed; reflection_emotional_analyzer, reflection_pattern_analyzer, aurora_reflection_service removed; journal/voice/timeline/feed refinements; LUMARA_Overview.md, Swarmspace_Overview.md; lumara_api_progress_screen, docx_preview_screen, swarmspace_plugin_approval_store.
 - **Dual CHRONICLE (v3.3.41–v3.3.47)**: Full dual CHRONICLE system — agentic loop orchestrator, intelligence summary generation/scheduling, CHRONICLE search (hybrid BM25 + semantic + adaptive fusion + reranking), dual_chronicle_view, writing with LUMARA, and CHRONICLE phase signal service.
 - **CHRONICLE Search (v3.3.44)**: Hybrid search engine combining BM25 lexical index, semantic embeddings, and adaptive fusion. Feature-based reranker for relevance scoring. Integrated into unified feed and LUMARA query pipeline.
 - **CHRONICLE Intelligence Summary (v3.3.45–v3.3.47)**: Automated intelligence summary generation from CHRONICLE data. Models, repository, generator, scheduling preferences, and dedicated intelligence summary view.

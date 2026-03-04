@@ -4,7 +4,6 @@
 /// suggestion buttons, simple input bar. Uses same LumaraAssistantCubit as main chat.
 library;
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -20,13 +19,20 @@ import 'package:my_app/shared/widgets/lumara_thinking_dialog.dart';
 import 'package:my_app/arc/chat/widgets/attribution_display_widget.dart';
 import 'package:my_app/arc/chat/widgets/lumara_message_body.dart';
 import 'package:my_app/arc/chat/voice/audio_io.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:my_app/arc/ui/widgets/attachment_menu_button.dart';
+import 'package:my_app/arc/ui/widgets/attachment_strip_widget.dart';
+import 'package:my_app/core/services/document_content_service.dart';
 import 'package:my_app/core/services/media_pick_and_analyze_service.dart';
+import 'package:my_app/ui/journal/widgets/docx_preview_screen.dart';
+import 'package:my_app/ui/journal/widgets/pdf_preview_screen.dart';
 
 class LumaraChatRedesignScreen extends StatefulWidget {
   final String? initialMessage;
+  /// When true, this conversation started as a voice session; show a badge so user can tell.
+  final bool isVoiceSession;
 
-  const LumaraChatRedesignScreen({super.key, this.initialMessage});
+  const LumaraChatRedesignScreen({super.key, this.initialMessage, this.isVoiceSession = false});
 
   @override
   State<LumaraChatRedesignScreen> createState() => _LumaraChatRedesignScreenState();
@@ -39,6 +45,7 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
   final GlobalKey _responseStyleMenuKey = GlobalKey();
   final MediaPickAndAnalyzeService _mediaService = MediaPickAndAnalyzeService();
   List<AnalyzedMedia> _pendingAttachments = [];
+  List<AttachmentFileItem> _pendingFileAttachments = [];
 
   // Scroll-to-top/bottom button state (same architecture as timeline)
   bool _showScrollToTop = false;
@@ -69,11 +76,16 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
 
   void _send(String text) {
     final t = text.trim();
-    if (t.isEmpty && _pendingAttachments.isEmpty) return;
+    final hasPending = _pendingAttachments.isNotEmpty || _pendingFileAttachments.isNotEmpty;
+    if (t.isEmpty && !hasPending) return;
 
     final attachments = List<AnalyzedMedia>.from(_pendingAttachments);
-    if (attachments.isNotEmpty) {
-      setState(() => _pendingAttachments.clear());
+    final fileAttachments = List<AttachmentFileItem>.from(_pendingFileAttachments);
+    if (attachments.isNotEmpty || fileAttachments.isNotEmpty) {
+      setState(() {
+        _pendingAttachments.clear();
+        _pendingFileAttachments.clear();
+      });
     }
     if (_editingMessageId != null) {
       context.read<LumaraAssistantCubit>().editMessageAndRegenerate(
@@ -83,8 +95,11 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
       setState(() => _editingMessageId = null);
     } else {
       context.read<LumaraAssistantCubit>().sendMessage(
-        t.isEmpty ? '📷 [Image attached]' : t,
+        t,
         attachments: attachments.isNotEmpty ? attachments : null,
+        fileAttachments: fileAttachments.isNotEmpty
+            ? fileAttachments.map((f) => (path: f.path, fileName: f.fileName, mimeType: f.mimeType)).toList()
+            : null,
       );
     }
     _controller.clear();
@@ -122,6 +137,70 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
     final result = await _mediaService.captureFromCamera();
     if (result != null && mounted) {
       setState(() => _pendingAttachments.add(result));
+    }
+  }
+
+  /// Add file (PDF, DOCX, txt, md) — same flow as reflection editor; text extracted for LUMARA context.
+  void _onTapPendingFile(int index) {
+    if (index < 0 || index >= _pendingFileAttachments.length) return;
+    final file = _pendingFileAttachments[index];
+    final path = file.path.replaceFirst(RegExp(r'^file://'), '');
+    final lower = file.fileName.toLowerCase();
+    if (lower.endsWith('.pdf')) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => PdfPreviewScreen(filePath: path, fileName: file.fileName),
+        ),
+      );
+    } else if (lower.endsWith('.docx') || lower.endsWith('.doc')) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => DocxPreviewScreen(
+            filePath: path,
+            fileName: file.fileName,
+            extractedText: file.extractedText,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'md', 'txt', 'doc', 'docx'],
+        allowMultiple: true,
+      );
+      if (result == null || result.files.isEmpty || !mounted) return;
+      for (final platformFile in result.files) {
+        final path = platformFile.path;
+        if (path == null || path.isEmpty) continue;
+        final fileName = platformFile.name;
+        final ext = fileName.split('.').last.toLowerCase();
+        String mimeType = 'application/octet-stream';
+        if (ext == 'pdf') mimeType = 'application/pdf';
+        if (ext == 'md') mimeType = 'text/markdown';
+        if (ext == 'txt') mimeType = 'text/plain';
+        if (ext == 'doc') mimeType = 'application/msword';
+        if (ext == 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        String? extractedText;
+        if (ext == 'pdf' || ext == 'docx' || ext == 'doc' || ext == 'txt' || ext == 'md') {
+          extractedText = await DocumentContentService.extractTextFromPath(path);
+        }
+        setState(() => _pendingFileAttachments.add(AttachmentFileItem(
+          path: path,
+          fileName: fileName,
+          mimeType: mimeType,
+          extractedText: extractedText?.trim().isEmpty == true ? null : extractedText,
+        )));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add file: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+        );
+      }
     }
   }
 
@@ -249,6 +328,31 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        bottom: widget.isVoiceSession
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(36),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                  color: const Color(0xFF059669).withOpacity(0.15),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.mic, size: 16, color: const Color(0xFF059669)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Started as voice — continue in chat',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: const Color(0xFF059669),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : null,
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -260,7 +364,82 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
           ),
         ],
       ),
-      body: Stack(
+      body: BlocListener<LumaraAssistantCubit, LumaraAssistantState>(
+        listenWhen: (prev, curr) {
+          if (curr is! LumaraAssistantLoaded) return false;
+          final currC = curr.pendingSwarmSpaceConsent;
+          if (currC == null) return false;
+          final prevC = prev is LumaraAssistantLoaded ? prev.pendingSwarmSpaceConsent : null;
+          if (prevC?.pluginId == currC.pluginId) return false;
+          return true;
+        },
+        listener: (context, state) {
+          final loaded = state as LumaraAssistantLoaded;
+          final consent = loaded.pendingSwarmSpaceConsent!;
+          var responded = false;
+          void respond(bool approved) {
+            if (responded) return;
+            responded = true;
+            context.read<LumaraAssistantCubit>().respondToSwarmSpaceConsent(approved);
+          }
+          showModalBottomSheet<void>(
+            context: context,
+            backgroundColor: kcSurfaceColor,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (ctx) => SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Connect to ${consent.displayName}?',
+                      style: const TextStyle(
+                        color: kcPrimaryTextColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'LUMARA uses this plugin for research. Approve to continue with this source.',
+                      style: TextStyle(color: kcSecondaryTextColor, fontSize: 14),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            respond(false);
+                          },
+                          child: const Text('Decline'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            respond(true);
+                          },
+                          child: const Text('Approve'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ).then((_) {
+            if (context.mounted && !responded) {
+              context.read<LumaraAssistantCubit>().respondToSwarmSpaceConsent(false);
+            }
+          });
+        },
+        child: Stack(
         children: [
           Column(
             children: [
@@ -352,9 +531,10 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                 backgroundColor: kcSurfaceAltColor,
                 elevation: 4,
                 child: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
-              ),
             ),
+          ),
         ],
+      ),
       ),
     );
   }
@@ -664,13 +844,24 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                 ],
               ),
             ),
-          if (_pendingAttachments.isNotEmpty) _buildPendingAttachments(),
+          if (_pendingAttachments.isNotEmpty || _pendingFileAttachments.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: AttachmentStripWidget(
+                files: _pendingFileAttachments,
+                images: _pendingAttachments.map((a) => AttachmentImageItem(imagePath: a.imagePath)).toList(),
+                onRemoveFile: (i) => setState(() => _pendingFileAttachments.removeAt(i)),
+                onRemoveImage: (i) => setState(() => _pendingAttachments.removeAt(i)),
+                onTapFile: _onTapPendingFile,
+              ),
+            ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               AttachmentMenuButton(
                 onPhotoGallery: _handlePhotoGallery,
                 onCamera: _handleCamera,
+                onFile: _handleFile,
               ),
               const SizedBox(width: 4),
               Expanded(
@@ -720,49 +911,6 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPendingAttachments() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      height: 56,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _pendingAttachments.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final a = _pendingAttachments[index];
-          return Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  File(a.imagePath),
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Positioned(
-                top: 2,
-                right: 2,
-                child: GestureDetector(
-                  onTap: () => setState(() => _pendingAttachments.removeAt(index)),
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: const BoxDecoration(
-                      color: Colors.black54,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close, size: 14, color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
       ),
     );
   }

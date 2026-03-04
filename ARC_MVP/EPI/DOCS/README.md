@@ -8,6 +8,7 @@ Use this list to orient quickly. For full inventory and sync status, see [CONFIG
 
 | Document | Purpose | When to read |
 |----------|---------|--------------|
+| **[overview.md](overview.md)** | What EPI and LUMARA are; pipeline and subsystems at a glance; where to read more. | First read for users and agents new to the repo. |
 | **[CONFIGURATION_MANAGEMENT.md](CONFIGURATION_MANAGEMENT.md)** | Central hub for documentation and configuration tracking; inventory of key docs and change log. | First stop for sync status and what changed. |
 | **[claude.md](claude.md)** | Context guide for EPI; includes the **Documentation & Configuration Management Role (Universal Prompt)** (see that section) for adopting the docs/config manager role. | Onboarding; keeping docs accurate and non-redundant. |
 | **[CHANGELOG.md](CHANGELOG.md)** | Version history and release notes (v3.3.59 current). | What changed and when. |

@@ -764,6 +764,24 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
             ),
             const SizedBox(width: 8),
             // Actions
+          // Search (magnifying glass) - to the right of multi-select menu
+          if (!_isSelectionMode)
+            IconButton(
+              icon: Icon(
+                _isSearchExpanded ? Icons.search_off : Icons.search,
+                color: _isSearchExpanded ? kcPrimaryColor : null,
+              ),
+              tooltip: _isSearchExpanded ? 'Hide Search' : 'Search keywords, titles, themes, dates',
+              onPressed: () {
+                setState(() {
+                  _isSearchExpanded = !_isSearchExpanded;
+                  if (!_isSearchExpanded) {
+                    _searchController.clear();
+                    _timelineCubit.setSearchQuery('');
+                  }
+                });
+              },
+            ),
           // Add a button to scroll to the latest entry
           IconButton(
             icon: const Icon(Icons.arrow_upward),
@@ -817,9 +835,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
                   switch (value) {
-                    case 'jump_to_date':
-                      _showJumpToDateDialog();
-                      break;
                     case 'search':
               setState(() {
                 _isSearchExpanded = !_isSearchExpanded;
@@ -860,16 +875,6 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   }
                 },
                 itemBuilder: (BuildContext context) => [
-                  const PopupMenuItem<String>(
-                    value: 'jump_to_date',
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 20),
-                        SizedBox(width: 12),
-                        Text('Jump to Date'),
-                      ],
-                    ),
-                  ),
                   PopupMenuItem<String>(
                     value: 'search',
                     child: Row(
@@ -949,6 +954,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
       ),
       child: Row(
         children: [
+          // Left: Search input
           Expanded(
             child: BlocBuilder<TimelineCubit, TimelineState>(
               builder: (context, timelineState) {
@@ -968,7 +974,7 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                 return TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Search entries or dates (MM/DD/YYYY)...',
+                    hintText: 'Search keywords, titles, themes, or dates (MM/DD/YYYY)...',
                     prefixIcon: const Icon(Icons.search, color: kcPrimaryTextColor),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
@@ -1001,6 +1007,18 @@ class _TimelineViewContentState extends State<TimelineViewContent> {
                   },
                 );
               },
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Right: Go to Date option
+          TextButton.icon(
+            onPressed: () {
+              _showJumpToDateDialog();
+            },
+            icon: const Icon(Icons.calendar_today, size: 18),
+            label: const Text('Go to Date'),
+            style: TextButton.styleFrom(
+              foregroundColor: kcPrimaryColor,
             ),
           ),
         ],

@@ -9,3 +9,8 @@
   cd functions && npm run build && firebase deploy --only functions       
 # Verify Secrets:
   firebase functions:secrets:access 'API_KEY'     
+
+# Clearing space:
+  df -h /  
+  rm -rf ~/Library/Developer/Xcode/DerivedData/*
+  flutter clean
