@@ -25,6 +25,7 @@ import 'package:my_app/chronicle/reviews/screens/yearly_review_screen.dart';
 import 'package:my_app/chronicle/reviews/screens/reviews_hub_screen.dart';
 import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as path;
 import 'dart:io';
 
 /// CHRONICLE Management Settings View
@@ -373,7 +374,66 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     }
   }
 
-  Future<void> _importAggregations() async {
+  Future<void> _importFromZip() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+      allowMultiple: false,
+    );
+    final filePath = result?.files.single.path;
+    if (filePath == null || !mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+      _progressCurrent = 0;
+      _progressTotal = 0;
+      _progressStage = 'Extracting ZIP...';
+    });
+
+    try {
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      final aggregationRepo = ChronicleRepos.aggregation;
+      final changelogRepo = ChronicleRepos.changelog;
+      final importService = ChronicleImportService(
+        aggregationRepo: aggregationRepo,
+        changelogRepo: changelogRepo,
+      );
+
+      final importResult = await importService.importFromZip(
+        userId: userId,
+        zipFile: File(filePath),
+        onProgress: (processed, total) {
+          if (mounted) {
+            setState(() {
+              _progressCurrent = processed;
+              _progressTotal = total;
+              _progressStage = 'Importing... ($processed / $total)';
+            });
+          }
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = importResult.success ? importResult.toString() : 'Import failed: ${importResult.error}';
+          _statusIsError = !importResult.success;
+        });
+        if (importResult.success) await _loadAggregationCounts();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage = 'Error: $e';
+          _statusIsError = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _importFromFolder() async {
     final String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
     if (selectedDirectory == null || !mounted) return;
 
@@ -388,7 +448,11 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
       final aggregationRepo = ChronicleRepos.aggregation;
-      final importService = ChronicleImportService(aggregationRepo: aggregationRepo);
+      final changelogRepo = ChronicleRepos.changelog;
+      final importService = ChronicleImportService(
+        aggregationRepo: aggregationRepo,
+        changelogRepo: changelogRepo,
+      );
       final exportDir = Directory(selectedDirectory);
 
       final result = await importService.importFromDirectory(
@@ -399,7 +463,7 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
             setState(() {
               _progressCurrent = processed;
               _progressTotal = total;
-              _progressStage = 'Importing aggregations... ($processed / $total)';
+              _progressStage = 'Importing... ($processed / $total)';
             });
           }
         },
@@ -432,8 +496,8 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
 
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      
-      // Pick export directory
+
+      // Pick directory; ZIP will be created there
       final String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
       if (selectedDirectory == null) {
         if (mounted) {
@@ -446,25 +510,28 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
         return;
       }
 
-      final exportDir = Directory(selectedDirectory);
+      final now = DateTime.now();
+      final stamp = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}';
+      final zipPath = path.join(selectedDirectory, 'chronicle_export_$stamp.zip');
+      final outputZip = File(zipPath);
+
       final aggregationRepo = ChronicleRepos.aggregation;
       final changelogRepo = ChronicleRepos.changelog;
-
       final exportService = ChronicleExportService(
         aggregationRepo: aggregationRepo,
         changelogRepo: changelogRepo,
       );
-      
-      final result = await exportService.exportAll(
+
+      final result = await exportService.exportToZip(
         userId: userId,
-        exportDir: exportDir,
+        outputZipFile: outputZip,
       );
-      
+
       if (mounted) {
         setState(() {
           _isLoading = false;
           if (result.success) {
-            _statusMessage = result.toString();
+            _statusMessage = '${result.toString()} → ${path.basename(zipPath)}';
             _statusIsError = false;
           } else {
             _statusMessage = 'Export failed: ${result.error}';
@@ -620,10 +687,17 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                       ),
                     ),
 
-                  // Aggregation Status (tiles open CHRONICLE Layers at the corresponding tab)
+                  // Status and layers (tiles open CHRONICLE Layers at the corresponding tab)
                   SettingsSection(
-                    title: 'Aggregation Status',
+                    title: 'Status and layers',
                     children: [
+                      Text(
+                        'Tap a row to browse that layer.',
+                        style: captionStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       _buildStatusTile(
                         'Monthly Aggregations',
                         _countsLoaded ? '$_monthlyCount files' : 'Loading...',
@@ -707,10 +781,51 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
 
                   const SizedBox(height: 32),
 
-                  // Pattern index (vectorizer) — on-device embeddings for cross-temporal themes
+                  // Synthesis and indexing (Schedule + Pattern index + Manual runs)
                   SettingsSection(
-                    title: 'Pattern index (vectorizer)',
+                    title: 'Synthesis and indexing',
                     children: [
+                      // Schedule
+                      Text(
+                        'Schedule',
+                        style: captionStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'How often to check and run CHRONICLE synthesis (and pattern index). Next run uses this setting.',
+                        style: captionStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (!_cadenceLoaded)
+                        const SizedBox(
+                          height: 48,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else
+                        Row(
+                          children: [
+                            _buildCadenceChip(ChronicleScheduleCadence.daily),
+                            const SizedBox(width: 8),
+                            _buildCadenceChip(ChronicleScheduleCadence.weekly),
+                            const SizedBox(width: 8),
+                            _buildCadenceChip(ChronicleScheduleCadence.monthly),
+                          ],
+                        ),
+                      const SizedBox(height: 16),
+                      // Pattern index
+                      Text(
+                        'Pattern index (vectorizer)',
+                        style: captionStyle(context).copyWith(
+                          color: kcSecondaryTextColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
                       Text(
                         'On-device embeddings power cross-temporal pattern search. Updated after each monthly synthesis or manually below.',
                         style: captionStyle(context).copyWith(
@@ -765,46 +880,16 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
                           },
                         ),
                       ],
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Automatic synthesis schedule (Daily / Weekly / Monthly)
-                  SettingsSection(
-                    title: 'Automatic synthesis',
-                    children: [
+                      const SizedBox(height: 16),
+                      // Manual runs
                       Text(
-                        'How often to check and run CHRONICLE synthesis (and pattern index). Next run uses this setting.',
+                        'Manual runs',
                         style: captionStyle(context).copyWith(
                           color: kcSecondaryTextColor,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      if (!_cadenceLoaded)
-                        const SizedBox(
-                          height: 48,
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else
-                        Row(
-                          children: [
-                            _buildCadenceChip(ChronicleScheduleCadence.daily),
-                            const SizedBox(width: 8),
-                            _buildCadenceChip(ChronicleScheduleCadence.weekly),
-                            const SizedBox(width: 8),
-                            _buildCadenceChip(ChronicleScheduleCadence.monthly),
-                          ],
-                        ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Backfill and Synthesize (single section with 4 options)
-                  SettingsSection(
-                    title: 'Backfill and Synthesize',
-                    children: [
                       SettingsActionButton(
                         title: 'Backfill and Synthesize Current Month',
                         subtitle: 'Update Layer 0 and create monthly aggregation for this month',
@@ -841,56 +926,34 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
 
                   const SizedBox(height: 32),
 
-                  // Import / Export
+                  // Data and privacy (Import & Export + Privacy)
                   SettingsSection(
-                    title: 'Import & Export',
+                    title: 'Data and privacy',
                     children: [
                       SettingsActionButton(
-                        title: 'Import Aggregations',
-                        subtitle: 'Import aggregations from a previously exported folder',
-                        icon: Icons.upload,
-                        onPressed: _importAggregations,
+                        title: 'Import from ZIP',
+                        subtitle: 'Import from a CHRONICLE export .zip file',
+                        icon: Icons.folder_zip,
+                        onPressed: _importFromZip,
                         enabled: !_isLoading,
                       ),
                       const SizedBox(height: 12),
                       SettingsActionButton(
-                        title: 'Export All Aggregations',
-                        subtitle: 'Export all CHRONICLE aggregations to a folder',
+                        title: 'Import from folder',
+                        subtitle: 'Older exports: import from a folder (monthly/, yearly/, etc.)',
+                        icon: Icons.folder_open,
+                        onPressed: _importFromFolder,
+                        enabled: !_isLoading,
+                      ),
+                      const SizedBox(height: 12),
+                      SettingsActionButton(
+                        title: 'Export to ZIP',
+                        subtitle: 'Export all CHRONICLE data to a single .zip file',
                         icon: Icons.download,
                         onPressed: _exportAll,
                         enabled: !_isLoading,
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // View Layers
-                  SettingsSection(
-                    title: 'View Layers',
-                    children: [
-                      SettingsActionButton(
-                        title: 'View CHRONICLE Layers',
-                        subtitle: 'Browse monthly, yearly, and multi-year aggregations',
-                        icon: Icons.visibility,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ChronicleLayersViewer(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Privacy Protection (links to same screen as Settings → Privacy & Security)
-                  SettingsSection(
-                    title: 'Privacy',
-                    children: [
+                      const SizedBox(height: 12),
                       SettingsActionButton(
                         title: 'Privacy Protection',
                         subtitle: 'Configure PII detection and masking for CHRONICLE and LUMARA',

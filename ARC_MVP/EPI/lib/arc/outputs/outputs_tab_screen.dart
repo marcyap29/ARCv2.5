@@ -251,7 +251,7 @@ class _OutputsTabScreenState extends State<OutputsTabScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute<void>(
-                      builder: (context) => const WritingScreen(),
+                      builder: (context) => WritingScreen(draftId: d.id),
                     ),
                   ).then((_) => _loadOutputs());
                 },

@@ -111,6 +111,14 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
   bool _selectionModeEnabled = false;
   final Set<String> _selectedEntryIds = {};
 
+  /// Pinned filter: when true, show only pinned entries; when false, show only chronological (non-pinned).
+  bool _showPinnedOnly = false;
+
+  /// Entries to display: pinned only or non-pinned only based on filter.
+  List<FeedEntry> get _displayEntries => _showPinnedOnly
+      ? _entries.where((e) => e.isPinned).toList()
+      : _entries.where((e) => !e.isPinned).toList();
+
   /// Bumped when returning from Phase view so the phase preview reloads (user may have changed phase).
   int _phasePreviewRefreshKey = 0;
 
@@ -599,7 +607,11 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       return _buildEmptyTimeline();
     }
 
-    final grouped = FeedHelpers.groupByDate(_entries);
+    if (_displayEntries.isEmpty) {
+      return _buildPinnedFilterEmptyState();
+    }
+
+    final grouped = FeedHelpers.groupByDate(_displayEntries);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -750,8 +762,20 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          // Pinned filter (thumbtack) — left of multi-select, search, settings
+          IconButton(
+            icon: Icon(
+              Icons.push_pin,
+              color: _showPinnedOnly ? kcPrimaryColor : kcSecondaryTextColor.withOpacity(0.6),
+              size: 22,
+            ),
+            tooltip: _showPinnedOnly
+                ? 'Show all entries (chronological)'
+                : 'Show pinned only',
+            onPressed: () => setState(() => _showPinnedOnly = !_showPinnedOnly),
+          ),
+          const Spacer(),
           // Select (batch delete)
           IconButton(
             icon: Icon(
@@ -784,6 +808,46 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             ),
             tooltip: 'LUMARA & Chat',
             onPressed: () => _showLumaraSettingsAndHistory(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Empty state when Pinned filter leaves no entries (pinned only with none, or all entries pinned).
+  Widget _buildPinnedFilterEmptyState() {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          _buildGreetingHeader(),
+          _buildHeaderActions(),
+          _buildSelectionModeBar(),
+          _buildCommunicationActions(),
+          const SizedBox(height: 32),
+          Icon(
+            _showPinnedOnly ? Icons.push_pin : Icons.chat_bubble_outline,
+            color: kcSecondaryTextColor.withOpacity(0.7),
+            size: 48,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _showPinnedOnly ? 'No pinned entries' : 'No other entries',
+            style: heading2Style(context),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              _showPinnedOnly
+                  ? 'Pin conversations from Chat history to see them here.'
+                  : 'All your entries are pinned. Tap the pin icon above to view them.',
+              style: TextStyle(
+                color: kcSecondaryTextColor.withOpacity(0.8),
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
       ),

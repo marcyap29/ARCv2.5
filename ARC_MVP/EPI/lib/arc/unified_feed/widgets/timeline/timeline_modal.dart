@@ -1,8 +1,7 @@
 /// Timeline Modal
 ///
 /// Full-screen modal bottom sheet for navigating the user's history.
-/// Three tabs: Timeline (year/month browser), Phase (phase-grouped view),
-/// Search (text search across all entries, including #attachment, #report, #writing).
+/// Two tabs: Timeline (year/month browser), Search (text search across all entries).
 library;
 
 import 'package:flutter/material.dart';
@@ -31,7 +30,7 @@ class TimelineModal extends StatefulWidget {
 }
 
 class _TimelineModalState extends State<TimelineModal> {
-  int _selectedTabIndex = 0; // 0: Timeline, 1: Phase, 2: Search
+  int _selectedTabIndex = 0; // 0: Timeline, 1: Search
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   List<FeedEntry> _searchResults = [];
@@ -109,8 +108,7 @@ class _TimelineModalState extends State<TimelineModal> {
             child: Row(
               children: [
                 _buildTab('Timeline', 0),
-                _buildTab('Phase', 1),
-                _buildTab('Search', 2),
+                _buildTab('Search', 1),
               ],
             ),
           ),
@@ -161,34 +159,10 @@ class _TimelineModalState extends State<TimelineModal> {
           onDateSelected: widget.onDateSelected,
         );
       case 1:
-        return _buildPhaseView();
-      case 2:
         return _buildSearchView();
       default:
         return const SizedBox.shrink();
     }
-  }
-
-  Widget _buildPhaseView() {
-    // Phase 3 implementation - placeholder for now
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.timeline, size: 48, color: kcSecondaryTextColor.withOpacity(0.4)),
-          const SizedBox(height: 16),
-          Text(
-            'Phase view coming soon',
-            style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.6), fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Browse entries grouped by ATLAS phases',
-            style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.4), fontSize: 12),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildSearchView() {
@@ -248,11 +222,14 @@ class _TimelineModalState extends State<TimelineModal> {
                         itemCount: _searchResults.length,
                         itemBuilder: (context, index) {
                           final e = _searchResults[index];
+                          final onEntrySelected = widget.onEntrySelected;
                           return _SearchResultTile(
                             entry: e,
                             onTap: () {
-                              widget.onEntrySelected?.call(e);
                               Navigator.pop(context);
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                onEntrySelected?.call(e);
+                              });
                             },
                           );
                         },

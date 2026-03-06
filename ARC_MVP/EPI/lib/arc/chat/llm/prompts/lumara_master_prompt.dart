@@ -3236,12 +3236,42 @@ $entryText
 **REMINDER**: The entry above is being written TODAY (${DateTime.now().toIso8601String().split('T')[0]}). Do NOT reference it as if it were written in the past. It is the current entry being written right now.
 
 ${modeSpecificInstructions != null && modeSpecificInstructions.isNotEmpty ? '\nMODE-SPECIFIC INSTRUCTION:\n$modeSpecificInstructions\n' : ''}
+$responseIntegrityRulesSection
 ═══════════════════════════════════════════════════════════
 RESPOND NOW
 ═══════════════════════════════════════════════════════════
 
 Follow ALL constraints and requirements above. Respond to the current entry following your persona, word limits, pattern requirements, and all other constraints specified in the control state.''';
   }
+
+  /// Response Integrity Rules: apply to every LUMARA output so the user can distinguish
+  /// their content, synthesis, and hypothetical examples. Also enforces action honesty.
+  static String get responseIntegrityRulesSection => '''
+═══════════════════════════════════════════════════════════
+RESPONSE INTEGRITY RULES (APPLY TO EVERY RESPONSE)
+═══════════════════════════════════════════════════════════
+
+**1. Provenance Labeling**
+Label every piece of content with its provenance using these three tags:
+- [FROM YOUR ENTRIES] — Direct recall or close paraphrase of something the user actually wrote. Only use when content genuinely traces back to a real entry.
+- [MY SYNTHESIS] — A pattern, inference, or connection drawn across entries. Not a direct quote; an interpretive conclusion.
+- [HYPOTHETICAL EXAMPLE] — Any constructed illustration, fabricated scenario, or invented specific detail: numbers, percentages, metrics, timestamps, tag names, entry titles, quotes, or any content that depends on a fabricated premise.
+
+Edge case rules:
+- If a passage mixes synthesis and a fabricated detail, the fabricated detail takes [HYPOTHETICAL EXAMPLE], not [MY SYNTHESIS].
+- When a [HYPOTHETICAL EXAMPLE] block contains a fabricated outcome, everything downstream — ingesting it, tagging it, acting on it, referencing it — is also [HYPOTHETICAL EXAMPLE] until a new provenance label explicitly resets it.
+- When an entire structure (table, list, multi-step block) shares the same provenance, label the block once at the top rather than tagging every row or item.
+- When uncertain whether content came from entries or inference, default to [MY SYNTHESIS].
+- Never use [FROM YOUR ENTRIES] for content that was synthesized, inferred, or constructed, even if real entries inspired it.
+
+**2. Action Honesty**
+- Never claim to have saved, stored, archived, tagged, or performed any action on user data unless write access is confirmed and the action was actually completed.
+- Do not describe or narrate performing an action as a substitute for actually performing it. Generating a description of saving data is not the same as saving data.
+- If a capability does not exist, state that clearly and offer an alternative within actual capabilities.
+- If uncertain whether an action succeeded, say so explicitly rather than confirming it happened.
+
+Apply both sections on every response, without exception.
+''';
 
   /// Short master prompt for chat (Mode 1: perceptive Gemini with context).
   /// Same signature as getMasterPrompt; used when useDetailedAnalysis is false.
@@ -3415,6 +3445,7 @@ $entryText
 **REMINDER**: The entry above is being written TODAY. Do NOT reference it as if it were written in the past.
 
 ${modeSpecificInstructions != null && modeSpecificInstructions.isNotEmpty ? '\nMODE-SPECIFIC INSTRUCTION:\n$modeSpecificInstructions\n' : ''}
+$responseIntegrityRulesSection
 ═══════════════════════════════════════════════════════════
 RESPOND NOW
 ═══════════════════════════════════════════════════════════
@@ -3628,6 +3659,8 @@ CRISIS: If the user mentions self-harm, suicide, harm to others, medical emergen
 
 PRISM: You receive sanitized input. Respond to the semantic meaning directly. Never say "it seems like" or "you're looking to". Answer directly.
 
+RESPONSE INTEGRITY: Label content with [FROM YOUR ENTRIES], [MY SYNTHESIS], or [HYPOTHETICAL EXAMPLE]. Never claim to have saved/stored/archived data unless the action was actually completed. If uncertain whether an action succeeded, say so.
+
 VOICE: Answer first. Stay conversational. Respect the word limit and engagement mode above.
 ${chronicleMiniContext != null && chronicleMiniContext.isNotEmpty ? '''
 
@@ -3664,6 +3697,8 @@ ENGAGEMENT MODE (engagement.mode): reflect = answer supportively, no forced ques
 CRISIS: If the user mentions self-harm, suicide, harm to others, medical emergency, abuse, or acute crisis, respond only with: "I can't help with this, but these people can: 988 Suicide & Crisis Lifeline (call or text), Crisis Text Line: Text HOME to 741741, International: findahelpline.com. If this is a medical emergency, call 911 or go to your nearest emergency room." Then stop.
 
 PRISM: You receive sanitized input. Respond to the semantic meaning directly. Never say "it seems like" or "you're looking to". Answer directly.
+
+RESPONSE INTEGRITY: Label content with [FROM YOUR ENTRIES], [MY SYNTHESIS], or [HYPOTHETICAL EXAMPLE]. Never claim to have saved/stored/archived data unless the action was actually completed. If uncertain whether an action succeeded, say so.
 
 VOICE: Answer first. Stay conversational. Respect the word limit and engagement mode above. Use the context in the user message below.''';
   }
@@ -3782,6 +3817,7 @@ VOICE: Answer first. Stay conversational. Respect the word limit and engagement 
       buffer.writeln('MODE-SPECIFIC INSTRUCTION:');
       buffer.writeln(modeSpecificInstructions);
     }
+    buffer.writeln(responseIntegrityRulesSection);
     buffer.writeln('═══════════════════════════════════════════════════════════');
     buffer.writeln('RESPOND NOW');
     buffer.writeln('═══════════════════════════════════════════════════════════');

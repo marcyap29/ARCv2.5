@@ -1,7 +1,28 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.65
-**Last Updated:** February 25, 2026
+**Version:** 3.3.66
+**Last Updated:** March 6, 2026
+
+---
+
+## [3.3.66] - March 6, 2026
+
+### Doc-config-git-backup sync; Chronicle prompt service; Vectorization doc; reflection/widget and code refinements
+
+**New:**
+- **chronicle_prompt_service.dart:** Chronicle-backed reflection prompt suggestions (long-press LUMARA send; journal/chat/phase context).
+- **Vectorization_and_Semantic_Search_in_Chronicle.md:** Vectorization and semantic search in CHRONICLE.
+- **reflection_draft_text_field.dart:** Reflection draft text field widget.
+
+**Updated (sync with repo):**
+- **Chat & LUMARA:** lumara_assistant_cubit, enhanced_chats_screen, lumara_master_prompt, lumara_chat_redesign_screen, writing_screen.
+- **Outputs & feed:** outputs_tab_screen, feed_repository, timeline_modal, unified_feed_screen, interactive_timeline_view.
+- **Chronicle:** chronicle_export_service, chronicle_import_service, changelog_repository, chronicle_management_view.
+- **Agents & writing:** writing_agent_tab, agents_chronicle_service, writing_draft_repository, writing_models.
+- **Core & UI:** document_content_service, chat_multimodal_processor, journal_screen.
+- **Docs:** claude.md.
+
+**Other:** ARC.code-workspace updates.
 
 ---
 

@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.5.0  
-**Last Updated:** 2026-02-25  
+**Last Updated:** 2026-03-06  
 **Record count:** 40 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
@@ -165,8 +165,9 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Phase check-in removal; SwarmSpace plugin catalog; CHRONICLE reviews | v3.3.63 | — | 2026-02-25: phase_check_in module deleted; plugin_catalog_screen, docx_export_helper, chronicle/reviews; swarmspaceRouter swarmspacePluginStatus. |
 | newsDataInvoke; swarmspace_web_search_tool; transcript_cleaner | v3.3.64 | — | 2026-02-25: newsDataInvoke Cloud Function; swarmspace_web_search_tool expansion; chat_intent_classifier; transcript_cleaner. |
 | Veil Edge removal; reflection simplifications; overview docs | v3.3.65 | — | 2026-02-25: veil_edge module deleted; reflection_*_analyzer, aurora_reflection_service removed; journal/voice/timeline/feed refinements; LUMARA_Overview, Swarmspace_Overview. |
+| Doc-config-git-backup; Chronicle prompt service; Vectorization doc; code sync | v3.3.66 | — | 2026-03-06: chronicle_prompt_service.dart, Vectorization_and_Semantic_Search_in_Chronicle.md, reflection_draft_text_field.dart; chat/feed/chronicle/writing/journal/code refinements; backup-main-2026-03-06. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-02-25.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-03-06.
 
 ---
 
@@ -181,4 +182,4 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 ---
 
 **Status**: ✅ Active - All resolved issues documented; Build & Platform: 6 records (incl. BUG-ANALYZER-001 ⏳); Environment: 1 (Ollama); CHRONICLE: 1 (BUG-CHRONICLE-001 ✅); Privacy: 1 (BUG-PRISM-001 ✅); LUMARA chat/networking: 1 (BUG-LUMARA-GTM-001 ✅). Bugtracker Discovery run 2026-02-26: 1 new record indexed (40 total); BUGTRACKER_TRIAGE_BACKLOG created.  
-**Last Updated**: 2026-02-25
+**Last Updated**: 2026-03-06

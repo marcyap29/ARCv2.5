@@ -71,10 +71,12 @@ import 'package:my_app/mira/memory/sentence_extraction_util.dart';
 import 'package:my_app/mira/mira_service.dart';
 import 'package:my_app/arc/chat/data/context_provider.dart';
 import 'package:my_app/arc/chat/data/context_scope.dart';
+import 'package:my_app/arc/chat/services/chronicle_prompt_service.dart';
 import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/shared/widgets/lumara_icon.dart';
 import 'package:my_app/arc/ui/widgets/attachment_menu_button.dart';
 import 'package:my_app/arc/ui/widgets/attachment_strip_widget.dart';
+import 'package:my_app/arc/ui/widgets/reflection_draft_text_field.dart';
 import 'package:my_app/arc/ui/widgets/private_notes_panel.dart';
 import 'package:my_app/arc/ui/media/media_preview_dialog.dart';
 import 'package:my_app/models/engagement_discipline.dart';
@@ -888,29 +890,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
   void _onLumaraLongPress() async {
     _analytics.logLumaraEvent('long_press');
-
-    // Only allow prompt generation if entry is completely empty
-    if (_entryState.text.trim().isEmpty) {
-      try {
-        await _generateJournalingPrompt();
-      } catch (e) {
-        print('Error in long press prompt generation: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error generating prompt: $e'),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } else {
-      // Show message that long press only works with empty entries
+    try {
+      await _generateJournalingPrompt();
+    } catch (e) {
+      print('Error in long press prompt generation: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Long press for prompts only works when entry is empty'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text('Error generating prompt: $e'),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -970,98 +958,32 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   Future<void> _generateJournalingPrompt() async {
     if (!mounted) return;
 
-    // Note: LUMARA is generating prompts (no dialog needed)
-    
-    // Declare variables outside try block for use in catch block
-    ContextWindow? contextWindow;
-    String currentPhase = 'Discovery';
-    List<String> recentEntries = [];
-    List<String> recentChats = [];
-    
+    List<String> prompts;
     try {
-      // Get context from past entries, chats, and phase
-      const scope = LumaraScope.defaultScope;
-      final contextProvider = ContextProvider(scope);
-      contextWindow = await contextProvider.buildContext(
-        daysBack: 30,
-        maxEntries: 50,
-      );
-      
-      // Get current phase
-      try {
-        currentPhase = await UserPhaseService.getCurrentPhase();
-      } catch (e) {
-        print('JournalScreen: Error getting current phase: $e');
+      prompts = await ChroniclePromptService.getChroniclePromptSuggestions(count: 3);
+      if (prompts.isEmpty) {
+        final t = _getTraditionalPrompts();
+        t.shuffle();
+        prompts = t.take(3).toList();
       }
-      
-      // Prepare context for backend
-      final journalNodes = contextWindow.nodes.where((n) => n['type'] == 'journal').toList();
-      recentEntries = journalNodes.take(5).map((n) {
-        final text = n['text'] as String? ?? '';
-        return text.length > 200 ? '${text.substring(0, 200)}...' : text;
-      }).toList();
-      
-      final chatNodes = contextWindow.nodes.where((n) => n['type'] == 'chat').toList();
-      recentChats = chatNodes.take(3).map((n) {
-        final subject = n['meta']?['subject'] as String? ?? 'conversation';
-        return subject;
-      }).toList();
-      
-      bool useBackendPrompts = false;
-      List<String> initialPrompts = [];
-      
-      // Use local prompt generation directly
-      useBackendPrompts = false;
-
-      // LUMARA prompt generation completed
-
-      // Show prompt selection dialog
-      if (mounted) {
-        if (useBackendPrompts && initialPrompts.isNotEmpty) {
-          // Use backend-generated prompts
-          await _showPromptSelectionDialog(initialPrompts, recentEntries, recentChats, currentPhase);
-        } else {
-          // Fallback to local prompt generation
-          final contextAwarePrompts = _generateContextAwarePrompts(contextWindow, currentPhase);
-          final traditionalPrompts = _getTraditionalPrompts();
-          final allPrompts = [...contextAwarePrompts, ...traditionalPrompts];
-          await _showPromptSelectionDialog(allPrompts, recentEntries, recentChats, currentPhase);
-                }
-      }
-    } catch (e) {
-      // LUMARA prompt generation error - fallback to local
-
-      // Fallback to local prompt generation on any error
-      try {
-        if (contextWindow != null) {
-          final contextAwarePrompts = _generateContextAwarePrompts(contextWindow, currentPhase);
-          final traditionalPrompts = _getTraditionalPrompts();
-          final allPrompts = [...contextAwarePrompts, ...traditionalPrompts];
-          if (mounted) {
-            await _showPromptSelectionDialog(allPrompts, recentEntries, recentChats, currentPhase);
-          }
-        } else {
-          // If contextWindow is null, use traditional prompts only
-          final traditionalPrompts = _getTraditionalPrompts();
-          if (mounted) {
-            await _showPromptSelectionDialog(traditionalPrompts, [], [], currentPhase);
-          }
-        }
-      } catch (fallbackError) {
-        // If even fallback fails, show basic traditional prompts
-        print('Fallback error: $fallbackError');
-        if (mounted) {
-          final basicPrompts = [
-            'What\'s on your mind right now?',
-            'How are you feeling today?',
-            'What happened today that you want to remember?',
-            'What are you grateful for?',
-            'What\'s one thing you learned recently?'
-          ];
-          await _showPromptSelectionDialog(basicPrompts, [], [], currentPhase);
-        }
-      }
+    } catch (_) {
+      final traditional = _getTraditionalPrompts();
+      traditional.shuffle();
+      prompts = traditional.take(3).toList();
     }
+    if (prompts.isEmpty) {
+      prompts = [
+        "What's on your mind right now?",
+        "How are you feeling today?",
+        "What happened today that you want to remember?",
+      ];
+    }
+    if (!mounted) return;
+    String currentPhase = 'Discovery';
+    try {
+      currentPhase = await UserPhaseService.getCurrentPhase();
+    } catch (_) {}
+    await _showPromptSelectionDialog(prompts, [], [], currentPhase);
   }
   
   List<String> _generateContextAwarePrompts(ContextWindow context, String currentPhase) {
@@ -1187,8 +1109,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Show "See more" button if showing initial prompts
-                if (!showingExpanded && !isLoadingExpanded)
+                // Show "See more" button only when we have more than 3 prompts
+                if (!showingExpanded && !isLoadingExpanded && prompts.length > 3)
                   Center(
                     child: TextButton.icon(
                       onPressed: () async {
@@ -2146,26 +2068,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     ).then((result) {
       // Handle save result - if saved successfully, go back to home
       if (result != null && result['save'] == true) {
-        // Notify when document content was saved for LUMARA and Chronicle
-        final hadDocumentAttachments = _entryState.attachments
-            .whereType<FileAttachment>()
-            .any((a) => a.extractedText != null && a.extractedText!.trim().isNotEmpty);
-        if (hadDocumentAttachments && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.library_books, color: Theme.of(context).colorScheme.onInverseSurface, size: 20),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text('Document content saved. LUMARA will use it for context and Chronicle.'),
-                  ),
-                ],
-              ),
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
         // Complete the draft since entry was saved
         _completeDraft();
         // Clear the session cache since entry was saved
@@ -4657,33 +4559,16 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       return _buildContentView(theme);
     }
     
-    // In edit mode, show regular text field
-    return TextField(
+    // Same editable field as writing-agent drafts for consistent UX
+    return ReflectionDraftTextField(
       controller: _textController,
       onChanged: _onTextChanged,
-      maxLines: null,
-      textCapitalization: TextCapitalization.sentences,
+      hintText: 'What\'s on your mind right now?',
       style: theme.textTheme.bodyLarge?.copyWith(
         color: Colors.white,
         fontSize: 16,
         height: 1.5,
       ),
-      cursorColor: Colors.white,
-      cursorWidth: 2.0,
-      cursorHeight: 20.0,
-      decoration: InputDecoration(
-        hintText: 'What\'s on your mind right now?',
-        hintStyle: theme.textTheme.bodyLarge?.copyWith(
-          color: Colors.white.withOpacity(0.5),
-          fontSize: 16,
-          height: 1.5,
-        ),
-        border: InputBorder.none,
-        contentPadding: EdgeInsets.zero,
-        focusedBorder: InputBorder.none,
-        enabledBorder: InputBorder.none,
-      ),
-      textInputAction: TextInputAction.newline,
     );
   }
 
@@ -5909,8 +5794,9 @@ $originalEntryTextToInclude
     }
   }
 
-  /// Handle file selection (PDF, .md, .txt, Doc, Docx) — explicitly enabled for conversations/entries.
-  /// Extracts text from all supported types so LUMARA can scan and use for reflection and chronicle.
+  /// Handle file selection (PDF, .md, .txt, Doc, Docx).
+  /// Extracts text and inserts it into the reflection entry with label [Extracted text from "Document title"].
+  /// No extracted text is stored on attachments; LUMARA sees content only from the entry body.
   Future<void> _handleFile() async {
     try {
       _analytics.logJournalEvent('file_button_pressed');
@@ -5925,6 +5811,7 @@ $originalEntryTextToInclude
           final path = platformFile.path;
           if (path == null || path.isEmpty) continue;
           final fileName = platformFile.name;
+          final documentTitle = fileName; // Actual document title used in the label
           final ext = fileName.split('.').last.toLowerCase();
           String mimeType = 'application/octet-stream';
           if (ext == 'pdf') {
@@ -5961,7 +5848,7 @@ $originalEntryTextToInclude
             }
             final pdfResult = await PdfContentService.extractForChronicle(
               path,
-              includePageImageAnalysis: true,
+              includePageImageAnalysis: false,
             );
             if (pdfResult.hasContent) {
               extractedText = pdfResult.text.trim();
@@ -6004,6 +5891,12 @@ $originalEntryTextToInclude
             } catch (_) {}
           }
 
+          // Insert extracted text into the reflection entry with label (single source of truth for LUMARA)
+          if (extractedText != null && extractedText.trim().isNotEmpty && mounted) {
+            final block = '[Extracted text from "$documentTitle"]\n\n${extractedText.trim()}';
+            _insertTextIntoEntry(block);
+          }
+
           final fileAttachment = FileAttachment(
             type: 'file',
             filePath: path,
@@ -6011,7 +5904,7 @@ $originalEntryTextToInclude
             mimeType: mimeType,
             timestamp: DateTime.now().millisecondsSinceEpoch,
             fileId: 'file_${DateTime.now().millisecondsSinceEpoch}_${fileName.hashCode}',
-            extractedText: extractedText,
+            extractedText: null,
           );
           if (mounted) {
             setState(() {
@@ -6021,9 +5914,6 @@ $originalEntryTextToInclude
           added++;
         }
         if (mounted && added > 0) {
-          final hasExtracted = _entryState.attachments
-              .whereType<FileAttachment>()
-              .any((a) => a.extractedText != null && a.extractedText!.trim().isNotEmpty);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
@@ -6032,18 +5922,14 @@ $originalEntryTextToInclude
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      hasExtracted
-                          ? (added == 1
-                              ? 'Text extracted. LUMARA will use this for context and Chronicle.'
-                              : 'Text extracted from $added files. LUMARA will use them for context and Chronicle.')
-                          : (added == 1
-                              ? 'Added 1 file.'
-                              : 'Added $added files.'),
+                      added == 1
+                          ? 'File attached. Text added to entry.'
+                          : '$added files attached. Text added to entry.',
                     ),
                   ),
                 ],
               ),
-              duration: const Duration(seconds: 4),
+              duration: const Duration(seconds: 3),
             ),
           );
         }

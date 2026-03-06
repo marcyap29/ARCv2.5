@@ -1,9 +1,7 @@
 import 'dart:io';
 
-import 'package:docx_to_text/docx_to_text.dart';
 import 'package:my_app/arc/chat/chat/content_parts.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
-import 'package:my_app/core/services/pdf_content_service.dart';
 import 'ocp_services.dart';
 
 /// Multimodal processor for chat messages
@@ -23,7 +21,7 @@ import 'ocp_services.dart';
 /// - **Images**: OCR text extraction, object detection, EXIF/GPS metadata; keywords from labels/objects/OCR
 /// - **Video**: Keyframe extraction, scene detection, aggregate OCR; keywords from transcript/scenes
 /// - **Audio**: Speech-to-text transcription, prosody analysis, sentiment detection
-/// - **PDF / .md / Doc**: Text extraction; metadata and extracted keywords merged into conversation/entry
+/// - **PDF / .md / Doc**: Metadata only (no full-text extraction); document text is placed in entry body with [Extracted text from "Document title"]
 ///
 /// ## Data Flow
 /// ```
@@ -159,70 +157,43 @@ class ChatMultimodalProcessor {
         mime == 'text/markdown' ||
         mime == 'application/msword' ||
         mime == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      // Document types: extract text for keywords; metadata and text merged into conversation/entry
-      final docResult = await _extractDocumentText(uri, mime);
+      // Document types: do NOT extract or send full text (avoids AI hallucination).
+      // Document text belongs in the journal entry body with [Extracted text from "Document title"].
+      final docMeta = await _documentMetadataOnly(uri, mime);
       return OcpAnalysisResult(
         mediaType: 'document',
-        ocrText: docResult.extractedText,
-        objects: docResult.keywords,
+        ocrText: '',
+        objects: docMeta.keywords,
         emotions: <String, double>{},
-        metadata: docResult.metadata,
+        metadata: docMeta.metadata,
       );
     } else {
       throw UnsupportedError('Unsupported media type: $mime');
     }
   }
 
-  /// Extract text and keywords from PDF, .md, Doc for analysis and entry keywords.
-  /// For PDFs, uses [PdfContentService] so LUMARA reads text and infers from images in the PDF.
-  Future<({String extractedText, List<String> keywords, Map<String, dynamic> metadata})> _extractDocumentText(String uri, String mime) async {
+  /// Document metadata only (no full-text extraction). Full text is not sent to OCP/PRISM
+  /// to avoid hallucination; journal entries use [Extracted text from "Document title"] in the body.
+  Future<({List<String> keywords, Map<String, dynamic> metadata})> _documentMetadataOnly(String uri, String mime) async {
     final metadata = <String, dynamic>{
       'mime': mime,
       'analysisTimestamp': DateTime.now().toIso8601String(),
     };
+    final List<String> keywords = [];
     try {
       final file = File(uri);
       if (!await file.exists()) {
-        return (extractedText: '', keywords: <String>[], metadata: {...metadata, 'error': 'File not found'});
+        return (keywords: keywords, metadata: {...metadata, 'error': 'File not found'});
       }
-      final bytes = await file.readAsBytes();
-      metadata['sizeBytes'] = bytes.length;
-      String raw = '';
-      final List<String> keywords = [];
-
-      if (mime == 'application/pdf' || uri.toLowerCase().endsWith('.pdf')) {
-        final result = await PdfContentService.extractForChronicle(
-          file.path,
-          includePageImageAnalysis: true,
-        );
-        raw = result.text;
-        if (result.pageImageInsights.trim().isNotEmpty) {
-          raw += '${raw.isEmpty ? '' : '\n\n'}[From PDF pages]\n${result.pageImageInsights}';
-        }
-        keywords.addAll(result.keywords);
-      } else if (mime == 'text/markdown' || uri.toLowerCase().endsWith('.md')) {
-        raw = String.fromCharCodes(bytes);
-      } else if (mime == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-          mime == 'application/msword' ||
-          uri.toLowerCase().endsWith('.docx') ||
-          uri.toLowerCase().endsWith('.doc')) {
-        raw = docxToText(bytes);
-      }
-
+      metadata['sizeBytes'] = (await file.length());
       final fileName = uri.split(RegExp(r'[/\\]')).last;
-      if (fileName.isNotEmpty && keywords.length < 30) {
-        final stem = fileName.replaceAll(RegExp(r'\.(pdf|md|docx?)$', caseSensitive: false), '');
-        if (stem.length > 1 && !keywords.contains(stem)) keywords.insert(0, stem);
+      if (fileName.isNotEmpty && fileName.length > 1) {
+        final stem = fileName.replaceAll(RegExp(r'\.(pdf|md|docx?|txt)$', caseSensitive: false), '');
+        if (stem.isNotEmpty) keywords.add(stem);
       }
-      if (raw.trim().isNotEmpty && keywords.length < 30) {
-        final words = raw.split(RegExp(r'\s+')).where((w) => w.length > 2).take(100);
-        for (final w in words) {
-          if (w.length > 3 && keywords.length < 30) keywords.add(w);
-        }
-      }
-      return (extractedText: raw, keywords: keywords.take(30).toList(), metadata: metadata);
+      return (keywords: keywords, metadata: metadata);
     } catch (e) {
-      return (extractedText: '', keywords: <String>[], metadata: {...metadata, 'error': e.toString()});
+      return (keywords: keywords, metadata: {...metadata, 'error': e.toString()});
     }
   }
 

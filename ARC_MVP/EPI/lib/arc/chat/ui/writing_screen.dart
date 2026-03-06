@@ -3,19 +3,24 @@ import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
 import 'package:my_app/lumara/agents/writing/writing_agent.dart';
 import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
 import 'package:my_app/lumara/agents/writing/writing_models.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/arc/ui/widgets/reflection_draft_text_field.dart';
 import 'package:my_app/lumara/agents/models/research_models.dart';
 
 /// Dedicated screen for the LUMARA Writing Agent.
 /// User enters a prompt and content type, then sees the generated draft and optional scores.
 /// [initialPrompt] pre-fills "What should we write about?" (e.g. from research report).
+/// [draftId] when set opens an existing draft from Outputs for viewing and editing.
 class WritingScreen extends StatefulWidget {
-  const WritingScreen({super.key, this.initialPrompt});
+  const WritingScreen({super.key, this.initialPrompt, this.draftId});
 
   final String? initialPrompt;
+  /// When non-null, load this draft for viewing/editing (e.g. from Outputs tab).
+  final String? draftId;
 
   @override
   State<WritingScreen> createState() => _WritingScreenState();
@@ -24,13 +29,18 @@ class WritingScreen extends StatefulWidget {
 class _WritingScreenState extends State<WritingScreen> {
   final TextEditingController _promptController = TextEditingController();
   final TextEditingController _customContentTypeController = TextEditingController();
+  final TextEditingController _draftBodyController = TextEditingController();
   ContentType _contentType = ContentType.linkedIn;
   Draft? _draft;
   double? _voiceScore;
   double? _themeAlignment;
   List<String> _suggestedEdits = [];
   bool _loading = false;
+  bool _loadingDraft = false;
+  bool _saving = false;
   String? _error;
+  /// When set, we're viewing/editing an existing draft (e.g. from Outputs).
+  String? _editingDraftId;
 
   @override
   void initState() {
@@ -40,7 +50,10 @@ class _WritingScreenState extends State<WritingScreen> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialPrompt());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _applyInitialPrompt();
+      _loadDraftIfNeeded();
+    });
   }
 
   void _applyInitialPrompt() {
@@ -78,10 +91,63 @@ class _WritingScreenState extends State<WritingScreen> {
     }
   }
 
+  Future<void> _loadDraftIfNeeded() async {
+    final draftId = widget.draftId ?? (ModalRoute.of(context)?.settings.arguments is Map<String, dynamic> ? (ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>)['draftId'] as String? : null);
+    if (draftId == null || draftId.isEmpty) return;
+    setState(() {
+      _editingDraftId = draftId;
+      _loadingDraft = true;
+      _error = null;
+    });
+    try {
+      final userId = await AgentsChronicleService.instance.getCurrentUserId();
+      final result = await AgentsChronicleService.instance.getDraftById(userId, draftId);
+      if (!mounted) return;
+      if (result != null) {
+        _draft = result.draft;
+        _draftBodyController.text = result.draft.content;
+        _voiceScore = result.draft.voiceScore;
+        _themeAlignment = result.draft.themeAlignment;
+      } else {
+        _error = 'Draft not found';
+      }
+    } catch (e) {
+      if (mounted) _error = e.toString();
+    } finally {
+      if (mounted) {
+        setState(() => _loadingDraft = false);
+      }
+    }
+  }
+
+  Future<void> _saveDraftEdits() async {
+    if (_editingDraftId == null) return;
+    final content = _draftBodyController.text;
+    setState(() => _saving = true);
+    try {
+      final userId = await AgentsChronicleService.instance.getCurrentUserId();
+      await AgentsChronicleService.instance.updateDraftContent(userId, _editingDraftId!, content);
+      if (!mounted) return;
+      _draft = _draft?.copyWith(content: content);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Draft saved')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   void dispose() {
     _promptController.dispose();
     _customContentTypeController.dispose();
+    _draftBodyController.dispose();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
@@ -145,8 +211,9 @@ class _WritingScreenState extends State<WritingScreen> {
   }
 
   void _copyDraft() {
-    if (_draft != null) {
-      Clipboard.setData(ClipboardData(text: _draft!.content));
+    final text = _editingDraftId != null ? _draftBodyController.text : _draft?.content;
+    if (text != null && text.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: text));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Draft copied to clipboard')),
       );
@@ -246,6 +313,21 @@ class _WritingScreenState extends State<WritingScreen> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (_editingDraftId != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilledButton.icon(
+                            onPressed: _saving ? null : _saveDraftEdits,
+                            icon: _saving
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.save, size: 18),
+                            label: Text(_saving ? 'Saving...' : 'Save'),
+                          ),
+                        ),
                       TextButton.icon(
                         onPressed: _copyDraft,
                         icon: const Icon(Icons.copy, size: 18),
@@ -255,7 +337,21 @@ class _WritingScreenState extends State<WritingScreen> {
                   ),
               ],
             ),
-            if (_draft == null)
+            if (_loadingDraft)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(32),
+                child: const Center(
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(),
+                      Gap(16),
+                      Text('Loading draft...'),
+                    ],
+                  ),
+                ),
+              )
+            else if (_draft == null)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -280,7 +376,13 @@ class _WritingScreenState extends State<WritingScreen> {
                   border: Border.all(color: Theme.of(context).dividerColor),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: SelectableText(_draft!.content),
+                child: _editingDraftId != null
+                    ? ReflectionDraftTextField(
+                        controller: _draftBodyController,
+                        hintText: 'Edit your draft...',
+                        minLines: 8,
+                      )
+                    : SelectableText(_draft!.content),
               ),
               const Gap(12),
               Text(

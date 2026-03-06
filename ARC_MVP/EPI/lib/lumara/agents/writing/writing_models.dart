@@ -309,6 +309,9 @@ abstract class WritingDraftRepository {
   /// Load full draft content and metadata by id. Returns null if not found.
   Future<({Draft draft, DraftMetadata metadata})?> getDraft(String userId, String draftId);
 
+  /// Update draft body content. Preserves frontmatter.
+  Future<void> updateDraftContent(String userId, String draftId, String content);
+
   /// Mark draft as finished.
   Future<void> markFinished(String userId, String draftId);
 

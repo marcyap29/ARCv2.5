@@ -5,8 +5,8 @@ import 'package:docx_to_text/docx_to_text.dart';
 import 'pdf_content_service.dart';
 
 /// Extracts plain text from PDF, DOCX, TXT, and MD files.
-/// Use when you need document text for LUMARA context or Chronicle (e.g. for
-/// already-attached files that were saved without extracted text).
+/// Used for on-demand extraction (e.g. DOCX in-app preview). Journal flow inserts
+/// extracted text into the entry body with [Extracted text from "Document title"].
 class DocumentContentService {
   DocumentContentService._();
 

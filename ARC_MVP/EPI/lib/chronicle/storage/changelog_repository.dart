@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -65,7 +66,7 @@ class ChangelogRepository {
     return File(path.join(chronicleDir.path, changelogFile));
   }
 
-  /// Load all changelog entries
+  /// Load all changelog entries (supports JSONL: one JSON object per line).
   Future<List<ChangelogEntry>> getAllEntries() async {
     final file = await _getChangelogFile();
     
@@ -75,20 +76,33 @@ class ChangelogRepository {
 
     try {
       final content = await file.readAsString();
-      final json = List<dynamic>.from(
-        // Simple JSON parsing - in production, use proper JSON library
-        // For now, assume one entry per line (JSONL format)
-        content.split('\n').where((line) => line.trim().isNotEmpty),
-      );
-      
-      return json
-          .map((j) => ChangelogEntry.fromJson(Map<String, dynamic>.from(j)))
-          .toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      final lines = content.split('\n').where((line) => line.trim().isNotEmpty);
+      final entries = <ChangelogEntry>[];
+      for (final line in lines) {
+        try {
+          final map = jsonDecode(line) as Map<String, dynamic>;
+          entries.add(ChangelogEntry.fromJson(map));
+        } catch (_) {
+          // Skip malformed lines
+        }
+      }
+      entries.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return entries;
     } catch (e) {
       print('⚠️ ChangelogRepository: Failed to load changelog: $e');
       return [];
     }
+  }
+
+  /// Append imported changelog entries (e.g. from export changelog.jsonl). Preserves original ids and timestamps.
+  Future<void> appendEntries(List<ChangelogEntry> entries) async {
+    if (entries.isEmpty) return;
+    final file = await _getChangelogFile();
+    for (final entry in entries) {
+      final line = '${jsonEncode(entry.toJson())}\n';
+      await file.writeAsString(line, mode: FileMode.append);
+    }
+    print('📝 ChangelogRepository: Appended ${entries.length} imported entries');
   }
 
   /// Log a changelog entry
@@ -112,7 +126,7 @@ class ChangelogRepository {
     final file = await _getChangelogFile();
     
     // Append to file (JSONL format - one JSON object per line)
-    final line = '${entry.toJson()}\n';
+    final line = '${jsonEncode(entry.toJson())}\n';
     await file.writeAsString(line, mode: FileMode.append);
     
     print('📝 ChangelogRepository: Logged $action for ${layer.name}');

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:path/path.dart' as path;
+import 'package:archive/archive_io.dart';
 import '../storage/aggregation_repository.dart';
 import '../storage/changelog_repository.dart';
 import '../models/chronicle_layer.dart';
@@ -9,8 +10,9 @@ import '../../crossroads/models/decision_capture.dart';
 import '../../crossroads/storage/decision_capture_repository.dart';
 
 /// CHRONICLE export service
-/// 
-/// Provides functionality to export CHRONICLE aggregations to user-selected directories.
+///
+/// Exports to a single ZIP file (recommended). Also supports exporting to a directory
+/// for backwards compatibility.
 class ChronicleExportService {
   final AggregationRepository _aggregationRepo;
   final ChangelogRepository _changelogRepo;
@@ -21,9 +23,39 @@ class ChronicleExportService {
   })  : _aggregationRepo = aggregationRepo,
         _changelogRepo = changelogRepo;
 
-  /// Export all aggregations to a directory
-  /// 
-  /// Creates a directory structure:
+  /// Export all data to a ZIP file (recommended). User picks a directory; the ZIP is created there.
+  ///
+  /// Creates [outputZipFile] containing: monthly/, yearly/, multiyear/, decisions/, changelog.jsonl.
+  Future<ChronicleExportResult> exportToZip({
+    required String userId,
+    required File outputZipFile,
+  }) async {
+    final tempDir = Directory(path.join(Directory.systemTemp.path, 'chronicle_export_${DateTime.now().millisecondsSinceEpoch}'));
+    try {
+      await tempDir.create(recursive: true);
+      final result = await exportAll(userId: userId, exportDir: tempDir);
+      if (!result.success) return result;
+      final encoder = ZipFileEncoder();
+      encoder.create(outputZipFile.path);
+      await encoder.addDirectory(tempDir, includeDirName: false);
+      await encoder.close();
+      print('✅ ChronicleExportService: Wrote ZIP to ${outputZipFile.path}');
+      return result;
+    } catch (e) {
+      print('❌ ChronicleExportService: ZIP export failed: $e');
+      return ChronicleExportResult()
+        ..success = false
+        ..error = e.toString();
+    } finally {
+      try {
+        await tempDir.delete(recursive: true);
+      } catch (_) {}
+    }
+  }
+
+  /// Export all aggregations to a directory (same layout as inside the ZIP).
+  ///
+  /// Creates:
   ///   exportDir/
   ///     monthly/
   ///     yearly/

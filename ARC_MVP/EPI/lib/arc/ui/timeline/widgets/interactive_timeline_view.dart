@@ -4098,12 +4098,27 @@ class _FavoriteBookmarkButtonState extends State<_FavoriteBookmarkButton> {
       return const SizedBox.shrink();
     }
 
-    return GestureDetector(
-      onTap: _toggleFavorite,
-      child: Icon(
-        _isFavorited ? Icons.bookmark : Icons.bookmark_border,
-        size: 16,
-        color: _isFavorited ? const Color(0xFF2196F3) : kcSecondaryTextColor,
+    // Minimum 44x44 hit area for easy tapping
+    const hitSize = 44.0;
+    return Tooltip(
+      message: _isFavorited ? 'Unfavorite' : 'Favorite (pin to Pinned filter)',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _toggleFavorite,
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            width: hitSize,
+            height: hitSize,
+            child: Center(
+              child: Icon(
+                _isFavorited ? Icons.bookmark : Icons.bookmark_border,
+                size: 22,
+                color: _isFavorited ? const Color(0xFF2196F3) : kcSecondaryTextColor,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

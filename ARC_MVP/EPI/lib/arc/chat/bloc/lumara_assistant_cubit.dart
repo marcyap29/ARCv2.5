@@ -71,7 +71,6 @@ import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/dual/intelligence/agentic_loop_orchestrator.dart';
 import 'package:my_app/chronicle/dual/intelligence/interrupt/interrupt_decision_engine.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
-import 'package:my_app/core/services/document_content_service.dart';
 import 'package:my_app/core/services/media_pick_and_analyze_service.dart';
 
 /// Pending SwarmSpace plugin consent (first-use interrupt per LUMARA–SwarmSpace docking spec).
@@ -1938,20 +1937,23 @@ Continue naturally.''';
       );
       buffer.writeln(currentExcerpt);
       
-      // Include media content (OCR, file text, captions, transcripts)
+      // Include media content (photo OCR, captions, transcripts). File document text is NOT
+      // included here: PDF/MD/TXT/DOCX text is inserted into the entry body with
+      // [Extracted text from "Document title"] so LUMARA sees it only from entry content.
       if (currentEntry.media.isNotEmpty) {
         buffer.writeln('\n=== MEDIA CONTENT FROM CURRENT ENTRY ===');
         for (final mediaItem in currentEntry.media) {
-          String? fileText = mediaItem.ocrText;
-          if (mediaItem.type == MediaType.file &&
-              (fileText == null || fileText.isEmpty)) {
-            // Already-attached files without stored text: extract on demand
-            final path = mediaItem.uri.replaceFirst(RegExp(r'^file://'), '');
-            fileText = await DocumentContentService.extractTextFromPath(path);
+          if (mediaItem.type == MediaType.file) {
+            // Only mention file presence; do not inject extracted text (avoids hallucination)
+            if (mediaItem.altText != null && mediaItem.altText!.isNotEmpty) {
+              buffer.writeln('Attached file: ${mediaItem.altText}');
+            }
+            continue;
           }
-          if (fileText != null && fileText.isNotEmpty) {
-            final label = mediaItem.type == MediaType.file ? 'File content' : 'Photo OCR';
-            buffer.writeln('$label: $fileText');
+          final ocrOrText = mediaItem.ocrText;
+          if (ocrOrText != null && ocrOrText.isNotEmpty) {
+            final label = mediaItem.type == MediaType.image ? 'Photo OCR' : 'OCR';
+            buffer.writeln('$label: $ocrOrText');
           }
           if (mediaItem.altText != null && mediaItem.altText!.isNotEmpty) {
             buffer.writeln('Photo description: ${mediaItem.altText}');

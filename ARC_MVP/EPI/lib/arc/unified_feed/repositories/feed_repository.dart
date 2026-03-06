@@ -15,6 +15,7 @@ import 'package:my_app/arc/unified_feed/models/entry_state.dart';
 import 'package:my_app/arc/internal/mira/journal_repository.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:my_app/arc/chat/chat/chat_models.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/core/constants/phase_colors.dart';
 import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
@@ -138,11 +139,24 @@ class FeedRepository {
       final entries = <FeedEntry>[];
 
       // 1. Load journal entries → written entries + saved conversations
+      // Resolve pinned (favorited) journal entry IDs so feed filter shows them
+      var pinnedJournalIds = <String>{};
+      try {
+        await FavoritesService.instance.initialize();
+        final journalFavorites = await FavoritesService.instance.getFavoriteJournalEntries();
+        pinnedJournalIds = journalFavorites
+            .where((f) => f.entryId != null)
+            .map((f) => f.entryId!)
+            .toSet();
+      } catch (e) {
+        debugPrint('FeedRepository: Error loading favorites for pinned state: $e');
+      }
+
       try {
         final journalEntries = await _journalRepo.getAllJournalEntries();
         debugPrint('FeedRepository: Loaded ${journalEntries.length} journal entries');
         for (final entry in journalEntries) {
-          entries.add(_journalEntryToFeedEntry(entry));
+          entries.add(_journalEntryToFeedEntry(entry, isPinned: pinnedJournalIds.contains(entry.id)));
         }
       } catch (e) {
         debugPrint('FeedRepository: Error loading journal entries: $e');
@@ -215,7 +229,8 @@ class FeedRepository {
   }
 
   /// Convert a journal entry to a feed entry.
-  FeedEntry _journalEntryToFeedEntry(JournalEntry entry) {
+  /// [isPinned] is true when the entry is in FavoritesService (journal_entry category).
+  FeedEntry _journalEntryToFeedEntry(JournalEntry entry, {bool isPinned = false}) {
     final bool isConversation = entry.lumaraBlocks.isNotEmpty;
     final bool isVoiceMemo =
         entry.audioUri != null && entry.audioUri!.isNotEmpty;
@@ -272,7 +287,7 @@ class FeedRepository {
       phase: phase,
       phaseColor: phaseColor,
       mood: entry.emotion ?? entry.mood,
-      isPinned: false,
+      isPinned: isPinned,
       hasLumaraReflections: entry.lumaraBlocks.isNotEmpty,
       hasMedia: entry.media.isNotEmpty,
       mediaCount: entry.media.length,

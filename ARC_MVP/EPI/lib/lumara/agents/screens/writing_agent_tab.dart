@@ -100,7 +100,7 @@ class _WritingAgentTabState extends State<WritingAgentTab> {
                 Navigator.push(
                   context,
                   MaterialPageRoute<void>(
-                    builder: (context) => const WritingScreen(),
+                    builder: (context) => WritingScreen(draftId: drafts[index].id),
                   ),
                 ).then((_) => _refresh());
               },

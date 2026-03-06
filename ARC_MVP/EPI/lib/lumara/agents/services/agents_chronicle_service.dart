@@ -86,6 +86,16 @@ class AgentsChronicleService {
     );
   }
 
+  /// Load full draft content and metadata by id. Returns null if not found.
+  Future<({Draft draft, DraftMetadata metadata})?> getDraftById(String userId, String draftId) async {
+    return _writingRepo.getDraft(userId, draftId);
+  }
+
+  /// Update draft body content. Preserves metadata.
+  Future<void> updateDraftContent(String userId, String draftId, String content) async {
+    await _writingRepo.updateDraftContent(userId, draftId, content);
+  }
+
   /// Load content drafts for the current user (active and archived).
   Future<List<ContentDraft>> getContentDrafts(String userId, {bool includeArchived = true}) async {
     final list = await _writingRepo.listDrafts(userId, includeArchived: includeArchived);

@@ -1,10 +1,13 @@
 # EPI Documentation Context Guide
 
-**Version:** 3.3.27
-**Last Updated:** February 13, 2026
+**Version:** 3.3.28
+**Last Updated:** March 5, 2026
 **Current Branch:** `test`
 
-### Recent Updates (v3.3.27)
+### Recent Updates (v3.3.28)
+- **Unified feed Pinned filter & timeline bookmark (bug prevention)**: Doc updated so these don't regress. (1) Feed Pinned filter: `FeedEntry.isPinned` for journal entries must come from FavoritesService (`getFavoriteJournalEntries()` → entryId set); FeedRepository must resolve this on refresh—do not hardcode `isPinned: false`. (2) Timeline favorite bookmark: use ≥44pt tap target and tooltip; see Bug prevention → LUMARA & journal, Timeline & UI.
+
+### Earlier Updates (v3.3.27)
 - **ARCHITECTURE.md Module Naming Refactor**: ARC → LUMARA (interface), MIRA → CHRONICLE (storage + synthesis + on-device embeddings). System diagram and all references updated. Executive Summary clarified: "5-module architecture: LUMARA (interface), PRISM, CHRONICLE, AURORA, ECHO."
 - **Pattern Index in Orchestrator**: `PatternQueryRouter` created during CHRONICLE init and passed to `ChronicleSubsystem`. Pattern-like intents route through vectorizer; results merged via `<chronicle_pattern_index>` tags. VEIL-CHRONICLE scheduler starts at app launch (`home_view.dart`). CHRONICLE Management UI: pattern index section with last-updated timestamp and manual rebuild.
 - **Narrative Intelligence**: `DOCS/NARRATIVE_INTELLIGENCE_OVERVIEW.md` — framework overview (architecture, VEIL cycle, subsystems, vector generation, intellectual honesty, Crossroads). Formal paper: `DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex`.
@@ -152,6 +155,7 @@ When generating or modifying code, **do not reintroduce** the following. Full de
 - **Entry classification** before full LUMARA synthesis: factual → direct short answers; reflective → full synthesis. PRISM semantic summary must be classification-aware (technical vs personal); avoid generic "brief entry about learning" for technical content.
 - **Journal reflections**: Pre-abstract entry text before building the prompt; use natural language instructions (not raw JSON); skip transformation for journal so LUMARA sees natural language.
 - **LUMARA favorites**: Export always (not gated by `includePhaseRegimes`); write to `extensions/lumara_favorites.json`. Import from `extensions/` first, fallback `PhaseRegimes/`; enrich with phase/phase_regime_id on export.
+- **Unified feed Pinned filter**: `FeedEntry.isPinned` must reflect real pin/favorite state or the Pinned filter will show nothing. For **journal entries**, that state lives in **FavoritesService** (category `journal_entry`; use `getFavoriteJournalEntries()` and the set of `entryId`). **FeedRepository** must, on each refresh, load that set and pass `isPinned: true` when converting journal entries whose id is in the set. Chat sessions get `isPinned` from `ChatSession.isPinned` (ChatRepo). Do not hardcode `isPinned: false` for journal entries in the feed.
 
 **CHRONICLE**
 - **Yearly layer routing**: For month &lt; 4 (Jan–Mar), use monthly layer (or equivalent fallback); yearly can return empty context early in the year (BUG-CHRONICLE-001).
@@ -162,6 +166,7 @@ When generating or modifying code, **do not reintroduce** the following. Full de
 - Use `_timelineCardHeight` ~180 (not 280); suppress calendar week updates during programmatic scroll (`_isProgrammaticScroll`).
 - Calendar header height 108px; arcform preview top margin 16px to avoid clipping.
 - **Share / image capture**: Capture Arcform (or similar) **before** navigating to composition screen; pass bytes to the next screen. Do not capture after navigation when the widget tree is unavailable.
+- **Timeline favorite (pin) bookmark**: Entry cards that support favoriting/pinning must use a control with a **minimum ~44pt tap target** (e.g. `SizedBox(width: 44, height: 44)` + `InkWell`/`Material`) and a **tooltip** (e.g. "Favorite (pin to Pinned filter)" / "Unfavorite"). Do not use a bare small icon without an adequate hit area.
 
 **Export / import / storage**
 - **Disk space**: Detect errno 28 (no space) vs errno 13 (permission); show clear, actionable messages and required space.

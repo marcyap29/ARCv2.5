@@ -38,8 +38,16 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen> {
   // Batch selection state
   bool _isSelectionMode = false;
   Set<String> _selectedSessionIds = {};
-  
+
+  /// When true, show only pinned chats (Pinned section filter). When false, show only chronological (non-pinned) so users don't scroll past pinned.
+  bool _showPinnedOnly = false;
+
   final FavoritesService _favoritesService = FavoritesService.instance;
+
+  /// Sessions to display: pinned only when filter on, non-pinned (chronological) when filter off.
+  List<ChatSession> get _displaySessions => _showPinnedOnly
+      ? _filteredSessions.where((s) => s.isPinned).toList()
+      : _filteredSessions.where((s) => !s.isPinned).toList();
 
   @override
   void initState() {
@@ -255,7 +263,7 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen> {
 
   void _selectAllSessions() {
     setState(() {
-      _selectedSessionIds = _filteredSessions.map((s) => s.id).toSet();
+      _selectedSessionIds = _displaySessions.map((s) => s.id).toSet();
     });
   }
 
@@ -335,7 +343,7 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen> {
           : null,
         actions: _isSelectionMode
           ? [
-              if (_selectedSessionIds.length < _filteredSessions.length)
+              if (_selectedSessionIds.length < _displaySessions.length)
                 IconButton(
                   icon: const Icon(Icons.select_all, color: kcPrimaryColor),
                   onPressed: _selectAllSessions,
@@ -355,6 +363,20 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen> {
                 ),
             ]
           : [
+              // Pinned filter (thumbtack) — left of multi-select, search, settings
+              IconButton(
+                icon: Icon(
+                  Icons.push_pin,
+                  color: _showPinnedOnly ? kcPrimaryColor : null,
+                  size: 22,
+                ),
+                tooltip: _showPinnedOnly
+                    ? 'Show all chats (chronological)'
+                    : 'Show pinned only',
+                onPressed: () {
+                  setState(() => _showPinnedOnly = !_showPinnedOnly);
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.checklist, color: kcPrimaryColor),
                 onPressed: _toggleSelectionMode,
@@ -517,24 +539,32 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen> {
       );
     }
 
-    if (_filteredSessions.isEmpty) {
+    if (_displaySessions.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.chat_bubble_outline, color: kcTextSecondaryColor, size: 48),
+            Icon(
+              _showPinnedOnly ? Icons.push_pin : Icons.chat_bubble_outline,
+              color: kcTextSecondaryColor,
+              size: 48,
+            ),
             const SizedBox(height: 16),
             Text(
-              _searchController.text.isNotEmpty
-                ? 'No chats found'
-                : 'No chat history yet',
+              _showPinnedOnly
+                  ? 'No pinned chats'
+                  : _searchController.text.isNotEmpty
+                      ? 'No chats found'
+                      : 'No chat history yet',
               style: heading2Style(context),
             ),
             const SizedBox(height: 8),
             Text(
-              _searchController.text.isNotEmpty
-                ? 'Try a different search term'
-                : 'Start a new conversation with LUMARA',
+              _showPinnedOnly
+                  ? 'Pin chats from the list to see them here'
+                  : _searchController.text.isNotEmpty
+                      ? 'Try a different search term'
+                      : 'Start a new conversation with LUMARA',
               style: bodyStyle(context).copyWith(color: kcTextSecondaryColor),
             ),
           ],
@@ -552,8 +582,8 @@ class _EnhancedChatsScreenState extends State<EnhancedChatsScreen> {
             _buildSavedChatsSection(),
             const SizedBox(height: 16),
           ],
-          // Regular Chat Sessions
-          ..._filteredSessions.map((session) {
+          // Regular Chat Sessions (pinned only or chronological based on filter)
+          ..._displaySessions.map((session) {
           return _ChatSessionCard(
             session: session,
             isSelectionMode: _isSelectionMode,

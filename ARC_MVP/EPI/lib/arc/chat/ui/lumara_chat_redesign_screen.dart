@@ -10,6 +10,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
 import 'package:my_app/arc/chat/data/models/lumara_message.dart';
+import 'package:my_app/arc/chat/services/chronicle_prompt_service.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
 import 'package:my_app/arc/chat/chat/ui/enhanced_chats_screen.dart';
 import 'package:my_app/arc/chat/chat/enhanced_chat_repo_impl.dart';
@@ -22,7 +23,6 @@ import 'package:my_app/arc/chat/voice/audio_io.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:my_app/arc/ui/widgets/attachment_menu_button.dart';
 import 'package:my_app/arc/ui/widgets/attachment_strip_widget.dart';
-import 'package:my_app/core/services/document_content_service.dart';
 import 'package:my_app/core/services/media_pick_and_analyze_service.dart';
 import 'package:my_app/ui/journal/widgets/docx_preview_screen.dart';
 import 'package:my_app/ui/journal/widgets/pdf_preview_screen.dart';
@@ -184,15 +184,12 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
         if (ext == 'txt') mimeType = 'text/plain';
         if (ext == 'doc') mimeType = 'application/msword';
         if (ext == 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        String? extractedText;
-        if (ext == 'pdf' || ext == 'docx' || ext == 'doc' || ext == 'txt' || ext == 'md') {
-          extractedText = await DocumentContentService.extractTextFromPath(path);
-        }
+        // Do not extract document text here; journal flow inserts [Extracted text from "Document title"] into entry body.
         setState(() => _pendingFileAttachments.add(AttachmentFileItem(
           path: path,
           fileName: fileName,
           mimeType: mimeType,
-          extractedText: extractedText?.trim().isEmpty == true ? null : extractedText,
+          extractedText: null,
         )));
       }
     } catch (e) {
@@ -802,6 +799,54 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
     );
   }
 
+  Future<void> _onSendLongPress() async {
+    if (_controller.text.trim().isNotEmpty) return;
+    List<String> prompts;
+    try {
+      prompts = await ChroniclePromptService.getChroniclePromptSuggestions(count: 3);
+    } catch (_) {
+      prompts = [
+        "What's on your mind right now?",
+        "How are you feeling today?",
+        "What patterns do you see in your recent entries?",
+      ];
+    }
+    if (prompts.isEmpty || !mounted) return;
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400, maxHeight: 400),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Choose a prompt',
+                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ...prompts.map((p) => Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  title: Text(p, style: Theme.of(ctx).textTheme.bodyMedium),
+                  onTap: () => Navigator.of(ctx).pop(p),
+                ),
+              )),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected != null && mounted) _send(selected);
+  }
+
   Widget _buildInputBar(BuildContext context) {
     return Container(
       padding: EdgeInsets.only(
@@ -899,7 +944,8 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
               IconButton(
                 icon: const LumaraIcon(size: 20),
                 onPressed: () => _send(_controller.text),
-                tooltip: 'Send',
+                onLongPress: _controller.text.trim().isEmpty ? _onSendLongPress : null,
+                tooltip: 'Send (long-press for prompt suggestions when empty)',
               ),
               IconButton(
                 icon: const Icon(Icons.mic_none, color: kcSecondaryTextColor),

@@ -155,6 +155,35 @@ ${draft.content}
     }
   }
 
+  @override
+  Future<void> updateDraftContent(String userId, String draftId, String content) async {
+    try {
+      final base = await _getDraftsDirectory();
+      final file = File(path.join(base.path, userId, '$draftId.md'));
+      if (!await file.exists()) return;
+      final fm = await _readFrontmatter(file);
+      final status = fm['status'] ?? _statusDraft;
+      final archived = fm['archived'] == 'true';
+      final archivedAt = fm['archived_at']?.isEmpty != false ? '' : (fm['archived_at'] ?? '');
+      final metadata = DraftMetadata(
+        phase: fm['phase'] ?? 'Discovery',
+        wordCount: content.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length,
+        generatedAt: DateTime.tryParse(fm['generated_at'] ?? '') ?? DateTime.now(),
+      );
+      final draft = Draft(
+        content: content,
+        voiceScore: double.tryParse(fm['voice_score'] ?? ''),
+        themeAlignment: double.tryParse(fm['theme_alignment'] ?? ''),
+        metadata: metadata,
+      );
+      final out = _formatDraft(draft, metadata, status: status, archived: archived, archivedAt: archivedAt.isEmpty ? null : archivedAt);
+      await file.writeAsString(out);
+    } catch (e) {
+      // ignore: avoid_print
+      print('WritingDraftRepository: updateDraftContent failed: $e');
+    }
+  }
+
   Future<void> _updateFrontmatter(String userId, String draftId, {String? status, bool? archived, String? archivedAt}) async {
     final base = await _getDraftsDirectory();
     final file = File(path.join(base.path, userId, '$draftId.md'));

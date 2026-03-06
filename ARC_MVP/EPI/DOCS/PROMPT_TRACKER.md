@@ -1,7 +1,7 @@
 # Prompt Tracker
 
-**Version:** 1.15.0  
-**Last Updated:** February 25, 2026  
+**Version:** 1.16.0  
+**Last Updated:** March 6, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
 ---
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-03-06 | Doc sync v3.3.66: chronicle_prompt_service (reflection suggestions), Vectorization doc, reflection_draft_text_field; code sync; no PROMPT_REFERENCES bump | CHANGELOG v3.3.66 |
 | 2026-02-25 | Doc sync v3.3.65: Veil Edge removal; reflection simplifications; journal/voice/timeline/feed; LUMARA_Overview, Swarmspace_Overview; no PROMPT_REFERENCES bump | CHANGELOG v3.3.65 |
 | 2026-02-25 | Doc sync v3.3.64: newsDataInvoke; swarmspace_web_search_tool; chat_intent_classifier; transcript_cleaner; no PROMPT_REFERENCES bump | CHANGELOG v3.3.64 |
 | 2026-02-25 | Doc sync v3.3.63: Phase check-in removal; SwarmSpace plugin catalog; CHRONICLE reviews; DOCX export; no PROMPT_REFERENCES bump | CHANGELOG v3.3.63 |
