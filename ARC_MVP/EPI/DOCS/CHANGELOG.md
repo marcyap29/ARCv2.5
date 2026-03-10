@@ -1,7 +1,30 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.66
-**Last Updated:** March 6, 2026
+**Version:** 3.3.67
+**Last Updated:** March 10, 2026
+
+---
+
+## [3.3.67] - March 10, 2026
+
+### Documentation & Git Backup run; HealthKit removal; OpenAI provider removal; prompt optimization and settings
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §284–501).
+
+**Removed:**
+- **HealthKit (iOS):** HealthKitManager.swift deleted; health integration now uses alternative path or disabled on iOS where HealthKit was sole source.
+- **OpenAI provider:** openai_provider.dart and prompt_optimization/providers/openai_adapter.dart deleted; LLM options reduced to Gemini (and Groq via proxy).
+
+**Updated (sync with repo):**
+- **LUMARA & chat:** lumara_assistant_cubit, lumara_chat_redesign_screen, lumara_settings_screen, simple_lumara_settings_screen, lumara_control_state_builder.
+- **Prompt optimization:** prompt_optimization.dart, provider_manager.dart, provider_settings_section.dart (OpenAI adapter removed).
+- **LLM/config:** llm_provider_factory.dart, gemini_provider.dart, api_config.dart.
+- **Core & services:** journal_capture_cubit, app_lifecycle_manager, bootstrap, firebase_auth_service, gemini_send.
+- **UI:** health_settings_dialog, attachment_menu_button, unified_feed_screen, settings_view, sign_in_screen, journal_screen, advanced_analytics_view, lumara_subscription_status, subscription_management_view.
+- **iOS:** AppDelegate.swift, Info.plist, Runner.entitlements, Podfile.lock, project.pbxproj.
+- **Docs:** FLUTTER_COMMANDS.md; new: APP_STORE_LUMARA_DESCRIPTION.md, SIMULATOR_CORESIMULATOR_FIX.md.
+
+**Other:** pubspec.yaml, pubspec.lock, .flutter-plugins-dependencies.
 
 ---
 

@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 6, 2026 (doc sync 2026-03-06, v3.3.66)  
+**Last Updated:** March 10, 2026 (doc sync 2026-03-10, v3.3.67)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -45,15 +45,15 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-06 | ✅ Synced | v3.3.66 - doc sync; no structural changes |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-06 | ✅ Synced | v3.3.66 - Chronicle prompt service, Vectorization doc, code sync |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-06 | ✅ Synced | v2.9.0 - no new prompts this run (ChroniclePromptService = suggestion strings) |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-06 | ✅ Synced | v1.16.0 - Doc sync 2026-03-06 row |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-06 | ✅ Synced | v3.5.0 - 40 records; Last Updated 2026-03-06 |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-06 | ✅ Synced | v3.3.66 - doc sync |
-| README.md | `/DOCS/README.md` | 2026-03-06 | ✅ Synced | Key docs table with purpose and when to read |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-10 | ✅ Synced | v3.3.67 - HealthKit removal, OpenAI provider removal |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-10 | ✅ Synced | v3.3.67 - Doc-config-git-backup run; HealthKit/OpenAI removal |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-10 | ✅ Synced | v2.9.0 - no new prompts; OpenAI adapter removed from codebase |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-10 | ✅ Synced | v1.17.0 - Doc sync 2026-03-10 row |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-10 | ✅ Synced | v3.5.0 - 40 records; Last Updated 2026-03-10 |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-10 | ✅ Synced | v3.3.67 - doc sync |
+| README.md | `/DOCS/README.md` | 2026-03-10 | ✅ Synced | Key docs table; CHANGELOG version ref updated |
 | claude.md | `/DOCS/claude.md` | 2026-03-06 | ✅ Synced | Doc/Config/Git Backup prompt |
-| backend.md | `/DOCS/backend.md` | 2026-03-06 | ✅ Synced | v3.3.66 - doc sync |
+| backend.md | `/DOCS/backend.md` | 2026-03-10 | ✅ Synced | v3.3.67 - OpenAI adapter removed |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
 ### White Papers & Specifications
@@ -105,11 +105,27 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | BUGTRACKER_AUDIT_REPORT.md | DOCS/bugtracker/ | Bug tracker audit report — v3.3.47 |
 | UNIVERSAL_PROMPT_OPTIMIZATION.md | DOCS/ | Universal prompt optimization 80/20 framework, provider-agnostic layer — v3.3.48 |
 | LUMARA_Vision_Reposition.md | DOCS/ | LUMARA vision reposition rationale and current state — v3.3.59 |
+| SIMULATOR_CORESIMULATOR_FIX.md | DOCS/ | Simulator/CoreSimulator fix notes — v3.3.67 |
+| APP_STORE_LUMARA_DESCRIPTION.md | DOCS/ | App Store LUMARA description — v3.3.67 |
 | MASTER_PROMPT_SHORTENING.md | DOCS/ | Dual-mode master prompt architecture (conversation vs detailed analysis) — v3.3.59 |
 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-10 - Documentation & Git Backup run (v3.3.67; doc sync + backup 2026-03-10)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §284–501 orchestrator + sub-agents + reviewer). Trigger: user request to run doc-config-git-backup prompt on repo.
+
+**PROMPT REFERENCES AUDIT:** No new LLM prompt definition files. OpenAI provider (`openai_provider.dart`) and prompt optimization OpenAI adapter (`openai_adapter.dart`) removed from codebase; PROMPT_REFERENCES.md unchanged (v2.9.0).
+
+**Git Backup — Identify what changed (since v3.3.66 / 2026-03-06):** Uncommitted changes: 30+ modified files. Key: HealthKitManager.swift deleted; openai_provider.dart, openai_adapter.dart deleted; lumara_assistant_cubit, api_config, llm_provider_factory, gemini_provider, prompt_optimization (provider_manager, provider_settings_section), lumara_control_state_builder, lumara_chat_redesign_screen, lumara_settings_screen, simple_lumara_settings_screen, journal_capture_cubit, health_settings_dialog, attachment_menu_button, unified_feed_screen, app_lifecycle_manager, bootstrap, firebase_auth_service, gemini_send, settings_view, sign_in_screen, journal_screen, advanced_analytics_view, lumara_subscription_status, subscription_management_view; iOS (AppDelegate, Info.plist, entitlements, Podfile, project); FLUTTER_COMMANDS.md; pubspec. New untracked: APP_STORE_LUMARA_DESCRIPTION.md, SIMULATOR_CORESIMULATOR_FIX.md.
+
+**Updates:** CHANGELOG.md v3.3.67; CONFIGURATION_MANAGEMENT.md this entry + inventory; PROMPT_TRACKER.md v1.17.0 + doc-sync row; bug_tracker.md Recent code changes row + Last Updated 2026-03-10; ARCHITECTURE.md v3.3.67; FEATURES.md v3.3.67; backend.md v3.3.67; README.md CHANGELOG version ref. New docs to inventory: APP_STORE_LUMARA_DESCRIPTION.md, SIMULATOR_CORESIMULATOR_FIX.md.
+
+**Status:** ✅ Doc updates applied; commit created (see Git Backup Sync step below).
+
+---
 
 ### 2026-03-06 - Documentation & Git Backup run (v3.3.66; doc sync + backup 2026-03-06)
 

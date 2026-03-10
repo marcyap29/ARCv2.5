@@ -1,8 +1,8 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.59
-**Last Updated:** February 25, 2026
-**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA (GPT-OSS 120B primary), LUMARA Vision Reposition (phases de-emphasized in UI), Personality Onboarding, Dual Prompt Mode, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration, AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, and Timeline Pagination
+**Version:** 3.3.67
+**Last Updated:** March 10, 2026
+**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA (GPT-OSS 120B primary), LUMARA Vision Reposition (phases de-emphasized in UI), Personality Onboarding, Dual Prompt Mode, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration (HealthKit removed on iOS in v3.3.67), AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, and Timeline Pagination
 
 ---
 
