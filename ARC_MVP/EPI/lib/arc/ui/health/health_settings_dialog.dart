@@ -1,11 +1,6 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:my_app/prism/services/health_service.dart';
-import 'package:my_app/mira/store/mcp/mcp_fs.dart';
 import 'package:my_app/services/health_data_service.dart';
 import 'package:my_app/services/health_data_refresh_service.dart';
-import 'package:health/health.dart';
 
 class HealthSettingsDialog extends StatefulWidget {
   const HealthSettingsDialog({super.key});
@@ -190,174 +185,12 @@ class _HealthSettingsDialogState extends State<HealthSettingsDialog> {
 
   Future<void> _importHealth({required int daysBack}) async {
     if (!mounted) return;
-    
-    setState(() {
-      _importing = true;
-      _importStatus = 'Importing $daysBack days of health data...';
-    });
-
-    try {
-      debugPrint('🔍 Health Import Debug - Starting process...');
-      
-      // Check platform first
-      if (!Platform.isIOS) {
-        throw Exception('Health data import is only available on iOS');
-      }
-      
-      debugPrint('🔍 Health Import Debug - Creating Health instance...');
-      final health = Health();
-
-      debugPrint('🔍 Health Import Debug - Requesting authorization...');
-      final granted = await health.requestAuthorization([
-        HealthDataType.STEPS,
-        HealthDataType.ACTIVE_ENERGY_BURNED,
-        HealthDataType.BASAL_ENERGY_BURNED,
-        HealthDataType.EXERCISE_TIME,
-        HealthDataType.RESTING_HEART_RATE,
-        HealthDataType.HEART_RATE,
-        HealthDataType.HEART_RATE_VARIABILITY_SDNN,
-        HealthDataType.SLEEP_ASLEEP,
-        HealthDataType.SLEEP_IN_BED,
-        HealthDataType.WEIGHT,
-        HealthDataType.WORKOUT,
-      ]).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          debugPrint('❌ Health Import Debug - Authorization timeout');
-          return false;
-        },
-      );
-
-      debugPrint('🔍 Health Import Debug - Authorization result: $granted');
-
-      if (!granted) {
-        if (!mounted) return;
-        setState(() {
-          _importStatus = 'HealthKit permission denied';
-          _importing = false;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('HealthKit permission denied')),
-          );
-        }
-        return;
-      }
-
-      debugPrint('🔍 Health Import Debug - Creating HealthIngest...');
-      final ingest = HealthIngest(health);
-      final uid = 'user_${DateTime.now().millisecondsSinceEpoch}';
-
-      debugPrint('🔍 Health Import Debug - Starting import for $daysBack days');
-      debugPrint('🔍 Health Import Debug - UID: $uid');
-
-      final lines = await ingest.importDays(daysBack: daysBack, uid: uid).timeout(
-        const Duration(seconds: 60),
-        onTimeout: () {
-          debugPrint('❌ Health Import Debug - Import timeout');
-          return <Map<String, dynamic>>[];
-        },
-      );
-
-      debugPrint('🔍 Health Import Debug - Import completed. Lines returned: ${lines.length}');
-      
-      if (lines.isEmpty) {
-        debugPrint('❌ Health Import Debug - NO DATA RETURNED');
-        debugPrint('❌ Possible reasons:');
-        debugPrint('❌ 1. No health data in Apple Health for this date range');
-        debugPrint('❌ 2. Running on iOS Simulator (HealthKit not supported)');
-        debugPrint('❌ 3. Health data types not available');
-      }
-
-      if (lines.isNotEmpty) {
-        debugPrint('🔍 Health Import Debug - Writing ${lines.length} entries to file...');
-        try {
-          final first = (lines.first['timeslice'] as Map)['start'] as String;
-          final monthKey = first.substring(0, 7);
-          final file = await McpFs.healthMonth(monthKey);
-          debugPrint('🔍 Health Import Debug - File path: ${file.path}');
-          
-          final sink = file.openWrite(mode: FileMode.append);
-          for (final m in lines) {
-            sink.writeln(jsonEncode(m));
-          }
-          await sink.close();
-          debugPrint('✅ Health Import Debug - Successfully wrote ${lines.length} entries');
-        } catch (fileError) {
-          debugPrint('❌ Health Import Debug - File write error: $fileError');
-          throw Exception('Failed to save health data: $fileError');
-        }
-      }
-
-      if (!mounted) return;
-      setState(() {
-        if (lines.isEmpty) {
-          _importStatus = 'Import completed - No health data found';
-        } else {
-          _importStatus = 'Successfully imported ${lines.length} days';
-        }
-        _importing = false;
-      });
-
-      if (mounted) {
-        if (lines.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Import completed - No health data found in Apple Health'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 5),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Successfully imported ${lines.length} days of health data'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-    } catch (e, stackTrace) {
-      debugPrint('❌ Health Import Debug - CRASH: $e');
-      debugPrint('❌ Stack trace: $stackTrace');
-      
-      if (!mounted) return;
-      setState(() {
-        _importStatus = 'Error: ${e.toString().split('\n').first}';
-        _importing = false;
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Import failed: ${e.toString().split('\n').first}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'Details',
-              textColor: Colors.white,
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Import Error Details'),
-                    content: SingleChildScrollView(
-                      child: Text('$e\n\nStack trace:\n$stackTrace'),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Close'),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      }
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Health data import from Apple Health is not available.'),
+        duration: Duration(seconds: 3),
+      ),
+    );
   }
 
   @override

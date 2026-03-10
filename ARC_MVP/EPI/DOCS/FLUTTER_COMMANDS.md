@@ -14,3 +14,7 @@
   df -h /  
   rm -rf ~/Library/Developer/Xcode/DerivedData/*
   flutter clean
+
+# Create Swarmspace token:
+  uuidgen
+  node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"

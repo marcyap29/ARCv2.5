@@ -9,6 +9,4 @@ export 'response_cache.dart';
 export 'universal_response_generator.dart';
 export 'providers/provider_adapter.dart';
 export 'providers/groq_adapter.dart';
-export 'providers/openai_adapter.dart';
-export 'providers/claude_adapter.dart';
 export 'ui/provider_settings_section.dart';

@@ -10,7 +10,8 @@ import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/advanced_settings_view.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
-import 'package:my_app/shared/ui/settings/health_readiness_view.dart';
+// Health & Readiness UI disabled - no health/readiness tabs
+// import 'package:my_app/shared/ui/settings/health_readiness_view.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
@@ -28,7 +29,7 @@ import 'package:my_app/shared/ui/settings/chronicle_management_view.dart';
 import 'package:my_app/shared/ui/chronicle/chronicle_layers_viewer.dart';
 import 'package:my_app/shared/ui/chronicle/dual_chronicle_view.dart';
 import 'package:my_app/arc/phase/share/phase_share_service.dart';
-import 'package:my_app/arc/ui/health/health_view.dart';
+// import 'package:my_app/arc/ui/health/health_view.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:my_app/mira/store/mcp/import/mcp_pack_import_service.dart';
@@ -123,17 +124,17 @@ class _SettingsViewState extends State<SettingsView> {
             // 5. Advanced Settings
             _buildAdvancedSettingsCard(context),
 
-            // 7. Health & Readiness (Available to everyone by default)
-            _buildFolderTile(
-              context,
-              title: 'Health & Readiness',
-              subtitle: 'Operational readiness and health tracking',
-              icon: Icons.assessment,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HealthReadinessFolderView()),
-              ),
-            ),
+            // 7. Health & Readiness - DISABLED (health/readiness tabs removed from UI)
+            // _buildFolderTile(
+            //   context,
+            //   title: 'Health & Readiness',
+            //   subtitle: 'Operational readiness and health tracking',
+            //   icon: Icons.assessment,
+            //   onTap: () => Navigator.push(
+            //     context,
+            //     MaterialPageRoute(builder: (context) => const HealthReadinessFolderView()),
+            //   ),
+            // ),
 
             // 8. Bug Reporting Folder
             _buildFolderTile(
@@ -436,10 +437,101 @@ class SubscriptionAccountFolderView extends StatelessWidget {
                 );
               },
             ),
+            const SizedBox(height: 16),
+            // Guideline 5.1.1(v): Account deletion must be available where account is managed
+            _DeleteAccountTile(),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Delete account tile (Settings → Subscription & Account). Guideline 5.1.1(v).
+class _DeleteAccountTile extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: ListTile(
+        leading: Icon(Icons.delete_forever, color: kcDangerColor, size: 24),
+        title: Text(
+          'Delete account',
+          style: heading3Style(context).copyWith(
+            color: kcDangerColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          'Permanently delete your account and data',
+          style: bodyStyle(context).copyWith(
+            color: kcSecondaryTextColor,
+            fontSize: 12,
+          ),
+        ),
+        onTap: () => _showDeleteAccountDialog(context),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+
+  Future<void> _showDeleteAccountDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete account?', style: heading2Style(ctx)),
+        content: Text(
+          'This will permanently delete your account. You will be signed out and will need to create a new account to use the app again. This action cannot be undone.',
+          style: bodyStyle(ctx),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: kcSecondaryTextColor)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kcDangerColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await FirebaseAuthService.instance.deleteAccount();
+      if (context.mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/sign-in', (route) => false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account deleted. You have been signed out.'),
+            backgroundColor: kcSuccessColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    }
   }
 }
 
@@ -943,61 +1035,61 @@ class ChronicleFolderView extends StatelessWidget {
 }
 
 // ============================================================================
-// FOLDER 3a: Health & Readiness (Available to everyone)
+// FOLDER 3a: Health & Readiness - DISABLED (health/readiness tabs removed from UI)
 // ============================================================================
-class HealthReadinessFolderView extends StatelessWidget {
-  const HealthReadinessFolderView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kcBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: kcBackgroundColor,
-        elevation: 0,
-        leading: const BackButton(color: kcPrimaryTextColor),
-        title: Text(
-          'Health & Readiness',
-          style: heading1Style(context).copyWith(
-            color: kcPrimaryTextColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _SettingsTile(
-              title: 'Health & Readiness',
-              subtitle: 'Operational readiness and phase ratings',
-              icon: Icons.assessment,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HealthReadinessView()),
-                );
-              },
-            ),
-            _SettingsTile(
-              title: 'Medical',
-              subtitle: 'Health data tracking and summary',
-              icon: Icons.medical_services,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HealthView()),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// class HealthReadinessFolderView extends StatelessWidget {
+//   const HealthReadinessFolderView({super.key});
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       backgroundColor: kcBackgroundColor,
+//       appBar: AppBar(
+//         backgroundColor: kcBackgroundColor,
+//         elevation: 0,
+//         leading: const BackButton(color: kcPrimaryTextColor),
+//         title: Text(
+//           'Health & Readiness',
+//           style: heading1Style(context).copyWith(
+//             color: kcPrimaryTextColor,
+//             fontWeight: FontWeight.bold,
+//           ),
+//         ),
+//         centerTitle: true,
+//       ),
+//       body: SingleChildScrollView(
+//         padding: const EdgeInsets.all(20),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             _SettingsTile(
+//               title: 'Health & Readiness',
+//               subtitle: 'Operational readiness and phase ratings',
+//               icon: Icons.assessment,
+//               onTap: () {
+//                 Navigator.push(
+//                   context,
+//                   MaterialPageRoute(builder: (context) => const HealthReadinessView()),
+//                 );
+//               },
+//             ),
+//             _SettingsTile(
+//               title: 'Medical',
+//               subtitle: 'Health data tracking and summary',
+//               icon: Icons.medical_services,
+//               onTap: () {
+//                 Navigator.push(
+//                   context,
+//                   MaterialPageRoute(builder: (context) => const HealthView()),
+//                 );
+//               },
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 // ============================================================================
 // FOLDER 4: LUMARA

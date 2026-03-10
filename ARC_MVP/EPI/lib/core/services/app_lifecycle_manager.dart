@@ -3,7 +3,8 @@ import 'package:hive/hive.dart';
 import 'package:my_app/main/bootstrap.dart';
 import 'draft_cache_service.dart';
 import '../../services/firebase_auth_service.dart';
-import '../../services/health_data_refresh_service.dart';
+// Health & Readiness disabled
+// import '../../services/health_data_refresh_service.dart';
 import '../../services/pending_conversation_service.dart';
 
 /// Manages app-level lifecycle events and recovery mechanisms
@@ -77,8 +78,8 @@ class AppLifecycleManager with WidgetsBindingObserver {
     // Refresh authentication token on app resume to ensure it's fresh
     _refreshAuthToken();
     
-    // Refresh health data if stale (non-blocking)
-    _refreshHealthDataIfNeeded();
+    // Health data refresh disabled - health/readiness removed from UI
+    // _refreshHealthDataIfNeeded();
     
     // Check if this is a cold start after force quit
     if (_lastPauseTime != null) {
@@ -95,17 +96,16 @@ class AppLifecycleManager with WidgetsBindingObserver {
     }
   }
 
-  /// Refresh health data if stale (non-blocking)
-  void _refreshHealthDataIfNeeded() {
-    Future.microtask(() async {
-      try {
-        await HealthDataRefreshService.instance.checkAndRefreshIfNeeded();
-      } catch (e) {
-        logger.w('Failed to refresh health data on resume: $e');
-        // Don't block app resume - continue anyway
-      }
-    });
-  }
+  /// Refresh health data if stale - DISABLED (health/readiness removed from UI)
+  // void _refreshHealthDataIfNeeded() {
+  //   Future.microtask(() async {
+  //     try {
+  //       await HealthDataRefreshService.instance.checkAndRefreshIfNeeded();
+  //     } catch (e) {
+  //       logger.w('Failed to refresh health data on resume: $e');
+  //     }
+  //   });
+  // }
 
   /// Refresh authentication token on app resume
   void _refreshAuthToken() {

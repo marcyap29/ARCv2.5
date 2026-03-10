@@ -61,6 +61,8 @@ import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/services/export_history_service.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_app/arc/chat/services/favorites_service.dart';
+import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
 
 /// The main unified feed screen that merges LUMARA chat and Conversations.
 class UnifiedFeedScreen extends StatefulWidget {
@@ -1443,6 +1445,23 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       );
     }
 
+    if (entry.journalEntryId != null) {
+      wrapped = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          wrapped,
+          Positioned(
+            right: 8,
+            bottom: 8,
+            child: _FeedPinBookmark(
+              entry: entry,
+              onPinTap: () => _togglePin(entry),
+            ),
+          ),
+        ],
+      );
+    }
+
     if (isSelectionMode && canDelete && onToggleSelect != null) {
       wrapped = GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -1488,6 +1507,73 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to delete: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  /// Toggle pin (favorite) for a journal-backed feed entry. Refreshes feed after toggle.
+  Future<void> _togglePin(FeedEntry entry) async {
+    final entryId = entry.journalEntryId;
+    if (entryId == null || entryId.isEmpty) return;
+    final favoritesService = FavoritesService.instance;
+    try {
+      await favoritesService.initialize();
+      if (entry.isPinned) {
+        final favorite = await favoritesService.findFavoriteJournalEntryByEntryId(entryId);
+        if (favorite != null) {
+          await favoritesService.removeFavorite(favorite.id);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Entry unpinned')),
+            );
+          }
+        }
+      } else {
+        final atCapacity = await favoritesService.isCategoryAtCapacity('journal_entry');
+        if (atCapacity && mounted) {
+          final limit = await favoritesService.getCategoryLimit('journal_entry');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Pinned limit reached ($limit). Unpin some entries to add more.'),
+              duration: const Duration(seconds: 3),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+        final journalRepo = JournalRepository();
+        final journalEntry = await journalRepo.getJournalEntryById(entryId);
+        if (journalEntry == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Entry not found')),
+            );
+          }
+          return;
+        }
+        final favorite = LumaraFavorite.fromJournalEntry(
+          entryId: entryId,
+          content: journalEntry.content,
+          sourceId: entryId,
+          metadata: {
+            'title': journalEntry.title,
+            'createdAt': journalEntry.createdAt.toIso8601String(),
+          },
+        );
+        final added = await favoritesService.addFavoriteJournalEntry(favorite);
+        if (added && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Entry pinned')),
+          );
+        }
+      }
+      await _feedRepo.refresh();
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update pin: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -2061,6 +2147,44 @@ class _PhaseJourneyGanttCardState extends State<_PhaseJourneyGanttCard> {
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bookmark icon on the lower right of a feed entry card. Tap to pin/unpin (favorite).
+class _FeedPinBookmark extends StatelessWidget {
+  const _FeedPinBookmark({
+    required this.entry,
+    required this.onPinTap,
+  });
+
+  final FeedEntry entry;
+  final VoidCallback onPinTap;
+
+  static const double _hitSize = 44.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: entry.isPinned ? 'Unpin entry' : 'Pin entry',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPinTap,
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            width: _hitSize,
+            height: _hitSize,
+            child: Center(
+              child: Icon(
+                entry.isPinned ? Icons.bookmark : Icons.bookmark_border,
+                size: 22,
+                color: entry.isPinned ? const Color(0xFF2196F3) : kcSecondaryTextColor,
+              ),
+            ),
           ),
         ),
       ),

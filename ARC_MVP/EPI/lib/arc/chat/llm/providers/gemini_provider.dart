@@ -25,7 +25,7 @@ class GeminiProvider extends LLMProviderBase {
   Future<String> generateResponse(Map<String, dynamic> context) async {
     final config = getConfig();
     if (config?.apiKey == null) {
-      throw StateError('Cloud AI API key not configured. Add Groq or Gemini in LUMARA Settings.');
+      throw StateError('Cloud AI API key not configured. Add Groq in LUMARA Settings.');
     }
 
     final apiKey = config!.apiKey!;

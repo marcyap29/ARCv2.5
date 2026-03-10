@@ -55,6 +55,11 @@ class _AttachmentMenuButtonState extends State<AttachmentMenuButton> {
     _overlayEntry = OverlayEntry(
       builder: (overlayContext) {
         final theme = Theme.of(overlayContext);
+        final size = MediaQuery.sizeOf(overlayContext);
+        const menuHeight = 220.0;
+        // Keep menu on screen (iPad and keyboard can push button up)
+        final top = (offset.dy - menuHeight).clamp(0.0, size.height - menuHeight);
+        final left = offset.dx.clamp(0.0, size.width - 180.0);
         return Stack(
           children: [
             // Backdrop to dismiss menu when tapping outside
@@ -65,10 +70,10 @@ class _AttachmentMenuButtonState extends State<AttachmentMenuButton> {
                 child: Container(color: Colors.transparent),
               ),
             ),
-            // Menu positioned above the button
+            // Menu positioned above the button, clamped to screen
             Positioned(
-              left: offset.dx,
-              top: offset.dy - 200, // Position above the button
+              left: left,
+              top: top,
               child: GestureDetector(
                 // Stop event propagation to prevent backdrop from dismissing
                 onTap: () {},

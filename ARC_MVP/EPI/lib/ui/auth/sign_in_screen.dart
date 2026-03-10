@@ -125,7 +125,7 @@ class _SignInScreenState extends State<SignInScreen> {
           if (message.contains('Exception:')) {
             _errorMessage = message.replaceAll('Exception:', '').trim();
           } else {
-            _errorMessage = 'Sign in with Apple failed. Please try another method.';
+            _errorMessage = message.isNotEmpty ? message : 'Sign in with Apple failed. Please try again or use another sign-in method.';
           }
           _isLoading = false;
         });

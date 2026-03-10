@@ -1,10 +1,15 @@
 // Firebase Auth service with Google Sign-In, Apple Sign-In, and account linking
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart' show
+    AppleIDAuthorizationScopes,
+    AuthorizationErrorCode,
+    SignInWithApple,
+    SignInWithAppleAuthorizationException,
+    SignInWithAppleException,
+    generateNonce;
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'firebase_service.dart';
@@ -238,18 +243,7 @@ class FirebaseAuthService {
     }
   }
 
-  /// Generate a raw nonce for Sign in with Apple (cryptographically secure).
-  /// Apple expects the SHA256-hashed nonce; Firebase expects the raw nonce.
-  static String _generateNonce([int length = 32]) {
-    final secureRandom = _secureRandomBytes(length);
-    return base64Url.encode(secureRandom);
-  }
-
-  static List<int> _secureRandomBytes(int length) {
-    final random = Random.secure();
-    return List<int>.generate(length, (_) => random.nextInt(256));
-  }
-
+  /// SHA256 hash of string for Sign in with Apple nonce (Apple expects hashed nonce).
   static String _sha256ofString(String input) {
     final bytes = utf8.encode(input);
     final digest = sha256.convert(bytes);
@@ -267,7 +261,7 @@ class FirebaseAuthService {
 
       if (kDebugMode) debugPrint('FirebaseAuthService: Starting Sign in with Apple...');
 
-      final rawNonce = _generateNonce();
+      final rawNonce = generateNonce();
       final hashedNonce = _sha256ofString(rawNonce);
 
       final appleCredential = await SignInWithApple.getAppleIDCredential(
@@ -319,15 +313,27 @@ class FirebaseAuthService {
         return null;
       }
       if (kDebugMode) debugPrint('FirebaseAuthService: Apple Sign-In authorization error: ${e.code} - ${e.message}');
-      rethrow;
+      throw _userFacingAppleSignInError(e.message);
+    } on SignInWithAppleException catch (e) {
+      if (kDebugMode) debugPrint('FirebaseAuthService: Apple Sign-In exception: $e');
+      final msg = e.toString().replaceFirst('Exception:', '').trim();
+      throw _userFacingAppleSignInError(msg.isEmpty ? null : msg);
     } catch (e) {
       if (e is FirebaseAuthException) {
         if (kDebugMode) debugPrint('FirebaseAuthService: Apple Sign-In Firebase error: ${e.code} - ${e.message}');
-      } else {
-        if (kDebugMode) debugPrint('FirebaseAuthService: Apple Sign-In failed: $e');
+        throw _userFacingAppleSignInError(e.message ?? e.code);
       }
-      rethrow;
+      if (kDebugMode) debugPrint('FirebaseAuthService: Apple Sign-In failed: $e');
+      final detail = e is Exception ? e.toString().replaceFirst('Exception:', '').trim() : e.toString();
+      throw _userFacingAppleSignInError(detail.isEmpty ? null : detail);
     }
+  }
+
+  static Exception _userFacingAppleSignInError([String? detail]) {
+    final msg = detail != null && detail.isNotEmpty
+        ? 'Sign in with Apple failed. $detail'
+        : 'Sign in with Apple failed. Please try again or use another sign-in method.';
+    return Exception(msg);
   }
 
   /// Check if Sign in with Apple is available (e.g. iOS 13+, macOS 10.15+).
@@ -562,6 +568,32 @@ class FirebaseAuthService {
       if (kDebugMode) debugPrint('💡 SOLUTION: Sign in with Google for premium features');
     }
     if (kDebugMode) debugPrint('================================');
+  }
+
+  /// Delete the current user account (Guideline 5.1.1(v)).
+  /// Permanently removes the Firebase Auth account. Backend/Firestore data should be cleaned by a Cloud Function or scheduled job.
+  /// Throws if not signed in or if deletion fails (e.g. requires recent login).
+  Future<void> deleteAccount() async {
+    final user = currentUser;
+    if (user == null) {
+      throw Exception('No account to delete. You are not signed in.');
+    }
+    if (user.isAnonymous) {
+      await signOut();
+      return;
+    }
+    try {
+      if (kDebugMode) debugPrint('FirebaseAuthService: 🗑️ Deleting user account...');
+      await user.delete();
+      if (kDebugMode) debugPrint('FirebaseAuthService: ✅ Account deleted');
+      await signOut();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        if (kDebugMode) debugPrint('FirebaseAuthService: Re-authentication required for account deletion');
+        throw Exception('For your security, please sign out and sign in again, then try deleting your account.');
+      }
+      rethrow;
+    }
   }
 
   /// Force sign out completely and clear all cached data

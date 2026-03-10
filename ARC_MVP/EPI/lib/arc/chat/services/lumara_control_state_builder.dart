@@ -14,7 +14,8 @@ import 'package:my_app/prism/atlas/rivet/rivet_storage.dart';
 import 'package:my_app/prism/atlas/rivet/rivet_models.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
-import 'package:my_app/services/health_data_service.dart';
+// Health & Readiness disabled - no health data access
+// import 'package:my_app/services/health_data_service.dart';
 import 'package:my_app/services/lumara/entry_classifier.dart';
 import 'package:my_app/services/lumara/user_intent.dart';
 import 'package:my_app/services/lumara/persona_selector.dart';
@@ -155,24 +156,19 @@ class LumaraControlStateBuilder {
     veil['timeOfDay'] = timeOfDay;
     veil['usagePattern'] = usagePattern;
     
-    // Get health signals from HealthDataService
+    // Health signals - use defaults only (health/readiness tabs removed; no HealthDataService access)
     final health = <String, dynamic>{
       'sleepQuality': 0.7, // 0-1, default to moderate
       'energyLevel': 0.7, // 0-1, default to moderate
       'medicationStatus': null, // Optional flag
     };
-    
-    // Integrate with health tracking service
-    try {
-      final healthService = HealthDataService.instance;
-      final healthData = await healthService.getEffectiveHealthData();
-      health['sleepQuality'] = healthData.sleepQuality;
-      health['energyLevel'] = healthData.energyLevel;
-      health['medicationStatus'] = healthData.medicationStatus;
-    } catch (e) {
-      print('LUMARA Control State: Error getting health data, using defaults: $e');
-    }
-    
+    // try {
+    //   final healthService = HealthDataService.instance;
+    //   final healthData = await healthService.getEffectiveHealthData();
+    //   health['sleepQuality'] = healthData.sleepQuality;
+    //   health['energyLevel'] = healthData.energyLevel;
+    //   health['medicationStatus'] = healthData.medicationStatus;
+    // } catch (e) { ... }
     veil['health'] = health;
     
     state['veil'] = veil;

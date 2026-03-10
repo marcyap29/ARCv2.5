@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/arc/chat/bloc/lumara_assistant_cubit.dart';
+import 'package:my_app/arc/chat/prompts/lumara_mode_definition.dart';
 import 'package:my_app/arc/chat/data/models/lumara_message.dart';
 import 'package:my_app/arc/chat/services/chronicle_prompt_service.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
@@ -42,7 +43,6 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
-  final GlobalKey _responseStyleMenuKey = GlobalKey();
   final MediaPickAndAnalyzeService _mediaService = MediaPickAndAnalyzeService();
   List<AnalyzedMedia> _pendingAttachments = [];
   List<AttachmentFileItem> _pendingFileAttachments = [];
@@ -900,6 +900,21 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                 onTapFile: _onTapPendingFile,
               ),
             ),
+          // Three-way mode toggle: Personal | Analytical | Deep Analytical
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
+              builder: (context, state) {
+                final mode = state is LumaraAssistantLoaded
+                    ? state.lumaraChatMode
+                    : LumaraChatMode.personal;
+                return _LumaraModePill(
+                  currentMode: mode,
+                  onModeChanged: (m) => context.read<LumaraAssistantCubit>().setLumaraChatMode(m),
+                );
+              },
+            ),
+          ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -936,12 +951,6 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
               ),
               const SizedBox(width: 4),
               IconButton(
-                key: _responseStyleMenuKey,
-                icon: const Icon(Icons.expand_more, size: 20, color: kcSecondaryTextColor),
-                onPressed: _showResponseStyleMenu,
-                tooltip: 'Response style: Conversation / Detailed analysis',
-              ),
-              IconButton(
                 icon: const LumaraIcon(size: 20),
                 onPressed: () => _send(_controller.text),
                 onLongPress: _controller.text.trim().isEmpty ? _onSendLongPress : null,
@@ -950,9 +959,15 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
               IconButton(
                 icon: const Icon(Icons.mic_none, color: kcSecondaryTextColor),
                 onPressed: () {
-                  // Voice: could open voice panel or keep for later
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Voice mode is available from the home screen. Tap the Voice button there.'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
                 },
-                tooltip: 'Voice',
+                tooltip: 'Voice (use home screen for voice mode)',
               ),
             ],
           ),
@@ -960,76 +975,58 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
       ),
     );
   }
+}
 
-  Future<void> _showResponseStyleMenu() async {
-    final anchorContext = _responseStyleMenuKey.currentContext;
-    final overlay = Overlay.of(context);
-    if (anchorContext == null) return;
+/// Three-segment pill for LUMARA chat mode: Personal | Analytical | Deep Analytical.
+class _LumaraModePill extends StatelessWidget {
+  final LumaraChatMode currentMode;
+  final ValueChanged<LumaraChatMode> onModeChanged;
 
-    final box = anchorContext.findRenderObject() as RenderBox?;
-    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
-    if (box == null || overlayBox == null) return;
+  const _LumaraModePill({required this.currentMode, required this.onModeChanged});
 
-    final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
-    final cubit = context.read<LumaraAssistantCubit>();
-    final useDetailed = cubit.state is LumaraAssistantLoaded && (cubit.state as LumaraAssistantLoaded).useDetailedAnalysis;
-
-    final selection = await showMenu<bool>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx,
-        offset.dy - 4,
-        overlayBox.size.width - offset.dx - box.size.width,
-        overlayBox.size.height - offset.dy - box.size.height,
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: kcSurfaceColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: kcBorderColor),
       ),
-      items: [
-        PopupMenuItem<bool>(
-          value: false,
-          child: Row(
-            children: [
-              if (!useDetailed) const Icon(Icons.check, size: 18, color: Colors.blue) else const SizedBox(width: 18),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Conversation (perceptive)', style: TextStyle(fontWeight: FontWeight.w500)),
-                    Text('Short prompt, natural friend-like replies.', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        PopupMenuItem<bool>(
-          value: true,
-          child: Row(
-            children: [
-              if (useDetailed) const Icon(Icons.check, size: 18, color: Colors.blue) else const SizedBox(width: 18),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Detailed analysis', style: TextStyle(fontWeight: FontWeight.w500)),
-                    Text('Full master prompt with temporal context.', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _segment(context, LumaraChatMode.personal, 'Personal'),
+          _segment(context, LumaraChatMode.analytical, 'Analytical'),
+          _segment(context, LumaraChatMode.deepAnalytical, 'Deep Analytical'),
+        ],
+      ),
     );
+  }
 
-    if (selection == null) return;
-    cubit.setDetailedAnalysis(selection);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(selection ? 'Response style: Detailed analysis' : 'Response style: Conversation (perceptive)'),
+  Widget _segment(BuildContext context, LumaraChatMode mode, String label) {
+    final isSelected = currentMode == mode;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onModeChanged(mode),
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? kcPrimaryColor.withOpacity(0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected ? kcPrimaryColor : kcSecondaryTextColor,
+            ),
+          ),
+        ),
       ),
     );
   }

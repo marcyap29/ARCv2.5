@@ -5,12 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:my_app/arc/chat/prompt_optimization/provider_manager.dart';
 import 'package:my_app/arc/chat/config/api_config.dart';
 
-/// Description and cost estimate per provider (for display).
+/// Description and cost estimate per provider (only Groq in use).
 String getProviderDescription(String provider) {
   return switch (provider.toLowerCase()) {
     'groq' => 'Fastest responses, lower cost. Great for everyday use.',
-    'openai' => 'GPT-4 powered. Excellent quality, higher cost.',
-    'claude' => 'Claude Sonnet. Balanced quality and speed.',
     _ => '',
   };
 }
@@ -18,8 +16,6 @@ String getProviderDescription(String provider) {
 String getProviderCostEstimate(String provider) {
   return switch (provider.toLowerCase()) {
     'groq' => r'$5–10',
-    'openai' => r'$20–40',
-    'claude' => r'$15–25',
     _ => 'Unknown',
   };
 }
@@ -59,8 +55,6 @@ class _ProviderSettingsSectionState extends State<ProviderSettingsSection> {
     if (best != null) {
       current = switch (best.provider) {
         LLMProvider.groq => 'groq',
-        LLMProvider.openai => 'openai',
-        LLMProvider.anthropic => 'claude',
         _ => null,
       };
     }

@@ -9,7 +9,8 @@ import 'package:my_app/ui/veil/veil_policy_card.dart';
 import 'package:my_app/ui/phase/sentinel_analysis_view.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
-import 'package:my_app/arc/ui/health/health_view.dart';
+// Health tab disabled
+// import 'package:my_app/arc/ui/health/health_view.dart';
 import 'dart:math' as math;
 
 class AdvancedAnalyticsView extends StatefulWidget {
@@ -44,11 +45,12 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
       icon: Icons.shield,
       subtitle: 'Emotional risk detection',
     ),
-    _AnalyticsTab(
-      title: 'Medical',
-      icon: Icons.medical_services,
-      subtitle: 'Health data tracking',
-    ),
+    // Medical (Health) tab disabled - health/readiness removed from UI
+    // _AnalyticsTab(
+    //   title: 'Medical',
+    //   icon: Icons.medical_services,
+    //   subtitle: 'Health data tracking',
+    // ),
   ];
 
   @override
@@ -145,7 +147,7 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
                 _buildAuroraTab(),
                 _buildVeilTab(),
                 _buildSentinelTab(),
-                _buildMedicalTab(),
+                // _buildMedicalTab(), // Health tab disabled
               ],
             ),
           ),
@@ -307,9 +309,10 @@ class _AdvancedAnalyticsViewState extends State<AdvancedAnalyticsView> {
     );
   }
 
-  Widget _buildMedicalTab() {
-    return const HealthView();
-  }
+  // Health tab disabled - health/readiness removed from UI
+  // Widget _buildMedicalTab() {
+  //   return const HealthView();
+  // }
 }
 
 class _AnalyticsTab {

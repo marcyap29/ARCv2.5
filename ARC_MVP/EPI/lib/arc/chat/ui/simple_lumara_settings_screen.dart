@@ -138,10 +138,7 @@ class _SimpleLumaraSettingsScreenState extends State<SimpleLumaraSettingsScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bestProvider = _apiConfig.getBestProvider();
-    // Show "Default" for Gemini provider
-    final providerName = bestProvider?.provider == LLMProvider.gemini 
-        ? 'Default' 
-        : (bestProvider?.name ?? 'No AI provider configured');
+    final providerName = bestProvider?.name ?? 'No AI provider configured';
     
     return Scaffold(
       appBar: AppBar(

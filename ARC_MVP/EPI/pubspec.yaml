@@ -1,6 +1,6 @@
 name: my_app
 description: "EPI Core - A Flutter application"
-version: 1.0.0+1
+version: 1.0.1+2
 publish_to: none
 
 environment:
@@ -53,7 +53,6 @@ dependencies:
   cryptography: ^2.5.0
   photo_manager: ^3.5.0
   args: ^2.4.2
-  health: ^13.2.1
   fl_chart: ^0.68.0
   word_cloud: ^1.0.3
   # FFmpeg temporarily disabled due to iOS simulator architecture incompatibility

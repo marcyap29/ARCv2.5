@@ -5,8 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:my_app/arc/chat/config/api_config.dart';
 import 'providers/provider_adapter.dart';
 import 'providers/groq_adapter.dart';
-import 'providers/openai_adapter.dart';
-import 'providers/claude_adapter.dart';
 
 class ProviderManager {
   ProviderManager({required LumaraAPIConfig apiConfig})
@@ -25,16 +23,7 @@ class ProviderManager {
     if (groqKey != null && groqKey.isNotEmpty) {
       _adapters['groq'] = GroqAdapter(apiKey: groqKey);
     }
-
-    final openaiKey = _apiConfig.getApiKey(LLMProvider.openai);
-    if (openaiKey != null && openaiKey.isNotEmpty) {
-      _adapters['openai'] = OpenAIAdapter(apiKey: openaiKey);
-    }
-
-    final anthropicKey = _apiConfig.getApiKey(LLMProvider.anthropic);
-    if (anthropicKey != null && anthropicKey.isNotEmpty) {
-      _adapters['claude'] = ClaudeAdapter(apiKey: anthropicKey);
-    }
+    // OpenAI and Claude adapters removed; only Groq is used.
   }
 
   /// Resolve primary provider name from API config (best or manual).
@@ -43,13 +32,11 @@ class ProviderManager {
     if (best == null) return null;
     return switch (best.provider) {
       LLMProvider.groq => 'groq',
-      LLMProvider.openai => 'openai',
-      LLMProvider.anthropic => 'claude',
       _ => 'groq',
     };
   }
 
-  /// Get provider with automatic failover (primary first, then fallbacks).
+  /// Get provider with automatic failover (only Groq in use).
   Future<ProviderAdapter> getProvider() async {
     _ensureAdapters();
     final primaryName = _getPrimaryName();
@@ -60,30 +47,25 @@ class ProviderManager {
       }
     }
 
-    debugPrint('[ProviderManager] Primary unavailable, trying fallbacks...');
-    const fallbacks = ['groq', 'openai', 'claude'];
+    debugPrint('[ProviderManager] Groq unavailable, no fallbacks (other APIs removed).');
+    const fallbacks = ['groq'];
     for (final name in fallbacks) {
       final adapter = _adapters[name];
       if (adapter != null && await adapter.isAvailable()) {
-        debugPrint('[ProviderManager] Using fallback: $name');
+        debugPrint('[ProviderManager] Using: $name');
         return adapter;
       }
     }
-    throw StateError('No available LLM providers');
+    throw StateError('No available LLM providers. Configure Groq API key.');
   }
 
-  /// Set primary provider by name (e.g. 'groq', 'openai', 'claude').
-  /// Persists via LumaraAPIConfig.setManualProvider when applicable.
+  /// Set primary provider by name (only 'groq' supported).
   Future<void> setPrimaryProvider(String providerName) async {
-    final p = switch (providerName.toLowerCase()) {
-      'groq' => LLMProvider.groq,
-      'openai' => LLMProvider.openai,
-      'claude' => LLMProvider.anthropic,
-      _ => null,
-    };
-    if (p == null) throw ArgumentError('Unknown provider: $providerName');
-    await _apiConfig.setManualProvider(p);
-    debugPrint('[ProviderManager] Primary set to: $providerName');
+    if (providerName.toLowerCase() != 'groq') {
+      throw ArgumentError('Only Groq is supported. Unknown provider: $providerName');
+    }
+    await _apiConfig.setManualProvider(LLMProvider.groq);
+    debugPrint('[ProviderManager] Primary set to: groq');
   }
 
   /// Names of configured adapters (have API keys).

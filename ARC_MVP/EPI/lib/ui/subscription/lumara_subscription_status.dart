@@ -1,8 +1,10 @@
 // lib/ui/subscription/lumara_subscription_status.dart
 // Widget displaying LUMARA subscription status and rate limits
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:my_app/services/subscription_service.dart';
+import 'package:my_app/services/revenuecat_service.dart';
 
 class LumaraSubscriptionStatus extends StatefulWidget {
   final bool compact;
@@ -283,15 +285,28 @@ class _LumaraSubscriptionStatusState extends State<LumaraSubscriptionStatus> {
 
   Future<void> _initiateUpgrade(BillingInterval interval) async {
     try {
-      final success = await SubscriptionService.instance.createStripeCheckoutSession(
-        interval: interval,
-      );
-
+      final useIap = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS);
+      bool success = false;
+      if (useIap) {
+        try {
+          await RevenueCatService.instance.presentPaywall();
+          SubscriptionService.instance.clearCache();
+          if (mounted) _loadSubscriptionStatus();
+          success = true;
+        } catch (e) {
+          debugPrint('LumaraSubscriptionStatus: RevenueCat paywall: $e');
+        }
+      }
+      if (!useIap || !success) {
+        success = await SubscriptionService.instance.createStripeCheckoutSession(
+          interval: interval,
+        );
+      }
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Opening checkout for ${interval.displayName} subscription...'),
+              content: Text(useIap ? 'Subscription options opened.' : 'Opening checkout for ${interval.displayName} subscription...'),
               duration: const Duration(seconds: 3),
             ),
           );

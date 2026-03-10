@@ -34,6 +34,7 @@ import '../../../services/pending_conversation_service.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import '../voice/audio_io.dart';
 import '../llm/prompts/lumara_master_prompt.dart';
+import '../prompts/lumara_mode_definition.dart';
 import 'package:my_app/chronicle/editing/contradiction_checker.dart';
 import '../data/models/pushback_evidence.dart';
 import '../services/lumara_control_state_builder.dart';
@@ -108,7 +109,12 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
   final String? pendingAgenticQuestion;
   final String? pendingAgenticGapId;
   final AgenticLoopContext? pendingAgenticLoopContext;
+  /// Three-way chat mode: Personal (Groq), Analytical (Groq), Deep Analytical (Gemini).
+  final LumaraChatMode lumaraChatMode;
+  /// Mode for which the full definition block was last injected (session start or mode change).
+  final LumaraChatMode? modeDefinitionInjectedForMode;
   /// When true, use full master prompt (Detailed Analysis); when false, use short prompt (perceptive with context).
+  /// @deprecated Use [lumaraChatMode] instead. Kept for migration; analytical = useDetailedAnalysis true.
   final bool useDetailedAnalysis;
   /// Live status messages shown in the thinking bubble while processing.
   final List<String> processingSteps;
@@ -133,6 +139,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     this.pendingAgenticQuestion,
     this.pendingAgenticGapId,
     this.pendingAgenticLoopContext,
+    this.lumaraChatMode = LumaraChatMode.personal,
+    this.modeDefinitionInjectedForMode,
     this.useDetailedAnalysis = false,
     this.processingSteps = const [],
     this.pendingSwarmSpaceConsent,
@@ -155,6 +163,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
     String? pendingAgenticQuestion,
     String? pendingAgenticGapId,
     AgenticLoopContext? pendingAgenticLoopContext,
+    LumaraChatMode? lumaraChatMode,
+    LumaraChatMode? modeDefinitionInjectedForMode,
     bool? useDetailedAnalysis,
     List<String>? processingSteps,
     SwarmSpaceConsentRequest? pendingSwarmSpaceConsent,
@@ -176,6 +186,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticQuestion: pendingAgenticQuestion ?? this.pendingAgenticQuestion,
       pendingAgenticGapId: pendingAgenticGapId ?? this.pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext ?? this.pendingAgenticLoopContext,
+      lumaraChatMode: lumaraChatMode ?? this.lumaraChatMode,
+      modeDefinitionInjectedForMode: modeDefinitionInjectedForMode ?? this.modeDefinitionInjectedForMode,
       useDetailedAnalysis: useDetailedAnalysis ?? this.useDetailedAnalysis,
       processingSteps: processingSteps ?? this.processingSteps,
       pendingSwarmSpaceConsent: pendingSwarmSpaceConsent ?? this.pendingSwarmSpaceConsent,
@@ -201,6 +213,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticQuestion: null,
       pendingAgenticGapId: null,
       pendingAgenticLoopContext: null,
+      lumaraChatMode: lumaraChatMode,
+      modeDefinitionInjectedForMode: modeDefinitionInjectedForMode,
       useDetailedAnalysis: useDetailedAnalysis,
       processingSteps: processingSteps,
       pendingSwarmSpaceConsent: pendingSwarmSpaceConsent,
@@ -226,6 +240,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticQuestion: pendingAgenticQuestion,
       pendingAgenticGapId: pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext,
+      lumaraChatMode: lumaraChatMode,
+      modeDefinitionInjectedForMode: modeDefinitionInjectedForMode,
       useDetailedAnalysis: useDetailedAnalysis,
       processingSteps: processingSteps,
       pendingSwarmSpaceConsent: pendingSwarmSpaceConsent,
@@ -251,6 +267,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticQuestion: pendingAgenticQuestion,
       pendingAgenticGapId: pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext,
+      lumaraChatMode: lumaraChatMode,
+      modeDefinitionInjectedForMode: modeDefinitionInjectedForMode,
       useDetailedAnalysis: useDetailedAnalysis,
       processingSteps: processingSteps,
       pendingSwarmSpaceConsent: pendingSwarmSpaceConsent,
@@ -276,6 +294,8 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
       pendingAgenticQuestion: pendingAgenticQuestion,
       pendingAgenticGapId: pendingAgenticGapId,
       pendingAgenticLoopContext: pendingAgenticLoopContext,
+      lumaraChatMode: lumaraChatMode,
+      modeDefinitionInjectedForMode: modeDefinitionInjectedForMode,
       useDetailedAnalysis: useDetailedAnalysis,
       processingSteps: processingSteps,
       pendingSwarmSpaceConsent: pendingSwarmSpaceConsent,
@@ -503,10 +523,25 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   }
 
   /// Set whether to use full master prompt (Detailed Analysis) or short prompt (perceptive with context).
+  /// @deprecated Use [setLumaraChatMode] instead. true → Analytical, false → Personal.
   void setDetailedAnalysis(bool value) {
     final currentState = state;
     if (currentState is LumaraAssistantLoaded) {
-      emit(currentState.copyWith(useDetailedAnalysis: value));
+      emit(currentState.copyWith(
+        useDetailedAnalysis: value,
+        lumaraChatMode: value ? LumaraChatMode.analytical : LumaraChatMode.personal,
+      ));
+    }
+  }
+
+  /// Set three-way chat mode (Personal | Analytical | Deep Analytical). Routes to Groq or Gemini; does not clear history.
+  void setLumaraChatMode(LumaraChatMode mode) {
+    final currentState = state;
+    if (currentState is LumaraAssistantLoaded) {
+      emit(currentState.copyWith(
+        lumaraChatMode: mode,
+        useDetailedAnalysis: mode == LumaraChatMode.analytical || mode == LumaraChatMode.deepAnalytical,
+      ));
     }
   }
 
@@ -898,7 +933,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
       print('LUMARA Debug: Provider Status Summary:');
       print('LUMARA Debug:   - On-Device (Qwen): ${onDeviceAvailable ? "AVAILABLE ✓" : "Not Available (${LLMAdapter.reason})"}');
-      print('LUMARA Debug:   - Cloud API (Gemini/Groq): ${availableProviders.any((p) => p.name == 'Google Gemini' || p.name == 'Groq (Llama 3.3 70B)') ? "AVAILABLE ✓" : "Not Available (no API key)"}');
+      print('LUMARA Debug:   - Cloud API (Groq): ${availableProviders.any((p) => p.name == 'Groq (Llama 3.3 70B)') ? "AVAILABLE ✓" : "Not Available (no API key)"}');
       print('LUMARA Debug: Security-first fallback chain: On-Device → Cloud API → Rule-Based');
 
       // Check if user has manually selected a provider
@@ -1268,18 +1303,28 @@ Continue naturally.''';
     final phaseHint = _buildPhaseHint(context);
     final keywords = _buildKeywordsContext(context);
 
-    // Build system prompt (pass user message for dynamic persona detection)
-    final systemPrompt = await _buildSystemPrompt(entryText, phaseHint, keywords, userMessage: text);
+    final loadedState = state is LumaraAssistantLoaded ? state as LumaraAssistantLoaded : null;
+    final currentMode = loadedState?.lumaraChatMode ?? LumaraChatMode.personal;
+    final injectFullBlock = baseMessages.isEmpty || (currentMode != loadedState?.modeDefinitionInjectedForMode);
+
+    // Build system prompt (pass user message and mode; empty for Deep Analytical)
+    String baseSystemPrompt = await _buildSystemPrompt(entryText, phaseHint, keywords, userMessage: text, mode: currentMode);
+    if (injectFullBlock && baseSystemPrompt.isNotEmpty) {
+      baseSystemPrompt = '$lumaraModeDefinitionBlock\n\n$baseSystemPrompt';
+    } else if (injectFullBlock && baseSystemPrompt.isEmpty) {
+      baseSystemPrompt = lumaraModeDefinitionBlock;
+    }
+    final systemPrompt = baseSystemPrompt;
 
     print('LUMARA Debug: Starting API request...');
-    print('LUMARA Debug: Using Firebase proxy with rate limiting');
+    print('LUMARA Debug: Mode=$currentMode, injectFullBlock=$injectFullBlock');
     print('LUMARA Debug: Attribution traces from context: ${contextAttributionTraces.length}');
     print('LUMARA Debug: Chat session ID for rate limiting: $currentChatSessionId');
 
-    // Real-time pushback: if user message looks like a claim, check against CHRONICLE and inject truth_check
+    // Real-time pushback: if user message looks like a claim, check against CHRONICLE and inject truth_check (skip for Deep Analytical)
     var effectiveSystemPrompt = systemPrompt;
     ContradictionResult? pushbackContradiction;
-    if (_userId != null && _userId!.isNotEmpty) {
+    if (currentMode != LumaraChatMode.deepAnalytical && _userId != null && _userId!.isNotEmpty) {
       try {
         await ChronicleRepos.ensureLayer0Initialized();
         final checker = ChronicleContradictionChecker(layer0: ChronicleRepos.layer0);
@@ -1299,15 +1344,26 @@ Continue naturally.''';
       }
     }
 
-    // Use lumaraSend (PRISM + proxyGroq) with chatId for per-chat rate limiting
+    // Prepend mode tag to every user message
+    final userWithModeTag = '${lumaraModeTag(currentMode)}\n\n$text';
+
+    // Route to Groq (Modes 1 & 2) or Gemini (Mode 3); no silent fallback
     String responseText;
 
     try {
-      responseText = await lumaraSend(
-        system: effectiveSystemPrompt,
-        user: text,
-        chatId: currentChatSessionId,
-      );
+      if (currentMode == LumaraChatMode.deepAnalytical) {
+        responseText = await lumaraSendWithGemini(
+          system: effectiveSystemPrompt,
+          user: userWithModeTag,
+          chatId: currentChatSessionId,
+        );
+      } else {
+        responseText = await lumaraSend(
+          system: effectiveSystemPrompt,
+          user: userWithModeTag,
+          chatId: currentChatSessionId,
+        );
+      }
 
       // Update the UI with the full response
         final currentMessages = state is LumaraAssistantLoaded
@@ -1392,6 +1448,7 @@ Continue naturally.''';
           emit((state as LumaraAssistantLoaded).copyWith(
             messages: finalMessages,
             isProcessing: false,
+            modeDefinitionInjectedForMode: currentMode,
           ));
           
           // Speak response if voiceover is enabled
@@ -1461,8 +1518,13 @@ Continue naturally.''';
     return phrases.any((p) => lower.contains(p));
   }
 
-  /// Build system prompt using unified master prompt with control state
-  Future<String> _buildSystemPrompt(String? entryText, String? phaseHint, String? keywords, {String? userMessage}) async {
+  /// Build system prompt using unified master prompt with control state.
+  /// For [LumaraChatMode.deepAnalytical] returns empty string (no journal context; mode block only).
+  Future<String> _buildSystemPrompt(String? entryText, String? phaseHint, String? keywords, {String? userMessage, LumaraChatMode? mode}) async {
+    final effectiveMode = mode ?? (state is LumaraAssistantLoaded ? (state as LumaraAssistantLoaded).lumaraChatMode : LumaraChatMode.personal);
+    if (effectiveMode == LumaraChatMode.deepAnalytical) {
+      return '';
+    }
     // Build PRISM activity context from entry text and keywords
     final prismActivity = <String, dynamic>{
       'journal_entries': entryText != null && entryText.isNotEmpty ? [entryText] : [],
@@ -1513,9 +1575,10 @@ Continue naturally.''';
       baseContext = 'Recent keywords: $keywords';
     }
     
-    // Effective detailed analysis for this turn: toggle on or phrase in user message
+    // Effective detailed analysis for this turn: from mode or toggle or phrase in user message
     final loadedState = state is LumaraAssistantLoaded ? state as LumaraAssistantLoaded : null;
     final useDetailedAnalysisForThisTurn = (loadedState?.useDetailedAnalysis ?? false) ||
+        (effectiveMode == LumaraChatMode.analytical) ||
         _userMessageRequestsDetailedAnalysis(userMessage);
 
     // Get unified master prompt (for chat, the "entry text" is the user message)
@@ -1535,17 +1598,32 @@ Continue naturally.''';
     // (No recent entries for chat mode, but date context is still important)
     masterPrompt = LumaraMasterPrompt.injectDateContext(masterPrompt);
 
-    // Phase metadata suppression: do not surface entry counts or phase labels in chat
-    String responseStyleBlock = 'You are LUMARA having a conversation. Use phase/context to calibrate tone and intensity only.\n'
-        'DO NOT mention entry counts in your response.\n'
-        'DO NOT say "Based on X entries..." or "Your current phase is...".\n'
-        'DO NOT surface phase metadata or CHRONICLE stats in response text.\n'
-        'Respond like a trusted friend. Conversational. Direct. Personal.\n'
-        'Answer questions directly with substance—avoid generic or deflecting responses.\n'
-        'NEVER respond in third person about LUMARA. NEVER write product copy unless asked.\n';
+    // Response style must align with chat mode so it never overrides the mode block (Personal / Analytical / Deep Analytical).
+    String responseStyleBlock;
+    switch (effectiveMode) {
+      case LumaraChatMode.analytical:
+        responseStyleBlock = 'You are LUMARA in Analytical mode. Follow the [MODE: Analytical] instructions from the mode block at the start of this system message.\n'
+            'DO NOT use reflective preamble, journal-led framing, or "trusted friend" tone. Respond with structured analysis, clear reasoning, direct answers. Use headers and tables where appropriate. Prioritize actionable output. No [FROM YOUR ENTRIES], [MY SYNTHESIS], or [HYPOTHETICAL EXAMPLE] tags.\n'
+            'DO NOT mention entry counts or phase labels. NEVER respond in third person about LUMARA. NEVER write product copy unless asked.\n';
+        break;
+      case LumaraChatMode.deepAnalytical:
+        responseStyleBlock = 'You are LUMARA in Deep Analytical mode. Follow the [MODE: Deep Analytical] instructions from the mode block at the start of this system message.\n'
+            'Journal entries do not exist. Treat the input as a standalone document for peer review. Use only [DOC] and [ANALYSIS] tags. No journal references, no narrative framing, no [FROM YOUR ENTRIES]/[MY SYNTHESIS]/[HYPOTHETICAL EXAMPLE]. Push back where warranted; do not validate unless technical merit justifies it.\n'
+            'NEVER respond in third person about LUMARA. NEVER write product copy unless asked.\n';
+        break;
+      case LumaraChatMode.personal:
+        responseStyleBlock = 'You are LUMARA having a conversation. Use phase/context to calibrate tone and intensity only.\n'
+            'DO NOT mention entry counts in your response.\n'
+            'DO NOT say "Based on X entries..." or "Your current phase is...".\n'
+            'DO NOT surface phase metadata or CHRONICLE stats in response text.\n'
+            'Respond like a trusted friend. Conversational. Direct. Personal.\n'
+            'Answer questions directly with substance—avoid generic or deflecting responses.\n'
+            'NEVER respond in third person about LUMARA. NEVER write product copy unless asked.\n';
+        break;
+    }
 
-    // User asked for a simple answer — keep response brief, minimal linking, direct
-    if (_userWantsSimpleAnswer(userMessage)) {
+    // User asked for a simple answer — keep response brief, minimal linking, direct (only in Personal mode)
+    if (effectiveMode == LumaraChatMode.personal && _userWantsSimpleAnswer(userMessage)) {
       responseStyleBlock += '\n**USER REQUESTED SIMPLE ANSWER:** Keep your response brief and direct. '
           'Minimal linking, no lengthy elaboration. Answer the question concisely in 2–4 sentences. '
           'Avoid bullet lists, headers, or excessive structure unless the question requires it.\n';
@@ -2734,6 +2812,8 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       pendingAgenticQuestion: currentState.pendingAgenticQuestion,
       pendingAgenticGapId: currentState.pendingAgenticGapId,
       pendingAgenticLoopContext: currentState.pendingAgenticLoopContext,
+      lumaraChatMode: currentState.lumaraChatMode,
+      modeDefinitionInjectedForMode: currentState.modeDefinitionInjectedForMode,
       useDetailedAnalysis: currentState.useDetailedAnalysis,
     ));
   }

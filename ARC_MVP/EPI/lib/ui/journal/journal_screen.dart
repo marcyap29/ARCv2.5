@@ -65,6 +65,7 @@ import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/arc/chat/prompts/lumara_mode_definition.dart';
 import 'package:my_app/mira/memory/enhanced_mira_memory_service.dart';
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import 'package:my_app/mira/memory/sentence_extraction_util.dart';
@@ -117,7 +118,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   final Analytics _analytics = Analytics();
   late final LumaraInlineApi _lumaraApi;
   late final EnhancedLumaraApi _enhancedLumaraApi;
-  final GlobalKey _engagementModeMenuKey = GlobalKey();
   // late final OcrService _ocrService; // TODO: OCR service not yet implemented
   final DraftCacheService _draftCache = DraftCacheService.instance;
   
@@ -185,6 +185,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   bool _showLumaraBox = false;
   bool _isLumaraConfigured = false;
   bool _showPrivateNotes = false;
+  /// Reflection mode (Personal | Analytical | Deep Analytical), loaded from settings.
+  LumaraChatMode _reflectionLumaraMode = LumaraChatMode.personal;
   
   // Scroll position tracking for scroll buttons
   bool _showScrollToTop = false;
@@ -704,7 +706,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       
       // Check if LUMARA is properly configured
       _isLumaraConfigured = await _checkLumaraConfiguration();
-      
+      _reflectionLumaraMode = await LumaraReflectionSettingsService.instance.getLumaraChatMode();
+
       if (mounted) {
         setState(() {
           // Update UI state
@@ -779,113 +782,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
 
     // Always generate LUMARA reflection for normal press
     _generateLumaraReflection();
-  }
-
-  /// Selection from the caret menu: response style (Conversation/Detailed analysis).
-  static const _kCaretResponseConversation = 0;
-  static const _kCaretResponseDetailed = 1;
-
-  Future<void> _showEngagementModeMenu(BuildContext context) async {
-    final anchorContext = _engagementModeMenuKey.currentContext;
-    final overlay = Overlay.of(context);
-    if (anchorContext == null) return;
-
-    final box = anchorContext.findRenderObject() as RenderBox?;
-    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
-    if (box == null || overlayBox == null) return;
-
-    final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
-
-    final settingsService = LumaraReflectionSettingsService.instance;
-    final useDetailed = await settingsService.getUseDetailedAnalysis();
-
-    final selection = await showMenu<int>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx,
-        offset.dy - 4,
-        overlayBox.size.width - offset.dx - box.size.width,
-        overlayBox.size.height - offset.dy - box.size.height,
-      ),
-      items: [
-        // Response style section
-        PopupMenuItem<int>(
-          value: _kCaretResponseConversation,
-          child: Row(
-            children: [
-              if (!useDetailed)
-                const Icon(Icons.check, size: 18, color: Colors.blue)
-              else
-                const SizedBox(width: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Response style: Conversation (perceptive)',
-                      style: TextStyle(
-                        fontWeight: !useDetailed ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                    Text(
-                      'Short prompt, natural friend-like replies.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        PopupMenuItem<int>(
-          value: _kCaretResponseDetailed,
-          child: Row(
-            children: [
-              if (useDetailed)
-                const Icon(Icons.check, size: 18, color: Colors.blue)
-              else
-                const SizedBox(width: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Response style: Detailed analysis',
-                      style: TextStyle(
-                        fontWeight: useDetailed ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                    Text(
-                      'Full master prompt, temporal/phase-aware analysis.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-
-    if (selection == null) return;
-
-    final useDetailedAnalysis = selection == _kCaretResponseDetailed;
-    await settingsService.setUseDetailedAnalysis(useDetailedAnalysis);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          useDetailedAnalysis
-              ? 'Response style set to Detailed analysis'
-              : 'Response style set to Conversation (perceptive)',
-        ),
-      ),
-    );
   }
 
   void _onLumaraLongPress() async {
@@ -1229,7 +1125,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Connection to AI isn\'t working. Configure Groq or Gemini in Settings.'),
+              content: const Text('Connection to AI isn\'t working. Configure Groq in Settings.'),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Settings',
@@ -1356,12 +1252,14 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       final entryId = _currentEntryId;
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? userProfile?.id ?? '';
       final userQuery = richContext['entryText'] ?? '';
-      final useDetailedAnalysis = await LumaraReflectionSettingsService.instance.getUseDetailedAnalysis();
+      final mode = _reflectionLumaraMode;
+      final useDetailedAnalysis = mode != LumaraChatMode.personal;
       final options = lumara_models.LumaraReflectionOptions(
-        preferQuestionExpansion: false, // Default = natural; use Explore/Integrate for rich context
+        preferQuestionExpansion: false,
         toneMode: lumara_models.ToneMode.normal,
         regenerate: false,
         useDetailedAnalysis: useDetailedAnalysis,
+        lumaraChatMode: mode,
       );
       void onProgressMsg(String message) {
         if (mounted) {
@@ -1527,8 +1425,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           e.toString().contains('Connection to AI')) {
         if (mounted) {
           final connectionMessage = isTimeout
-              ? 'Request timed out. Check your connection or configure Groq/Gemini in Settings.'
-              : 'Connection to AI isn\'t working. Configure Groq or Gemini in Settings.';
+              ? 'Request timed out. Check your connection or configure Groq in Settings.'
+              : 'Connection to AI isn\'t working. Configure Groq in Settings.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(connectionMessage),
@@ -2164,7 +2062,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
               Expanded(
                 child: GestureDetector(
                   onTap: () {
-                    // Dismiss boxes when clicking on the journal page
+                    FocusScope.of(context).unfocus();
                     if (_showKeywordsDiscovered || _showLumaraBox || _showPrivateNotes) {
                       setState(() {
                         _showKeywordsDiscovered = false;
@@ -2285,6 +2183,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Reflection mode pill: Personal | Analytical | Deep Analytical
+                    _buildReflectionModePill(theme),
+                    const SizedBox(height: 10),
                     // Primary action row - optimized layout with even spacing
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -2359,19 +2260,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                                 ),
                               ),
                               
-                              // Engagement Mode selector (chevron button)
-                              Builder(
-                                key: _engagementModeMenuKey,
-                                builder: (context) => IconButton(
-                                  icon: const Icon(Icons.expand_more, size: 18),
-                                  padding: const EdgeInsets.all(4),
-                                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                  onPressed: () => _showEngagementModeMenu(context),
-                                  tooltip: 'Choose engagement mode',
-                                ),
-                              ),
-                        
-                        // Continue button
+                              // Continue button
                               // Enable if entry has user text OR LUMARA blocks (allow entries that start with reflections)
                               ElevatedButton(
                                 onPressed: (_entryState.text.trim().isNotEmpty || _entryState.blocks.isNotEmpty) ? _onContinue : null,

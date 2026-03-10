@@ -6,7 +6,6 @@ import '../config/api_config.dart';
 import 'llm_provider.dart';
 import 'providers/gemini_provider.dart';
 import 'providers/groq_provider.dart';
-import 'providers/openai_provider.dart';
 import 'providers/anthropic_provider.dart';
 import 'providers/llama_provider.dart';
 import 'providers/qwen_provider.dart';
@@ -26,7 +25,7 @@ class LLMProviderFactory {
         case LLMProviderType.gemini:
           return GeminiProvider(_apiConfig);
         case LLMProviderType.openai:
-          return OpenAIProvider(_apiConfig);
+          return null; // OpenAI/ChatGPT removed; only Groq is used
         case LLMProviderType.anthropic:
           return AnthropicProvider(_apiConfig);
         case LLMProviderType.qwen4b:

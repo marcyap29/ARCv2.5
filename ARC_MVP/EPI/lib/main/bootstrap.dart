@@ -32,8 +32,10 @@ import 'package:my_app/crossroads/storage/decision_capture_repository.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/services/revenuecat_service.dart';
-import 'package:my_app/services/health_data_refresh_service.dart';
-import 'package:my_app/services/phase_history_readiness_backfill_service.dart';
+// Health & Readiness disabled
+// import 'package:my_app/services/health_data_refresh_service.dart';
+// Health & Readiness disabled
+// import 'package:my_app/services/phase_history_readiness_backfill_service.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/services/temporal_notification_service.dart';
@@ -400,14 +402,14 @@ Future<void> bootstrap({
       // Log results
       logger.d('Initialization completed: Hive=$hiveInitialized, ${initializationResults.where((r) => r).length}/3 additional services successful');
 
-      // Initialize health data refresh service
-      if (hiveInitialized) {
-        try {
-          await _initializeHealthDataRefresh();
-        } catch (e, st) {
-          logger.e('Failed to initialize health data refresh', e, st);
-        }
-      }
+      // Health data refresh disabled - health/readiness tabs removed from UI
+      // if (hiveInitialized) {
+      //   try {
+      //     await _initializeHealthDataRefresh();
+      //   } catch (e, st) {
+      //     logger.e('Failed to initialize health data refresh', e, st);
+      //   }
+      // }
 
       // Initialize temporal notifications (after Firebase Auth)
       try {
@@ -458,12 +460,12 @@ Future<void> bootstrap({
       final app = await builder();
       runApp(app);
 
-      // One-time backfill of phase history with readiness/health (after crash/restore or upgrade)
-      if (hiveInitialized) {
-        Future.delayed(const Duration(seconds: 2), () async {
-          await runPhaseHistoryReadinessBackfillIfNeeded();
-        });
-      }
+      // Phase history readiness/health backfill disabled - health/readiness tabs removed from UI
+      // if (hiveInitialized) {
+      //   Future.delayed(const Duration(seconds: 2), () async {
+      //     await runPhaseHistoryReadinessBackfillIfNeeded();
+      //   });
+      // }
       } catch (e, stackTrace) {
         logger.e('Error during bootstrap initialization', e, stackTrace);
         // Don't call runApp from error handler to avoid zone issues
@@ -937,16 +939,15 @@ Future<void> _initializeTemporalNotifications() async {
 // Scheduled backup services removed - not implemented
 // Manual backups are available via ARCXExportServiceV2
 
-/// Initialize Health Data Refresh service
-Future<void> _initializeHealthDataRefresh() async {
-  try {
-    await HealthDataRefreshService.instance.startScheduledRefresh();
-    logger.d('Health data refresh service initialized');
-  } catch (e, st) {
-    logger.e('Failed to initialize health data refresh service', e, st);
-    // Don't throw - health refresh is non-critical
-  }
-}
+/// Initialize Health Data Refresh service - DISABLED (health/readiness tabs removed from UI)
+// Future<void> _initializeHealthDataRefresh() async {
+//   try {
+//     await HealthDataRefreshService.instance.startScheduledRefresh();
+//     logger.d('Health data refresh service initialized');
+//   } catch (e, st) {
+//     logger.e('Failed to initialize health data refresh service', e, st);
+//   }
+// }
 
 /// Initialize Media Pack Tracking service
 Future<bool> _initializeMediaPackTracking() async {

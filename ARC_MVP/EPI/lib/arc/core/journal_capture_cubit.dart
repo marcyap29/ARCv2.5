@@ -41,7 +41,8 @@ import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/prism/atlas/phase/phase_inference_service.dart';
 import 'package:my_app/prism/atlas/phase/phase_regime_tracker.dart';
 import 'package:my_app/prism/atlas/phase/phase_scoring.dart';
-import 'package:my_app/services/health_data_service.dart';
+// Health & Readiness disabled - no health data access
+// import 'package:my_app/services/health_data_service.dart';
 import 'package:my_app/services/phase_aware_analysis_service.dart';
 import 'package:my_app/arc/chat/services/enhanced_lumara_api.dart';
 import 'package:my_app/arc/chat/services/reflection_handler.dart';
@@ -1798,22 +1799,31 @@ class JournalCaptureCubit extends Cubit<JournalCaptureState> {
       print('DEBUG: Phase Stability Analysis - Entry: ${entry.id}');
       print('DEBUG: Phase scores: ${PhaseScoring.getScoringSummary(phaseScores)}');
       
-      // Get health data and readiness score for Health & Readiness views (Rating History, Phase Transitions, Health Correlation)
+      // Health & Readiness disabled - no HealthDataService access; pass null for readiness/health
       int? operationalReadinessScore;
       Map<String, dynamic>? healthDataMap;
+      // try {
+      //   final healthData = await HealthDataService.instance.getEffectiveHealthData();
+      //   final phaseService = PhaseAwareAnalysisService();
+      //   final context = await phaseService.analyzePhase(
+      //     entry.content,
+      //     healthData: healthData,
+      //   );
+      //   operationalReadinessScore = context.operationalReadinessScore;
+      //   healthDataMap = context.healthData?.toJson();
+      // } catch (e) {
+      //   print('DEBUG: Phase readiness/health snapshot skipped: $e');
+      // }
+
+      dynamic context;
       try {
-        final healthData = await HealthDataService.instance.getEffectiveHealthData();
         final phaseService = PhaseAwareAnalysisService();
-        final context = await phaseService.analyzePhase(
-          entry.content,
-          healthData: healthData,
-        );
-        operationalReadinessScore = context.operationalReadinessScore;
-        healthDataMap = context.healthData?.toJson();
+        context = await phaseService.analyzePhase(entry.content);
       } catch (e) {
-        print('DEBUG: Phase readiness/health snapshot skipped: $e');
+        context = null;
+        print('DEBUG: Phase analysis skipped: $e');
       }
-      
+
       // Update phase tracking and regimes (with optional readiness and health for biometric UI)
       final result = await phaseRegimeTracker.updatePhaseScoresAndRegimes(
         phaseScores: phaseScores,

@@ -54,10 +54,6 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs access to camera to take photos for your journal entries.</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>LUMARA uses your health data (sleep, activity, heart rate) to enhance phase detection and provide insights into how your physical state aligns with your emotional patterns. This helps identify when your body and mind are in sync or when there may be misalignment.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>LUMARA may record mindfulness sessions and wellness activities to help track your overall health patterns alongside your journal entries.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app needs access to your location to automatically set the location for your journal entries.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

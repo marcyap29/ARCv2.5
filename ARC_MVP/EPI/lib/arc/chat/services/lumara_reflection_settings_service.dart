@@ -3,6 +3,7 @@
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../prompts/lumara_mode_definition.dart';
 import '../../../models/engagement_discipline.dart';
 import '../../../models/memory_focus_preset.dart';
 import 'package:my_app/lumara/agents/prompts/agent_operating_system_prompt.dart';
@@ -120,7 +121,10 @@ class LumaraReflectionSettingsService {
 
   /// Response style: Detailed Analysis (full prompt) vs Conversation (short prompt)
   static const String _keyUseDetailedAnalysis = 'lumara_use_detailed_analysis';
-  
+
+  /// Three-way mode for reflection/chat: personal | analytical | deepAnalytical
+  static const String _keyLumaraChatMode = 'lumara_chat_mode';
+
   // Memory Focus preset key
   static const String _keyMemoryFocusPreset = 'lumara_memory_focus_preset';
 
@@ -736,6 +740,23 @@ class LumaraReflectionSettingsService {
   Future<void> setUseDetailedAnalysis(bool value) async {
     await initialize();
     await _prefs!.setBool(_keyUseDetailedAnalysis, value);
+  }
+
+  /// Get three-way LUMARA mode for reflection (and chat when synced). Default: Personal.
+  Future<LumaraChatMode> getLumaraChatMode() async {
+    await initialize();
+    final name = _prefs!.getString(_keyLumaraChatMode);
+    if (name == null) return LumaraChatMode.personal;
+    return LumaraChatMode.values.firstWhere(
+      (e) => e.name == name,
+      orElse: () => LumaraChatMode.personal,
+    );
+  }
+
+  /// Set three-way LUMARA mode for reflection.
+  Future<void> setLumaraChatMode(LumaraChatMode mode) async {
+    await initialize();
+    await _prefs!.setString(_keyLumaraChatMode, mode.name);
   }
 
   /// Get effective engagement settings with conversation override applied

@@ -1,6 +1,8 @@
 // lib/lumara/models/lumara_reflection_options.dart
 // Consolidated models for LUMARA v2.3 reflection system with all expansion and continuation options
 
+import '../prompts/lumara_mode_definition.dart';
+
 /// Phase hint for LUMARA reflections
 enum PhaseHint {
   discovery,
@@ -98,12 +100,16 @@ class LumaraReflectionOptions {
   /// When true, use full master prompt (Detailed Analysis); when false, use short prompt (perceptive with context).
   final bool useDetailedAnalysis;
 
+  /// Three-way mode for reflection: Personal (Groq), Analytical (Groq), Deep Analytical (Gemini).
+  final LumaraChatMode lumaraChatMode;
+
   LumaraReflectionOptions({
     this.preferQuestionExpansion = false, // Default = natural; use Explore/Integrate for rich context
     this.toneMode = ToneMode.normal,
     this.regenerate = false,
     this.conversationMode,
     this.useDetailedAnalysis = false,
+    this.lumaraChatMode = LumaraChatMode.personal,
   });
 
   Map<String, dynamic> toJson() => {
@@ -112,30 +118,43 @@ class LumaraReflectionOptions {
     'regenerate': regenerate,
     'conversationMode': conversationMode?.name,
     'useDetailedAnalysis': useDetailedAnalysis,
+    'lumaraChatMode': lumaraChatMode.name,
   };
 
-  factory LumaraReflectionOptions.fromJson(Map<String, dynamic> json) => LumaraReflectionOptions(
-    preferQuestionExpansion: json['preferQuestionExpansion'] as bool? ?? true, // Default to More Depth enabled
-    toneMode: json['toneMode'] != null 
-        ? ToneMode.values.firstWhere(
-            (e) => e.name == json['toneMode'],
-            orElse: () => ToneMode.normal,
-          )
-        : ToneMode.normal,
-    regenerate: json['regenerate'] as bool? ?? false,
-    conversationMode: json['conversationMode'] != null
-        ? (() {
-            try {
-              return ConversationMode.values.firstWhere(
-                (e) => e.name == json['conversationMode'],
-              );
-            } catch (_) {
-              return null;
-            }
-          })()
-        : null,
-    useDetailedAnalysis: json['useDetailedAnalysis'] as bool? ?? false,
-  );
+  factory LumaraReflectionOptions.fromJson(Map<String, dynamic> json) {
+    LumaraChatMode mode = LumaraChatMode.personal;
+    if (json['lumaraChatMode'] != null) {
+      try {
+        mode = LumaraChatMode.values.firstWhere(
+          (e) => e.name == json['lumaraChatMode'],
+          orElse: () => LumaraChatMode.personal,
+        );
+      } catch (_) {}
+    }
+    return LumaraReflectionOptions(
+      preferQuestionExpansion: json['preferQuestionExpansion'] as bool? ?? true,
+      toneMode: json['toneMode'] != null
+          ? ToneMode.values.firstWhere(
+              (e) => e.name == json['toneMode'],
+              orElse: () => ToneMode.normal,
+            )
+          : ToneMode.normal,
+      regenerate: json['regenerate'] as bool? ?? false,
+      conversationMode: json['conversationMode'] != null
+          ? (() {
+              try {
+                return ConversationMode.values.firstWhere(
+                  (e) => e.name == json['conversationMode'],
+                );
+              } catch (_) {
+                return null;
+              }
+            })()
+          : null,
+      useDetailedAnalysis: json['useDetailedAnalysis'] as bool? ?? false,
+      lumaraChatMode: mode,
+    );
+  }
 }
 
 /// Request model for LUMARA reflection generation

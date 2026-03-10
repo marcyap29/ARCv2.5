@@ -82,8 +82,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     return d;
   }
 
-  LLMProvider? _selectedProvider;
-
   @override
   void initState() {
     super.initState();
@@ -279,16 +277,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       _apiKeyControllers[provider]?.text = apiKey ?? '';
     }
 
-    // Get current manual provider selection
-    final manualProvider = _apiConfig.getManualProvider();
-    
     // Load Wispr Flow API key
     final prefs = await SharedPreferences.getInstance();
     final wisprKey = prefs.getString(_wisprApiKeyPrefKey) ?? '';
     _wisprApiKeyController.text = wisprKey;
     
     setState(() {
-      _selectedProvider = manualProvider;
       _wisprApiKeyConfigured = wisprKey.isNotEmpty;
     });
   }
@@ -389,14 +383,9 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  /// Unified API card: default provider, API keys for all external providers, voice (Wispr).
+  /// Only Groq is accessible; other APIs commented out.
   static const List<LLMProvider> _externalProvidersOrder = [
-    LLMProvider.gemini,  // Primary — shown first
-    LLMProvider.groq,    // Fallback
-    LLMProvider.openai,
-    LLMProvider.anthropic,
-    LLMProvider.venice,
-    LLMProvider.openrouter,
+    LLMProvider.groq,
   ];
 
   Widget _buildAgentOperatingSystemCard(ThemeData theme) {
@@ -493,7 +482,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   }
 
   Widget _buildApiCard(ThemeData theme) {
-    final isDefaultGemini = _selectedProvider == null || _selectedProvider == LLMProvider.gemini;
     return Card(
       elevation: 2,
       child: Padding(
@@ -516,24 +504,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Choose default provider and add API keys. LUMARA uses Gemini by default; Groq (Llama 3.3 70B) as fallback.',
+              'LUMARA uses Groq (Llama 3.3 70B). Add your Groq API key below.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 20),
-            // Default provider
-            Text(
-              'Default provider',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _buildDefaultProviderOption(theme, isDefaultGemini, isGemini: true),
-            const SizedBox(height: 8),
-            _buildDefaultProviderOption(theme, !isDefaultGemini, isGemini: false),
-            const SizedBox(height: 24),
             // API keys
             Text(
               'API keys',
@@ -741,151 +717,16 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  Widget _buildDefaultProviderOption(ThemeData theme, bool isSelected, {bool isGemini = true}) {
-    final provider = isGemini ? LLMProvider.gemini : LLMProvider.groq;
-    final label = isGemini ? 'Gemini 3.0 Flash (Default)' : 'Groq · Llama 3.3 70B (Fallback)';
-    final description = isGemini
-        ? 'Google Gemini — primary provider. No API key needed when signed in.'
-        : 'Groq Llama 3.3 70B — used when Gemini is unavailable.';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: isSelected
-              ? theme.colorScheme.primary
-              : theme.colorScheme.outline.withOpacity(0.3),
-          width: isSelected ? 2 : 1,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        color: isSelected
-            ? theme.colorScheme.primary.withOpacity(0.05)
-            : null,
-      ),
-      child: InkWell(
-        onTap: () async {
-          await _apiConfig.setManualProvider(provider);
-          await _lumaraApi.initialize();
-          setState(() {
-            _selectedProvider = provider;
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.swap_horiz, color: Colors.white),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text('Switched to $label')),
-                  ],
-                ),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: isGemini ? Colors.blue : Colors.orange,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isGemini ? Colors.blue : Colors.orange).withOpacity(0.3),
-                      blurRadius: 4,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            label,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (isGemini) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'DEFAULT',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isSelected)
-                Icon(
-                  Icons.check_circle,
-                  color: theme.colorScheme.primary,
-                  size: 20,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildApiKeyField(LLMProvider provider, ThemeData theme) {
     final controller = _apiKeyControllers[provider]!;
     final config = _apiConfig.getConfig(provider);
     final isConfigured = config?.apiKey?.isNotEmpty == true;
     
-    // Custom display names for API key fields
+    // Custom display names for API key fields (only Groq in use)
     String displayName;
     switch (provider) {
       case LLMProvider.groq:
         displayName = 'Groq';
-        break;
-      case LLMProvider.openai:
-        displayName = 'ChatGPT';
-        break;
-      case LLMProvider.anthropic:
-        displayName = 'Anthropic';
-        break;
-      case LLMProvider.venice:
-        displayName = 'Venice AI';
-        break;
-      case LLMProvider.openrouter:
-        displayName = 'OpenRouter';
         break;
       default:
         displayName = config?.name ?? provider.name;
@@ -995,24 +836,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         await _lumaraApi.initialize();
       }
 
-      // Get display name for success message
+      // Get display name for success message (only Groq in use)
       final config = _apiConfig.getConfig(provider);
       String displayName;
       switch (provider) {
         case LLMProvider.groq:
           displayName = 'Groq';
-          break;
-        case LLMProvider.openai:
-          displayName = 'ChatGPT';
-          break;
-        case LLMProvider.anthropic:
-          displayName = 'Anthropic';
-          break;
-        case LLMProvider.venice:
-          displayName = 'Venice AI';
-          break;
-        case LLMProvider.openrouter:
-          displayName = 'OpenRouter';
           break;
         default:
           displayName = config?.name ?? provider.name;

@@ -185,6 +185,96 @@ Future<String> lumaraSend({
   return restored;
 }
 
+/// LUMARA send via Gemini (Mode 3 — Deep Analytical). Same PRISM scrub/restore as [lumaraSend], but routes to Gemini instead of Groq.
+/// Use when [LumaraChatMode.deepAnalytical] is active. Surfaces errors clearly; does not fall back to Groq.
+Future<String> lumaraSendWithGemini({
+  required String system,
+  required String user,
+  String? chatId,
+  bool skipTransformation = true,
+  double temperature = 0.7,
+}) async {
+  if (kDebugMode) print('LUMARA Send (Gemini): PRISM scrub → proxyGemini/direct Gemini → PII restore');
+
+  final prismAdapter = PrismAdapter();
+  final userPrismResult = prismAdapter.scrub(user);
+  final systemPrismResult = system.trim().isNotEmpty
+      ? prismAdapter.scrub(system)
+      : PrismResult(scrubbedText: system, reversibleMap: {}, findings: []);
+
+  final combinedReversibleMap = <String, String>{
+    ...userPrismResult.reversibleMap,
+    ...systemPrismResult.reversibleMap,
+  };
+
+  if (userPrismResult.hadPII || systemPrismResult.hadPII) {
+    if (kDebugMode) print('PRISM: Scrubbed PII before Gemini send');
+  }
+
+  if (!prismAdapter.isSafeToSend(userPrismResult.scrubbedText) ||
+      (system.trim().isNotEmpty && !prismAdapter.isSafeToSend(systemPrismResult.scrubbedText))) {
+    throw const SecurityException('SECURITY: PII still detected after PRISM scrubbing');
+  }
+
+  String transformedUserText = userPrismResult.scrubbedText;
+  String transformedSystem = systemPrismResult.scrubbedText;
+  if (!skipTransformation) {
+    final userTransformation = await prismAdapter.transformToCorrelationResistant(
+      prismScrubbedText: userPrismResult.scrubbedText,
+      intent: 'chat',
+      prismResult: userPrismResult,
+      rotationWindow: RotationWindow.session,
+    );
+    transformedUserText = userTransformation.cloudPayloadBlock.toJsonString();
+  }
+
+  final requestData = <String, dynamic>{
+    'system': transformedSystem,
+    'user': transformedUserText,
+    if (chatId != null) 'chatId': chatId,
+  };
+
+  try {
+    final firebaseReady = await FirebaseService.instance.ensureReady();
+    final signedIn = FirebaseAuthService.instance.isSignedIn;
+
+    if (firebaseReady && signedIn) {
+      final functions = FirebaseService.instance.getFunctions();
+      final callable = functions.httpsCallable('proxyGemini');
+      final result = await callable.call(requestData);
+      final data = (result.data as Map<Object?, Object?>).cast<String, dynamic>();
+      final rawResult = _extractTextFromProxyResult(data);
+      if (rawResult == null) return '';
+      final restored = PiiScrubber.restore(rawResult, combinedReversibleMap);
+      if (kDebugMode && restored != rawResult) print('PRISM: Restored PII in Gemini response');
+      return restored;
+    }
+
+    await LumaraAPIConfig.instance.initialize();
+    final geminiKey = LumaraAPIConfig.instance.getApiKey(LLMProvider.gemini);
+    if (geminiKey != null && geminiKey.trim().isNotEmpty) {
+      final rawResult = await _geminiDirectGenerateContent(
+        apiKey: geminiKey,
+        system: transformedSystem,
+        user: transformedUserText,
+      );
+      return PiiScrubber.restore(rawResult, combinedReversibleMap);
+    }
+
+    throw Exception(
+      'Deep Analytical mode requires Gemini. Sign in for cloud AI, or add a Gemini API key in Settings → LUMARA.',
+    );
+  } on FirebaseFunctionsException catch (e) {
+    if (e.code == 'resource-exhausted' || e.code == 'permission-denied' || e.code == 'unauthenticated') {
+      throw Exception(e.message ?? 'Request limit reached');
+    }
+    throw Exception('Gemini request failed: ${e.message}');
+  } catch (e) {
+    if (kDebugMode) print('LUMARA Send (Gemini): $e');
+    rethrow;
+  }
+}
+
 /// DEPRECATED: No longer called from active code paths.
 /// Use [lumaraSend] (PRISM + groqSend) or [groqSend] (raw) instead.
 @Deprecated('Use lumaraSend() for PII protection, or groqSend() for raw.')
@@ -349,7 +439,7 @@ Future<String> geminiSend({
     }
 
     throw Exception(
-      'Connection to AI failed. Sign in for cloud AI, or add a Groq or Gemini API key in Settings → LUMARA.',
+      'Connection to AI failed. Sign in for cloud AI, or add a Groq API key in Settings → LUMARA.',
     );
   } on FirebaseFunctionsException catch (e) {
     if (kDebugMode) print('DEBUG GEMINI: Firebase Functions error: ${e.code} - ${e.message}');
@@ -388,7 +478,7 @@ Stream<String> geminiSendStream({
 
   if (apiKey.isEmpty) {
     if (kDebugMode) print('DEBUG GEMINI STREAM: No API key found, throwing StateError');
-    throw StateError('No cloud AI API key configured. Add a Groq or Gemini API key in Settings → LUMARA Settings.');
+    throw StateError('No cloud AI API key configured. Add a Groq API key in Settings → LUMARA Settings.');
   }
 
   // Step 1: PRISM - Scrub PII from user input and system prompt

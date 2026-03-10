@@ -41,6 +41,7 @@ import 'semantic_similarity_service.dart';
 import '../llm/llm_provider_factory.dart';
 import '../llm/llm_provider.dart';
 import '../config/api_config.dart';
+import '../prompts/lumara_mode_definition.dart';
 import 'lumara_response_scoring.dart' as scoring;
 import '../../../mira/memory/attribution_service.dart';
 import '../../../mira/memory/enhanced_memory_schema.dart';
@@ -1322,20 +1323,41 @@ class EnhancedLumaraApi {
           if (safetyOverride) {
             print('🚨 LUMARA V23: SAFETY OVERRIDE ACTIVE - Therapist mode forced');
           }
-          
+
+          // Three-way mode: tag every request; Deep Analytical uses Gemini.
+          final mode = request.options.lumaraChatMode;
+          userPromptForApi = '${lumaraModeTag(mode)}\n\n$userPromptForApi';
+
           onProgress?.call('Calling cloud API...');
 
-          // Primary: proxyGroq (GPT-OSS 120B) when signed in. Fallback: direct Groq API key.
+          // Primary: proxyGroq (GPT-OSS 120B) when signed in. Fallback: direct Groq API key. Deep Analytical → Gemini.
           String? llmResponse;
-          int retryCount = 0;
-          const maxRetries = 2;
           Object? lastError;
-          final firebaseReady = await FirebaseService.instance.ensureReady();
-          final signedIn = FirebaseAuthService.instance.isSignedIn;
-          final useProxy = firebaseReady && signedIn;
-          final useDirectGroq = !useProxy && _groq != null;
-          final temperature = _temperatureForMode(engagementMode);
-          print('LUMARA: Using ${useProxy ? "proxyGroq (GPT-OSS 120B)" : useDirectGroq ? "direct Groq (API key)" : "unavailable"} for reflection');
+          if (mode == LumaraChatMode.deepAnalytical) {
+            try {
+              llmResponse = await lumaraSendWithGemini(
+                system: lumaraModeDefinitionBlock,
+                user: userPromptForApi,
+                skipTransformation: true,
+                temperature: _temperatureForMode(engagementMode),
+              );
+              if (llmResponse != null && llmResponse.isNotEmpty) {
+                print('LUMARA: Gemini (Deep Analytical) response received (length: ${llmResponse.length})');
+              }
+            } catch (e) {
+              print('LUMARA: Gemini reflection failed: $e');
+              rethrow;
+            }
+          }
+          if (llmResponse == null) {
+            int retryCount = 0;
+            const maxRetries = 2;
+            final firebaseReady = await FirebaseService.instance.ensureReady();
+            final signedIn = FirebaseAuthService.instance.isSignedIn;
+            final useProxy = firebaseReady && signedIn;
+            final useDirectGroq = !useProxy && _groq != null;
+            final temperature = _temperatureForMode(engagementMode);
+            print('LUMARA: Using ${useProxy ? "proxyGroq (GPT-OSS 120B)" : useDirectGroq ? "direct Groq (API key)" : "unavailable"} for reflection');
 
           while (retryCount <= maxRetries && llmResponse == null) {
             lastError = null;
@@ -1422,6 +1444,7 @@ class EnhancedLumaraApi {
               onProgress?.call('Retrying API... ($retryCount/$maxRetries)');
               await Future.delayed(const Duration(seconds: 2));
             }
+          }
           }
 
           if (llmResponse == null) {

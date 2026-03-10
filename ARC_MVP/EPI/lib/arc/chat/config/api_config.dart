@@ -6,18 +6,17 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Supported LLM providers
-/// LUMARA uses Gemini as primary, Groq (Llama 3.3 70B) as fallback.
-/// Claude, ChatGPT (openai), Venice, OpenRouter are not used by LUMARA.
+/// Supported LLM providers.
+/// Only Groq is registered and used; others are commented out in _loadConfigs.
 enum LLMProvider {
-  groq,       // Groq: Llama 3.3 70B (fallback for LUMARA)
+  groq,       // Groq: Llama 3.3 70B — only API in use
   gemini,
   openai,
   anthropic,
-  venice,     // Venice AI
-  openrouter, // OpenRouter
-  qwen4b,     // Internal Qwen3 4B Q4_K_S model
-  llama3b,    // Internal Llama 3.2 3B model
+  venice,
+  openrouter,
+  qwen4b,
+  llama3b,
 }
 
 /// API configuration for different providers
@@ -166,49 +165,21 @@ class LumaraAPIConfig {
       isInternal: false,
     );
 
-    // External API providers - load defaults from environment
+    // Gemini: for Deep Analytical mode (Mode 3)
     const geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
     debugPrint('LUMARA API: Loading Gemini API key from environment: ${geminiApiKey.isNotEmpty ? 'Found' : 'Not found'}');
-
-    _configs[LLMProvider.gemini] = const LLMProviderConfig(
+    _configs[LLMProvider.gemini] = LLMProviderConfig(
       provider: LLMProvider.gemini,
       name: 'Google Gemini',
-      apiKey: geminiApiKey,
+      apiKey: geminiApiKey.isEmpty ? null : geminiApiKey,
       baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
       isInternal: false,
     );
-
-    _configs[LLMProvider.openai] = const LLMProviderConfig(
-      provider: LLMProvider.openai,
-      name: 'OpenAI GPT',
-      apiKey: String.fromEnvironment('OPENAI_API_KEY'),
-      baseUrl: 'https://api.openai.com/v1',
-      isInternal: false,
-    );
-
-    _configs[LLMProvider.anthropic] = const LLMProviderConfig(
-      provider: LLMProvider.anthropic,
-      name: 'Anthropic Claude',
-      apiKey: String.fromEnvironment('ANTHROPIC_API_KEY'),
-      baseUrl: 'https://api.anthropic.com/v1',
-      isInternal: false,
-    );
-
-    _configs[LLMProvider.venice] = const LLMProviderConfig(
-      provider: LLMProvider.venice,
-      name: 'Venice AI',
-      apiKey: String.fromEnvironment('VENICE_API_KEY'),
-      baseUrl: 'https://api.venice.ai/v1',
-      isInternal: false,
-    );
-
-    _configs[LLMProvider.openrouter] = const LLMProviderConfig(
-      provider: LLMProvider.openrouter,
-      name: 'OpenRouter',
-      apiKey: String.fromEnvironment('OPENROUTER_API_KEY'),
-      baseUrl: 'https://openrouter.ai/api/v1',
-      isInternal: false,
-    );
+    // _configs[LLMProvider.gemini] = const LLMProviderConfig(...);
+    // _configs[LLMProvider.openai] = ... (ChatGPT/OpenAI removed)
+    // _configs[LLMProvider.anthropic] = ...
+    // _configs[LLMProvider.venice] = ...
+    // _configs[LLMProvider.openrouter] = ...
 
     // Internal LLM providers - removed (models not installed)
 
@@ -256,48 +227,6 @@ class LumaraAPIConfig {
         }
       }
       
-      // Auto-save API keys from runtime environment variables if not already saved
-      // This allows users to set GEMINI_API_KEY as an environment variable and have it persist
-      final runtimeGeminiKey = Platform.environment['GEMINI_API_KEY'];
-      if (runtimeGeminiKey != null && runtimeGeminiKey.isNotEmpty) {
-        final savedConfigsJson = _prefs!.getString(_prefsKey);
-        Map<String, dynamic> savedConfigs = {};
-        if (savedConfigsJson != null) {
-          try {
-            savedConfigs = jsonDecode(savedConfigsJson) as Map<String, dynamic>;
-          } catch (e) {
-            debugPrint('LUMARA API: Error parsing saved configs for auto-save: $e');
-          }
-        }
-        
-        // Check if Gemini key is already saved
-        final geminiConfig = savedConfigs['gemini'] as Map<String, dynamic>?;
-        final savedGeminiKey = geminiConfig?['apiKey'] as String?;
-        
-        if (savedGeminiKey == null || savedGeminiKey.isEmpty) {
-          debugPrint('LUMARA API: Auto-saving Gemini API key from runtime environment variable...');
-          savedConfigs['gemini'] = {
-            'provider': 'gemini',
-            'name': 'Google Gemini',
-            'apiKey': runtimeGeminiKey,
-            'baseUrl': 'https://generativelanguage.googleapis.com/v1beta',
-            'isInternal': false,
-            'isAvailable': true,
-          };
-          await _prefs!.setString(_prefsKey, jsonEncode(savedConfigs));
-          
-          // Update the in-memory config
-          final currentConfig = _configs[LLMProvider.gemini];
-          if (currentConfig != null) {
-            _configs[LLMProvider.gemini] = currentConfig.copyWith(apiKey: runtimeGeminiKey);
-            final maskedKey = runtimeGeminiKey.length > 8
-                ? '${runtimeGeminiKey.substring(0, 4)}...${runtimeGeminiKey.substring(runtimeGeminiKey.length - 4)}'
-                : '***';
-            debugPrint('LUMARA API: Auto-saved Gemini API key from environment: $maskedKey (length: ${runtimeGeminiKey.length})');
-          }
-        }
-      }
-
       // Auto-save Groq API key from runtime environment if not already saved
       final runtimeGroqKey = Platform.environment['GROQ_API_KEY'];
       if (runtimeGroqKey != null && runtimeGroqKey.isNotEmpty) {
@@ -326,6 +255,37 @@ class LumaraAPIConfig {
           final currentConfig = _configs[LLMProvider.groq];
           if (currentConfig != null) {
             _configs[LLMProvider.groq] = currentConfig.copyWith(apiKey: runtimeGroqKey);
+          }
+        }
+      }
+      // Auto-save Gemini API key from runtime environment if not already saved
+      final runtimeGeminiKey = Platform.environment['GEMINI_API_KEY'];
+      if (runtimeGeminiKey != null && runtimeGeminiKey.isNotEmpty) {
+        final savedConfigsJson = _prefs!.getString(_prefsKey);
+        Map<String, dynamic> savedConfigs = {};
+        if (savedConfigsJson != null) {
+          try {
+            savedConfigs = jsonDecode(savedConfigsJson) as Map<String, dynamic>;
+          } catch (e) {
+            debugPrint('LUMARA API: Error parsing saved configs for Gemini auto-save: $e');
+          }
+        }
+        final geminiConfig = savedConfigs['gemini'] as Map<String, dynamic>?;
+        final savedGeminiKey = geminiConfig?['apiKey'] as String?;
+        if (savedGeminiKey == null || savedGeminiKey.isEmpty) {
+          debugPrint('LUMARA API: Auto-saving Gemini API key from runtime environment variable...');
+          savedConfigs['gemini'] = {
+            'provider': 'gemini',
+            'name': 'Google Gemini',
+            'apiKey': runtimeGeminiKey,
+            'baseUrl': 'https://generativelanguage.googleapis.com/v1beta',
+            'isInternal': false,
+            'isAvailable': true,
+          };
+          await _prefs!.setString(_prefsKey, jsonEncode(savedConfigs));
+          final currentConfig = _configs[LLMProvider.gemini];
+          if (currentConfig != null) {
+            _configs[LLMProvider.gemini] = currentConfig.copyWith(apiKey: runtimeGeminiKey);
           }
         }
       }
@@ -403,20 +363,15 @@ class LumaraAPIConfig {
       _prefs?.remove('manual_provider');
     }
 
-    // Preference order: Gemini first (primary), then Groq (Llama 3.3 70B fallback)
-    final geminiConfig = _configs[LLMProvider.gemini];
-    if (geminiConfig != null && geminiConfig.isAvailable) {
-      return geminiConfig;
-    }
-
+    // Only Groq is used; other APIs are not registered.
     final groqConfig = _configs[LLMProvider.groq];
     if (groqConfig != null && groqConfig.isAvailable) {
       return groqConfig;
     }
 
-    // Fallback to other external/cloud APIs if Groq/Gemini not available
-    final external = available.where((c) => !c.isInternal).toList();
-    if (external.isNotEmpty) return external.first;
+    // Other external APIs commented out — no fallback.
+    // final external = available.where((c) => !c.isInternal).toList();
+    // if (external.isNotEmpty) return external.first;
 
     // Finally, internal models as last resort
     final internal = available.where((c) => c.isInternal && _isValidInternalModel(c)).toList();
@@ -584,10 +539,10 @@ class LumaraAPIConfig {
   Future<void> clearAllApiKeys() async {
     debugPrint('LUMARA API: Clearing all saved API keys...');
 
-    // Save empty strings for all external providers to override environment variables
+    // Save empty strings for external provider (only Groq in use)
     final clearedConfigs = <String, dynamic>{};
-    for (final provider in [LLMProvider.groq, LLMProvider.gemini, LLMProvider.openai, LLMProvider.anthropic, LLMProvider.venice, LLMProvider.openrouter]) {
-      clearedConfigs[provider.name] = {'apiKey': ''}; // Empty string overrides environment
+    for (final provider in [LLMProvider.groq]) {
+      clearedConfigs[provider.name] = {'apiKey': ''};
     }
 
     await _prefs?.setString(_prefsKey, jsonEncode(clearedConfigs));

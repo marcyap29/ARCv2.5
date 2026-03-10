@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:my_app/services/subscription_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/services/revenuecat_service.dart';
 import 'package:my_app/ui/subscription/lumara_subscription_status.dart';
 import 'package:my_app/ui/auth/sign_in_screen.dart';
 
@@ -906,18 +907,36 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         throw Exception('Authentication token expired. Please sign in again.');
       }
 
-      // Now proceed with Stripe checkout
-      debugPrint('SubscriptionManagement: 🚀 Creating Stripe checkout session...');
-      
-      final success = await SubscriptionService.instance.createStripeCheckoutSession(
-        interval: interval,
-      );
+      // Guideline 3.1.1: On iOS, subscriptions must be purchased via In-App Purchase (RevenueCat/StoreKit), not external payment.
+      final useIap = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS);
+      bool success = false;
+
+      if (useIap) {
+        debugPrint('SubscriptionManagement: 🍎 iOS - Presenting In-App Purchase paywall (RevenueCat)...');
+        try {
+          await RevenueCatService.instance.presentPaywall();
+          SubscriptionService.instance.clearCache();
+          success = true;
+          if (mounted) {
+            _loadSubscriptionDetails();
+          }
+        } catch (e) {
+          debugPrint('SubscriptionManagement: RevenueCat paywall error: $e');
+        }
+      }
+
+      if (!useIap || !success) {
+        debugPrint('SubscriptionManagement: 🚀 Creating Stripe checkout session...');
+        success = await SubscriptionService.instance.createStripeCheckoutSession(
+          interval: interval,
+        );
+      }
 
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Opening checkout for ${_checkoutLabel(interval)}...'),
+              content: Text(useIap ? 'Subscription options opened.' : 'Opening checkout for ${_checkoutLabel(interval)}...'),
               duration: const Duration(seconds: 3),
             ),
           );
@@ -949,6 +968,18 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
 
   Future<void> _openCustomerPortal() async {
     try {
+      // On iOS, IAP subscribers manage via RevenueCat Customer Center (Guideline 3.1.1).
+      final useIap = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS);
+      if (useIap) {
+        try {
+          await RevenueCatService.instance.presentCustomerCenter();
+          SubscriptionService.instance.clearCache();
+          if (mounted) _loadSubscriptionDetails();
+          return;
+        } catch (_) {
+          // Fall through to Stripe portal if user subscribes via web/Stripe
+        }
+      }
       final success = await SubscriptionService.instance.openCustomerPortal();
 
       if (mounted && !success) {
