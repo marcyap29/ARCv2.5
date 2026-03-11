@@ -16,7 +16,6 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
-import 'package:my_app/models/engagement_discipline.dart';
 import 'package:my_app/models/memory_focus_preset.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
@@ -1112,18 +1111,8 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
   bool _voiceoverEnabled = false;
   bool _voiceoverLoading = true;
   
-  // LUMARA Persona state
-  LumaraPersona _selectedPersona = LumaraPersona.auto;
-  bool _personaLoading = true;
-  
-  // Therapeutic depth state
-  int _therapeuticDepthLevel = 2;
   bool _webAccessEnabled = false;
   bool _lumaraSettingsLoading = true;
-
-  // Engagement settings state
-  EngagementSettings _engagementSettings = const EngagementSettings();
-  bool _engagementSettingsLoading = true;
 
   // Memory Focus preset state
   MemoryFocusPreset _memoryFocusPreset = MemoryFocusPreset.balanced;
@@ -1149,11 +1138,9 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
     super.initState();
     _loadFavoritesCount();
     _loadVoiceoverPreference();
-    _loadPersonaPreference();
     _loadLumaraSettings();
     _loadMemoryFocusPreset();
     _loadCrossModalSetting();
-    _loadEngagementSettings();
     _loadPhaseShareSettings();
   }
   
@@ -1216,7 +1203,6 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
       final settings = await settingsService.loadAllSettings();
       if (mounted) {
         setState(() {
-          _therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int;
           _webAccessEnabled = settings['webAccessEnabled'] as bool;
           _lumaraSettingsLoading = false;
         });
@@ -1292,35 +1278,6 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
     }
   }
 
-  Future<void> _loadEngagementSettings() async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.initialize();
-      final engagement = await settingsService.getEngagementSettings();
-      if (mounted) {
-        setState(() {
-          _engagementSettings = engagement;
-          _engagementSettingsLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading engagement settings: $e');
-      if (mounted) {
-        setState(() {
-          _engagementSettingsLoading = false;
-        });
-      }
-    }
-  }
-  
-  Future<void> _setTherapeuticDepthLevel(int level) async {
-    setState(() {
-      _therapeuticDepthLevel = level;
-    });
-    final settingsService = LumaraReflectionSettingsService.instance;
-    await settingsService.setTherapeuticDepthLevel(level);
-  }
-  
   Future<void> _setWebAccessEnabled(bool enabled) async {
     setState(() {
       _webAccessEnabled = enabled;
@@ -1329,50 +1286,6 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
     await settingsService.setWebAccessEnabled(enabled);
   }
   
-  Future<void> _loadPersonaPreference() async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.initialize();
-      final persona = await settingsService.getLumaraPersona();
-      if (mounted) {
-        setState(() {
-          _selectedPersona = persona;
-          _personaLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading persona preference: $e');
-      if (mounted) {
-        setState(() {
-          _personaLoading = false;
-        });
-      }
-    }
-  }
-  
-  Future<void> _setPersona(LumaraPersona persona) async {
-    setState(() {
-      _personaLoading = true;
-    });
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.setLumaraPersona(persona);
-      if (mounted) {
-        setState(() {
-          _selectedPersona = persona;
-          _personaLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error setting persona: $e');
-      if (mounted) {
-        setState(() {
-          _personaLoading = false;
-        });
-      }
-    }
-  }
-
   Future<void> _loadFavoritesCount() async {
     try {
       await FavoritesService.instance.initialize();
@@ -1534,16 +1447,10 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
                 }
               },
             ),
-            // LUMARA Persona Card
-            _buildPersonaCard(),
             // Memory Focus Preset Card
             _buildMemoryFocusCard(),
-            // Engagement Mode Card
-            _buildEngagementModeCard(),
             // Include Media Toggle
             _buildIncludeMediaToggle(),
-            // Therapeutic Depth Slider
-            _buildTherapeuticDepthCard(),
             // Web Search Toggle
             _buildWebSearchToggle(),
             // Voice Responses Toggle
@@ -1562,132 +1469,6 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
                   ),
                 );
               },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPersonaCard() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.theater_comedy,
-                  color: kcAccentColor,
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'LUMARA Persona',
-                        style: heading3Style(context).copyWith(
-                          color: kcPrimaryTextColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Choose how LUMARA responds to you',
-                        style: bodyStyle(context).copyWith(
-                          color: kcSecondaryTextColor,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_personaLoading)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Colors.white12),
-          ...LumaraPersona.values.map((persona) => _buildPersonaOption(persona)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPersonaOption(LumaraPersona persona) {
-    final isSelected = _selectedPersona == persona;
-    return InkWell(
-      onTap: _personaLoading ? null : () => _setPersona(persona),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? kcAccentColor : Colors.white38,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: kcAccentColor,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              persona.icon,
-              style: const TextStyle(fontSize: 20),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    persona.displayName,
-                    style: heading3Style(context).copyWith(
-                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    persona.description,
-                    style: bodyStyle(context).copyWith(
-                      color: kcSecondaryTextColor,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -2036,138 +1817,6 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
     }
   }
 
-  Widget _buildEngagementModeCard() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                const Icon(Icons.tune, color: kcAccentColor, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Engagement Mode',
-                        style: heading3Style(context).copyWith(
-                          color: kcPrimaryTextColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'How deeply LUMARA engages with your reflections',
-                        style: bodyStyle(context).copyWith(
-                          color: kcSecondaryTextColor,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_engagementSettingsLoading)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Colors.white12),
-          ...[EngagementMode.reflect, EngagementMode.deeper].map((mode) => _buildEngagementModeOption(mode)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEngagementModeOption(EngagementMode mode) {
-    final isSelected = _engagementSettings.defaultMode == mode;
-    return InkWell(
-      onTap: _engagementSettingsLoading ? null : () => _setEngagementMode(mode),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? kcAccentColor : Colors.white38,
-                  width: 2,
-                ),
-              ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: kcAccentColor,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    mode.displayName,
-                    style: bodyStyle(context).copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? kcAccentColor : kcPrimaryTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    mode.description,
-                    style: bodyStyle(context).copyWith(
-                      fontSize: 11,
-                      color: kcSecondaryTextColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _setEngagementMode(EngagementMode mode) async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final updated = _engagementSettings.copyWith(defaultMode: mode);
-      await settingsService.saveAllSettingsWithEngagement(
-        engagementSettings: updated,
-      );
-      if (mounted) {
-        setState(() {
-          _engagementSettings = updated;
-        });
-      }
-    } catch (e) {
-      print('Error setting engagement mode: $e');
-    }
-  }
-
   Widget _buildIncludeMediaToggle() {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -2216,111 +1865,6 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
     } catch (e) {
       print('Error setting cross-modal enabled: $e');
     }
-  }
-
-  Widget _buildTherapeuticDepthCard() {
-    final depthLabels = ['Light', 'Moderate', 'Deep'];
-    final depthDescriptions = [
-      'Supportive and encouraging',
-      'Reflective and insight-oriented',
-      'Exploratory and emotionally resonant',
-    ];
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.psychology,
-                color: kcAccentColor,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Therapeutic Depth',
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      depthDescriptions[_therapeuticDepthLevel - 1],
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: kcAccentColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  depthLabels[_therapeuticDepthLevel - 1],
-                  style: bodyStyle(context).copyWith(
-                    color: kcAccentColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Slider(
-            value: _therapeuticDepthLevel.toDouble(),
-            min: 1,
-            max: 3,
-            divisions: 2,
-            activeColor: kcAccentColor,
-            inactiveColor: Colors.grey.withValues(alpha: 0.3),
-            onChanged: _lumaraSettingsLoading
-                ? null
-                : (value) => _setTherapeuticDepthLevel(value.round()),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: depthLabels.asMap().entries.map((entry) {
-              final index = entry.key;
-              final label = entry.value;
-              final isSelected = _therapeuticDepthLevel == index + 1;
-              return GestureDetector(
-                onTap: _lumaraSettingsLoading
-                    ? null
-                    : () => _setTherapeuticDepthLevel(index + 1),
-                child: Text(
-                  label,
-                  style: bodyStyle(context).copyWith(
-                    color: isSelected ? kcAccentColor : kcSecondaryTextColor,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    fontSize: 11,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildWebSearchToggle() {

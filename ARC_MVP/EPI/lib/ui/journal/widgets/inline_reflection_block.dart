@@ -10,7 +10,6 @@ import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/arc/chat/voice/audio_io.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
 import 'package:my_app/shared/ui/widgets/engagement_mode_selector.dart';
-import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/models/engagement_discipline.dart';
 import 'package:my_app/shared/widgets/lumara_thinking_dialog.dart';
 
@@ -180,16 +179,10 @@ class _InlineReflectionBlockState extends State<InlineReflectionBlock> with Sing
                   processingSteps: widget.processingSteps,
                 )
               else ...[
-                // Mode indicator badge
-                FutureBuilder<EngagementSettings>(
-                  future: LumaraReflectionSettingsService.instance.getEngagementSettings(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: EngagementModeBadge(mode: snapshot.data!.activeMode),
-                    );
-                  },
+                // Mode indicator badge (fixed reflect mode)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: EngagementModeBadge(mode: EngagementMode.reflect),
                 ),
                 // Reflection content (purple for LUMARA) with clickable entry refs
                 LumaraMessageBody(

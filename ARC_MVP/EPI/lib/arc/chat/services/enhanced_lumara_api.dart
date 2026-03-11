@@ -627,14 +627,12 @@ class EnhancedLumaraApi {
           
           if (!skipHeavyProcessing) {
           final memoryFocusPreset = await settingsService.getMemoryFocusPreset();
-          final engagementSettings = await settingsService.getEngagementSettings();
-            engagementMode = engagementSettings.activeMode;
-          
+          engagementMode = EngagementMode.reflect; // Engagement mode setting removed; fixed default
           // Use new context selector instead of hard-coded limits (orchestrator may override with ARC data later)
           final contextSelector = LumaraContextSelector();
             recentJournalEntries = await contextSelector.selectContextEntries(
             memoryFocus: memoryFocusPreset,
-            engagementMode: engagementMode,
+            engagementMode: engagementMode!,
             currentEntryText: request.userText,
             currentDate: DateTime.now(),
             entryId: entryId, // Use entryId parameter from function signature
@@ -645,8 +643,7 @@ class EnhancedLumaraApi {
               engagementMode = voiceEngagementModeOverride;
               print('LUMARA: Voice mode using engagement override: ${engagementMode.name}');
             } else {
-              final engagementSettings = await settingsService.getEngagementSettings();
-              engagementMode = engagementSettings.activeMode;
+              engagementMode = EngagementMode.reflect;
             }
             
             // Voice mode: Detect if user is asking about history/past to load more context
@@ -1341,7 +1338,7 @@ class EnhancedLumaraApi {
                 skipTransformation: true,
                 temperature: _temperatureForMode(engagementMode),
               );
-              if (llmResponse != null && llmResponse.isNotEmpty) {
+              if (llmResponse.isNotEmpty) {
                 print('LUMARA: Gemini (Deep Analytical) response received (length: ${llmResponse.length})');
               }
             } catch (e) {

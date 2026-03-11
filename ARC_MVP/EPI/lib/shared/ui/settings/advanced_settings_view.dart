@@ -29,10 +29,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
   int _maxMatches = 5;
   bool _memorySettingsLoading = true;
 
-  // Therapeutic settings (Response Behavior)
-  int _therapeuticDepthLevel = 2;
-  bool _therapeuticSettingsLoading = true;
-
   @override
   void initState() {
     super.initState();
@@ -43,7 +39,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     await Future.wait([
       _loadTranscriptionSettings(),
       _loadMemorySettings(),
-      _loadTherapeuticSettings(),
     ]);
   }
 
@@ -99,26 +94,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
     }
   }
 
-  Future<void> _loadTherapeuticSettings() async {
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.initialize();
-      final settings = await settingsService.loadAllSettings();
-      if (mounted) {
-        setState(() {
-          _therapeuticDepthLevel = settings['therapeuticDepthLevel'] as int? ?? 2;
-          _therapeuticSettingsLoading = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading therapeutic settings: $e');
-      if (mounted) {
-        setState(() {
-          _therapeuticSettingsLoading = false;
-        });
-      }
-    }
-  }
 
   // Memory settings handlers
   Future<void> _setLookbackYears(int years) async {
@@ -160,19 +135,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
       }
     } catch (e) {
       debugPrint('Error setting max matches: $e');
-    }
-  }
-
-  // Response Behavior handlers
-  Future<void> _setTherapeuticDepthLevel(int level) async {
-    try {
-      setState(() {
-        _therapeuticDepthLevel = level;
-      });
-      final settingsService = LumaraReflectionSettingsService.instance;
-      await settingsService.setTherapeuticDepthLevel(level);
-    } catch (e) {
-      debugPrint('Error setting therapeutic depth: $e');
     }
   }
 
@@ -255,17 +217,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
                         onChanged: (value) => _setMaxMatches(value.round()),
                         displayValue: '$_maxMatches',
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Response Behavior Section (formerly Legacy Settings)
-                  _buildSection(
-                    title: 'Response Behavior',
-                    children: [
-                      // Therapeutic Depth
-                      _buildTherapeuticDepthCard(),
                     ],
                   ),
 
@@ -380,88 +331,6 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
             activeColor: kcAccentColor,
             inactiveColor: Colors.grey.withOpacity(0.3),
             onChanged: loading ? null : onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTherapeuticDepthCard() {
-    final depthLabels = ['Light', 'Moderate', 'Deep'];
-    final depthDescriptions = [
-      'Supportive and encouraging',
-      'Reflective and insight-oriented',
-      'Exploratory and emotionally resonant',
-    ];
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.psychology,
-                color: kcAccentColor,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Therapeutic Depth',
-                      style: heading3Style(context).copyWith(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      depthDescriptions[_therapeuticDepthLevel - 1],
-                      style: bodyStyle(context).copyWith(
-                        color: kcSecondaryTextColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: kcAccentColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  depthLabels[_therapeuticDepthLevel - 1],
-                  style: bodyStyle(context).copyWith(
-                    color: kcAccentColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Slider(
-            value: _therapeuticDepthLevel.toDouble(),
-            min: 1,
-            max: 3,
-            divisions: 2,
-            activeColor: kcAccentColor,
-            inactiveColor: Colors.grey.withOpacity(0.3),
-            onChanged: _therapeuticSettingsLoading
-                ? null
-                : (value) => _setTherapeuticDepthLevel(value.round()),
           ),
         ],
       ),

@@ -1316,8 +1316,6 @@ class McpImportService {
       final lookbackYears = metadata['lookback_years'] as int?;
       final maxMatches = metadata['max_matches'] as int?;
       final crossModalEnabled = metadata['cross_modal_enabled'] as bool?;
-      final therapeuticPresenceEnabled = metadata['therapeutic_presence_enabled'] as bool?;
-      final therapeuticDepthLevel = metadata['therapeutic_depth_level'] as int?;
 
       // Import settings (only update if values are provided)
       await settingsService.saveAllSettings(
@@ -1325,8 +1323,6 @@ class McpImportService {
         lookbackYears: lookbackYears,
         maxMatches: maxMatches,
         crossModalEnabled: crossModalEnabled,
-        therapeuticPresenceEnabled: therapeuticPresenceEnabled,
-        therapeuticDepthLevel: therapeuticDepthLevel,
       );
 
       print('  ✅ Imported LUMARA settings: ${node.id}');

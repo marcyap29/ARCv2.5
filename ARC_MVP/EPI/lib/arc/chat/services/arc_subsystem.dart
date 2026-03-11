@@ -5,6 +5,7 @@ import 'package:my_app/lumara/models/command_intent.dart';
 import 'package:my_app/lumara/models/subsystem_result.dart';
 import 'package:my_app/lumara/models/intent_type.dart';
 import 'package:my_app/lumara/subsystems/subsystem.dart';
+import 'package:my_app/models/engagement_discipline.dart';
 import 'lumara_context_selector.dart';
 import 'lumara_reflection_settings_service.dart';
 
@@ -53,8 +54,7 @@ class ArcSubsystem implements Subsystem {
 
     try {
       final memoryFocus = await _settingsService.getMemoryFocusPreset();
-      final engagementSettings = await _settingsService.getEngagementSettings();
-      final engagementMode = engagementSettings.activeMode;
+      const engagementMode = EngagementMode.reflect;
       final now = DateTime.now();
 
       final entries = await _contextSelector.selectContextEntries(

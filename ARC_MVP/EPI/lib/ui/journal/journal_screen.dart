@@ -801,6 +801,56 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
+  /// Three-segment pill for reflection mode: Personal | Analytical | Deep Analytical.
+  Widget _buildReflectionModePill(ThemeData theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.5)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildReflectionModeSegment(theme, LumaraChatMode.personal, 'Personal'),
+          _buildReflectionModeSegment(theme, LumaraChatMode.analytical, 'Analytical'),
+          _buildReflectionModeSegment(theme, LumaraChatMode.deepAnalytical, 'Deep Analytical'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReflectionModeSegment(ThemeData theme, LumaraChatMode mode, String label) {
+    final isSelected = _reflectionLumaraMode == mode;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () async {
+          await LumaraReflectionSettingsService.instance.setLumaraChatMode(mode);
+          if (mounted) setState(() => _reflectionLumaraMode = mode);
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? theme.colorScheme.primary.withOpacity(0.15) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _generateLumaraReflectionWithIntent(String intent) async {
     // Store original text
     final originalText = _entryState.text.trim();
@@ -4502,15 +4552,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         final similarityThreshold = await settingsService.getSimilarityThreshold();
         final lookbackYears = await settingsService.getEffectiveLookbackYears();
         final maxMatches = await settingsService.getEffectiveMaxMatches();
-        final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
-        final therapeuticDepthLevel = therapeuticEnabled 
-            ? await settingsService.getTherapeuticDepthLevel() 
-            : null;
         final crossModalEnabled = await settingsService.isCrossModalEnabled();
-        
         print('LUMARA Journal: Searching for relevant entries with query: "$searchQuery"');
         print('LUMARA Journal: Settings - threshold: $similarityThreshold, lookback: $lookbackYears years, maxMatches: $maxMatches');
-        
         final memoryResult = await _memoryService!.retrieveMemories(
           query: searchQuery,
           domains: [MemoryDomain.personal, MemoryDomain.creative, MemoryDomain.learning],
@@ -4518,7 +4562,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
           similarityThreshold: similarityThreshold,
           lookbackYears: lookbackYears,
           maxMatches: maxMatches,
-          therapeuticDepthLevel: therapeuticDepthLevel,
+          therapeuticDepthLevel: null,
           crossModalEnabled: crossModalEnabled,
         );
         

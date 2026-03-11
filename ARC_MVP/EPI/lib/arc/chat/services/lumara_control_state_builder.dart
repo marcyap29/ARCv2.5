@@ -18,7 +18,6 @@ import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart
 // import 'package:my_app/services/health_data_service.dart';
 import 'package:my_app/services/lumara/entry_classifier.dart';
 import 'package:my_app/services/lumara/user_intent.dart';
-import 'package:my_app/services/lumara/persona_selector.dart';
 import 'package:my_app/prism/atlas/phase/phase_history_repository.dart';
 import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
 import 'package:my_app/chronicle/models/chronicle_index.dart';
@@ -259,87 +258,31 @@ class LumaraControlStateBuilder {
     state['prism'] = prism;
     
     // ============================================================
-    // E. THERAPY MODE (ECHO + SAGE)
+    // E. THERAPY MODE (fixed: off; sentinel can override to supportive)
     // ============================================================
-    final therapy = <String, dynamic>{};
-    
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
-
-      if (!therapeuticEnabled) {
-        therapy['therapyMode'] = 'off';
-      } else {
-        final automaticMode = await settingsService.isTherapeuticAutomaticMode();
-        if (automaticMode) {
-          therapy['therapyMode'] = 'supportive';
-        } else {
-          final depthLevel = await settingsService.getTherapeuticDepthLevel();
-          therapy['therapyMode'] = (depthLevel == 3) ? 'deep_therapeutic' : 'supportive';
-        }
-      }
-
-      if (sentinelAlert) {
-        therapy['therapyMode'] = 'supportive';
-      }
-    } catch (e) {
-      print('LUMARA Control State: Error getting therapy mode: $e');
-      therapy['therapyMode'] = 'off';
-    }
-    
+    final therapy = <String, dynamic>{
+      'therapyMode': sentinelAlert ? 'supportive' : 'off',
+    };
     state['therapy'] = therapy;
-    
+
     // ============================================================
-    // F. LUMARA PERSONA
+    // F. PERSONA (fixed: companion — LUMARA Persona setting removed)
     // ============================================================
-    final persona = <String, dynamic>{};
-    
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final selectedPersona = await settingsService.getLumaraPersona();
-      
-      String effectivePersona;
-      if (selectedPersona == LumaraPersona.auto) {
-        // Auto-detect persona based on question intent first, then context
-        // Pass userIntent if provided (from conversation mode/button)
-        effectivePersona = _autoDetectPersona(state, sentinelAlert, userMessage, userIntent);
-      } else {
-        effectivePersona = selectedPersona.name;
+    final persona = <String, dynamic>{
+      'selected': 'companion',
+      'effective': 'companion',
+      'isAuto': false,
+    };
+    if (userMessage != null && userMessage.trim().isNotEmpty) {
+      try {
+        final entryType = EntryClassifier.classify(userMessage);
+        state['entryClassification'] = entryType.toString().split('.').last;
+      } catch (e) {
+        state['entryClassification'] = 'reflective';
       }
-      
-      persona['selected'] = selectedPersona.name;
-      persona['effective'] = effectivePersona;
-      persona['isAuto'] = selectedPersona == LumaraPersona.auto;
-      
-      // Log final persona selection
-      final isCompanionFinal = effectivePersona == 'companion';
-      final finalIcon = isCompanionFinal ? '🟢' : '🔴';
-      print('$finalIcon LUMARA Control State: FINAL PERSONA = $effectivePersona (selected: ${selectedPersona.name}, isAuto: ${persona['isAuto']})');
-      if (isCompanionFinal) {
-        print('🟢 ✅ FINAL PERSONA IS COMPANION - System will use Companion mode!');
-      }
-      
-      // Add entry classification for structured format detection
-      if (userMessage != null && userMessage.trim().isNotEmpty) {
-        try {
-          final entryType = EntryClassifier.classify(userMessage);
-          state['entryClassification'] = entryType.toString().split('.').last;
-          print('🔵 LUMARA Control State: Entry classified as ${state['entryClassification']}');
-        } catch (e) {
-          print('🔴 LUMARA Control State: Error classifying entry: $e');
-          state['entryClassification'] = 'reflective'; // Safe default
-        }
-      } else {
-        state['entryClassification'] = 'reflective'; // Default for empty messages
-      }
-    } catch (e) {
-      print('LUMARA Control State: Error getting persona: $e');
-      persona['selected'] = 'auto';
-      persona['effective'] = 'companion';
-      persona['isAuto'] = true;
-      state['entryClassification'] = 'reflective'; // Default
+    } else {
+      state['entryClassification'] = 'reflective';
     }
-    
     state['persona'] = persona;
 
     // ============================================================
@@ -434,145 +377,66 @@ class LumaraControlStateBuilder {
         print('LUMARA Control State: Voice mode - reducing word limit from $maxWords to $effectiveMaxWords (0.6x multiplier)');
       }
       
-      // Override with Companion-first limits if persona is Companion
-      final effectivePersona = state['persona']?['effective'] as String? ?? 'companion';
-      if (effectivePersona == 'companion' && effectiveMaxWords > 250) {
-        // Force Companion limit of 250 words for personal reflections
-        responseMode['maxWords'] = 250;
-        print('LUMARA Control State: Overrode word limit to 250 for Companion persona (was $effectiveMaxWords)');
-      } else {
-        responseMode['maxWords'] = effectiveMaxWords;
-        print('LUMARA Control State: Word limit set to ${responseMode['maxWords']} words${isVoiceMode ? ' (voice mode)' : ''}');
-      }
+      responseMode['maxWords'] = effectiveMaxWords;
     } else {
-      // Default word limits based on entry classification and persona
       if (userMessage != null && userMessage.trim().isNotEmpty) {
         try {
           final entryType = EntryClassifier.classify(userMessage);
-          final effectivePersona = state['persona']?['effective'] as String? ?? 'companion';
-          
-          // Companion-first: Use 250 words for Companion persona
-          if (effectivePersona == 'companion') {
-            switch (entryType) {
-              case EntryType.factual:
-                responseMode['maxWords'] = 100;
-                break;
-              case EntryType.conversational:
-                responseMode['maxWords'] = 50;
-                break;
-              case EntryType.reflective:
-                responseMode['maxWords'] = 250; // Companion limit for personal reflections
-                break;
-              case EntryType.analytical:
-                responseMode['maxWords'] = 250; // Companion limit
-                break;
-              case EntryType.metaAnalysis:
-                responseMode['maxWords'] = 500; // Strategist for meta-analysis
-                break;
-            }
-          } else {
-            // Other personas use their own limits
-            switch (entryType) {
-              case EntryType.factual:
-                responseMode['maxWords'] = 100;
-                break;
-              case EntryType.conversational:
-                responseMode['maxWords'] = 50;
-                break;
-              case EntryType.reflective:
-                responseMode['maxWords'] = 300;
-                break;
-              case EntryType.analytical:
-                responseMode['maxWords'] = 300;
-                break;
-              case EntryType.metaAnalysis:
-                responseMode['maxWords'] = 500;
-                break;
-            }
+          switch (entryType) {
+            case EntryType.factual:
+              responseMode['maxWords'] = 100;
+              break;
+            case EntryType.conversational:
+              responseMode['maxWords'] = 50;
+              break;
+            case EntryType.reflective:
+            case EntryType.analytical:
+              responseMode['maxWords'] = 250;
+              break;
+            case EntryType.metaAnalysis:
+              responseMode['maxWords'] = 500;
+              break;
           }
           int defaultMaxWords = responseMode['maxWords'] as int;
-          // Apply voice mode multiplier if in voice mode
           if (isVoiceMode) {
             defaultMaxWords = (defaultMaxWords * 0.6).round();
             responseMode['maxWords'] = defaultMaxWords;
-            print('LUMARA Control State: Voice mode - reducing default word limit to $defaultMaxWords (0.6x multiplier)');
           }
-          print('LUMARA Control State: Auto-set word limit to ${responseMode['maxWords']} for ${entryType.toString().split('.').last} (persona: $effectivePersona)${isVoiceMode ? ' [VOICE MODE]' : ''}');
         } catch (e) {
-          print('LUMARA Control State: Error setting default word limit: $e');
           int defaultWords = 250;
-          if (isVoiceMode) {
-            defaultWords = (defaultWords * 0.6).round();
-          }
-          responseMode['maxWords'] = defaultWords; // Safe default
+          if (isVoiceMode) defaultWords = (defaultWords * 0.6).round();
+          responseMode['maxWords'] = defaultWords;
         }
       } else {
         int defaultWords = 250;
-        if (isVoiceMode) {
-          defaultWords = (defaultWords * 0.6).round();
-        }
-        responseMode['maxWords'] = defaultWords; // Default
+        if (isVoiceMode) defaultWords = (defaultWords * 0.6).round();
+        responseMode['maxWords'] = defaultWords;
       }
     }
     
     state['responseMode'] = responseMode;
 
     // ============================================================
-    // I. ENGAGEMENT DISCIPLINE (Response Boundaries)
+    // I. ENGAGEMENT (fixed: reflect — Engagement mode setting removed)
     // ============================================================
-    final engagement = <String, dynamic>{};
-
-    try {
-      final settingsService = LumaraReflectionSettingsService.instance;
-      final engagementSettings = await settingsService.getEngagementSettings();
-      final activeMode = engagementSettings.activeMode;
-      // Therapeutic language derived from Therapy Mode only (no separate toggle)
-      final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
-
-      // Build simplified engagement control state using derived properties
-      engagement.addAll({
-        'mode': activeMode.toString().split('.').last, // 'reflect', 'explore', 'integrate'
-        'maxQuestionsPerResponse': engagementSettings.maxQuestionsPerResponse,
-        'allowCrossDomainSynthesis': engagementSettings.allowCrossDomainSynthesis,
-        'max_temporal_connections': engagementSettings.responseDiscipline
-            .getEffectiveMaxTemporalConnections(activeMode),
-        'max_explorative_questions': engagementSettings.maxQuestionsPerResponse,
-        'synthesis_allowed': {
-          'faith_work': engagementSettings.allowCrossDomainSynthesis,
-          'relationship_work': engagementSettings.allowCrossDomainSynthesis,
-          'health_emotional': engagementSettings.allowCrossDomainSynthesis,
-          'creative_intellectual': engagementSettings.allowCrossDomainSynthesis,
-        },
-        'allow_therapeutic_language': therapeuticEnabled,
-        'allow_prescriptive_guidance': therapeuticEnabled,
-        'response_length': engagementSettings.responseDiscipline.preferredLength.toString(),
-        'synthesis_depth': engagementSettings.synthesisPreferences.synthesisDepth.toString(),
-        'protected_domains': engagementSettings.synthesisPreferences.protectedDomains,
-      });
-
-    } catch (e) {
-      print('LUMARA Control State: Error building engagement context: $e');
-      // Provide fallback engagement settings (REFLECT mode defaults)
-      engagement.addAll({
-        'mode': 'reflect',
-        'maxQuestionsPerResponse': 0,
-        'allowCrossDomainSynthesis': false,
-        'synthesis_allowed': {
-          'faith_work': false,
-          'relationship_work': false,
-          'health_emotional': false,
-          'creative_intellectual': false,
-        },
-        'max_temporal_connections': 1,
-        'max_explorative_questions': 0,
-        'allow_therapeutic_language': false,
-        'allow_prescriptive_guidance': false,
-        'response_length': 'moderate',
-        'synthesis_depth': 'moderate',
-        'protected_domains': <String>[],
-      });
-    }
-
+    final engagement = <String, dynamic>{
+      'mode': 'reflect',
+      'maxQuestionsPerResponse': 0,
+      'allowCrossDomainSynthesis': false,
+      'max_temporal_connections': 1,
+      'max_explorative_questions': 0,
+      'synthesis_allowed': {
+        'faith_work': false,
+        'relationship_work': false,
+        'health_emotional': false,
+        'creative_intellectual': false,
+      },
+      'allow_therapeutic_language': false,
+      'allow_prescriptive_guidance': false,
+      'response_length': 'moderate',
+      'synthesis_depth': 'moderate',
+      'protected_domains': <String>[],
+    };
     state['engagement'] = engagement;
 
     // ============================================================
@@ -622,24 +486,11 @@ class LumaraControlStateBuilder {
       memory['lookbackYears'] = await settingsService.getEffectiveLookbackYears();
       memory['maxMatches'] = await settingsService.getEffectiveMaxMatches();
       memory['crossModalEnabled'] = await settingsService.isCrossModalEnabled();
-      
-      // Therapeutic depth (affects memory retrieval scope)
-      final therapeuticEnabled = await settingsService.isTherapeuticPresenceEnabled();
-      if (therapeuticEnabled) {
-        memory['therapeuticDepth'] = await settingsService.getTherapeuticDepthLevel();
-        memory['therapeuticAutoAdapt'] = await settingsService.isTherapeuticAutomaticMode();
-      } else {
-        memory['therapeuticDepth'] = null;
-        memory['therapeuticAutoAdapt'] = false;
-      }
-      
-      // Include media in context (default: true, can be controlled by user preference)
-      // For now, default to true - can be enhanced with user setting
+      memory['therapeuticDepth'] = null; // Therapeutic Depth setting removed
+      memory['therapeuticAutoAdapt'] = false;
       memory['includeMedia'] = true;
-      
     } catch (e) {
       print('LUMARA Control State: Error getting memory parameters: $e');
-      // Fallback defaults
       memory['similarityThreshold'] = 0.55;
       memory['lookbackYears'] = 5;
       memory['maxMatches'] = 5;
@@ -895,250 +746,6 @@ class LumaraControlStateBuilder {
     if (cognitiveLoad == 'low') challenge += 0.1;
 
     return challenge.clamp(0.0, 1.0);
-  }
-  
-  /// Auto-detect the best persona using Companion-First logic
-  /// Uses the new PersonaSelector with entry classification and user intent
-  static String _autoDetectPersona(Map<String, dynamic> state, bool sentinelAlert, [String? questionText, UserIntent? providedUserIntent]) {
-    // Extract state values
-    final atlas = state['atlas'] as Map<String, dynamic>? ?? {};
-    final phase = atlas['phase'] as String? ?? 'Discovery';
-    final readinessScore = (atlas['readinessScore'] as num?)?.toInt() ?? 50;
-    
-    // If no user message, default to Companion
-    if (questionText == null || questionText.trim().isEmpty) {
-      print('🔵 LUMARA Control State: No user message → Companion (default)');
-      return 'companion';
-    }
-    
-    // STEP 1: Classify entry type using new EntryClassifier
-    final entryType = EntryClassifier.classify(questionText);
-    final entryTypeDesc = EntryClassifier.getTypeDescription(entryType);
-    print('🔵 LUMARA Control State: Entry classified as: $entryTypeDesc (${entryType.toString().split('.').last})');
-    
-    // STEP 2: Detect user intent
-    // Use provided intent (from conversation mode/button) or default to reflect
-    final userIntent = providedUserIntent ?? UserIntent.reflect;
-    if (providedUserIntent != null) {
-      print('🔵 LUMARA Control State: Using provided UserIntent: ${userIntent.toString().split('.').last}');
-    } else {
-      print('🔵 LUMARA Control State: No UserIntent provided, defaulting to reflect');
-    }
-    
-    // STEP 3: Calculate emotional intensity
-    final emotionalIntensity = PersonaSelector.calculateEmotionalIntensity(questionText);
-    print('🔵 LUMARA Control State: Emotional intensity: $emotionalIntensity');
-    
-    // STEP 4: Use new Companion-First PersonaSelector
-    final selectedPersona = PersonaSelector.selectPersona(
-      entryType: entryType,
-      userIntent: userIntent,
-      phase: phase,
-      readinessScore: readinessScore,
-      sentinelAlert: sentinelAlert,
-      emotionalIntensity: emotionalIntensity,
-    );
-    
-    // Enhanced logging with clear indicators
-    final isCompanion = selectedPersona == 'companion';
-    final personaIcon = isCompanion ? '🟢' : '🔴';
-    print('$personaIcon LUMARA Control State: PersonaSelector selected: $selectedPersona');
-    if (isCompanion) {
-      print('🟢 ✅ COMPANION MODE SELECTED - This is correct for personal reflections!');
-    } else {
-      print('🔴 ⚠️  Non-Companion selected: $selectedPersona (entryType: ${entryType.toString().split('.').last}, emotionalIntensity: $emotionalIntensity, readinessScore: $readinessScore)');
-    }
-    
-    // Log selection reason
-    String reason;
-    if (sentinelAlert) {
-      reason = 'Sentinel alert override';
-    } else if (emotionalIntensity > 0.5 || readinessScore < 25) {
-      reason = 'High distress override';
-    } else if (entryType == EntryType.metaAnalysis) {
-      reason = 'Meta-analysis entry type';
-    } else if (entryType == EntryType.reflective) {
-      if (emotionalIntensity > 0.4 && emotionalIntensity <= 0.5) {
-        reason = 'Moderate-high emotional intensity';
-      } else {
-        reason = 'Companion-first default for reflective entries';
-      }
-    } else {
-      reason = 'Companion-first default for ${entryType.toString().split('.').last} entries';
-    }
-    print('🔵 LUMARA Control State: Selection reason: $reason');
-    
-    return selectedPersona;
-  }
-  
-  /// Detect persona from question text using pattern matching
-  static String? _detectPersonaFromQuestion(String question) {
-    if (question.isEmpty) return null;
-
-    final lower = question.toLowerCase();
-
-    // PRIORITY 1: Simple factual questions → return null for simple, direct answer
-    // These should NOT trigger deep reflection - just answer the question
-    final factualQuestionPatterns = [
-      'does this make sense', 'does that make sense', 'make sense?',
-      'is this correct', 'is that correct', 'is this right', 'is that right',
-      'am i right about', 'am i correct about', 'am i understanding',
-      'is it true that', 'is it accurate that',
-      'did i understand', 'do i have this right',
-      'correct?', 'right?', // Statement followed by verification
-    ];
-
-    // Check for factual verification questions
-    if (factualQuestionPatterns.any((pattern) => lower.contains(pattern))) {
-      // Check if it's actually asking for deep analysis disguised as factual
-      final deepAnalysisIndicators = [
-        'what does this mean for', 'what does this say about',
-        'what should i do', 'how should i', 'what am i missing',
-        'pattern', 'trend', 'theme',
-      ];
-
-      // If no deep analysis indicators, treat as simple factual question
-      if (!deepAnalysisIndicators.any((indicator) => lower.contains(indicator))) {
-        print('LUMARA Control State: Detected simple factual question - returning null for direct answer');
-        return null; // null = no special persona, just answer the question simply
-      }
-    }
-
-    // Explicit advice/opinion requests → prioritize strategist or challenger
-    final explicitAdvicePatterns = [
-      'tell me your thoughts', 'what do you think', 'what are your thoughts',
-      'give me the hard truth', 'be honest', 'tell me straight',
-      'what\'s your opinion', 'what\'s your take', 'what\'s your view',
-      'am i missing anything', 'what am i missing', 'what\'s missing',
-      'give me recommendations', 'what would you recommend', 'what do you recommend',
-      'review this', 'analyze this', 'critique this',
-      'is this reasonable', 'does this sound right', 'what\'s wrong with this',
-      'give me advice', 'what should i do', 'help me decide',
-    ];
-    
-    // Check for explicit advice requests first (high priority)
-    if (explicitAdvicePatterns.any((pattern) => lower.contains(pattern))) {
-      // If asking for "hard truth" or direct feedback → challenger
-      if (lower.contains('hard truth') || lower.contains('be honest') || 
-          lower.contains('tell me straight') || lower.contains('direct') ||
-          lower.contains('what\'s wrong') || lower.contains('critique')) {
-        return 'challenger';
-      }
-      // Otherwise → strategist for analytical/process-oriented advice
-      return 'strategist';
-    }
-    
-    // Strategic/Analytical questions → strategist
-    final strategistPatterns = [
-      'how should', 'what strategy', 'analyze', 'plan',
-      'optimize', 'approach', 'method', 'tactic', 'strategy',
-      'what steps', 'how to', 'best way', 'recommend',
-    ];
-    if (strategistPatterns.any((pattern) => lower.contains(pattern))) {
-      return 'strategist';
-    }
-    
-    // Challenging questions → challenger
-    final challengerPatterns = [
-      'challenge', 'what am i avoiding', 'honest',
-      'push me', 'what am i missing', 'blind spot',
-      'what am i not seeing', 'hard truth', 'direct',
-      'what am i wrong', 'call me out',
-      'hold me accountable', 'keep me accountable',
-      'i need accountability', 'i need to be pushed',
-      'i\'m making excuses', 'i\'m procrastinating',
-      'call me on', 'be honest with me', 'don\'t let me',
-    ];
-    if (challengerPatterns.any((pattern) => lower.contains(pattern))) {
-      return 'challenger';
-    }
-    
-    // Support requests - need to distinguish emotional vs practical
-    final supportPatterns = [
-      'i need support', 'i need help', 'support me',
-      'i\'m struggling', 'i\'m having trouble', 'i can\'t',
-      'feeling overwhelmed', 'feeling lost', 'feeling stuck',
-      'don\'t know what to do', 'need guidance', 'need someone',
-    ];
-    
-    // Emotional support patterns → therapist or companion
-    final emotionalSupportPatterns = [
-      'feel', 'emotion', 'feeling', 'hurt', 'pain', 'sad',
-      'anxious', 'worried', 'scared', 'afraid', 'lonely',
-      'depressed', 'overwhelmed', 'exhausted', 'tired',
-      'can\'t cope', 'can\'t handle', 'too much',
-    ];
-    
-      // Practical support patterns → strategist or companion
-      final practicalSupportPatterns = [
-        'how do i', 'what should i do', 'what steps',
-        'need to', 'have to', 'must', 'should i',
-        'decision', 'choose', 'pick', 'option',
-        'figure out', 'solve', 'fix', 'handle',
-        'get started', 'begin', 'start',
-      ];
-      
-      // Accountability/growth-pushing support → challenger
-      final challengerSupportPatterns = [
-        'push me', 'hold me accountable', 'keep me accountable',
-        'challenge me', 'call me out', 'be direct',
-        'tell me what i\'m avoiding', 'what am i avoiding',
-        'i need to be pushed', 'i need accountability',
-        'i\'m making excuses', 'i\'m procrastinating',
-        'call me on', 'be honest with me', 'don\'t let me',
-      ];
-      
-      // Check for support requests
-      if (supportPatterns.any((pattern) => lower.contains(pattern))) {
-        // If accountability/growth-pushing language → challenger
-        if (challengerSupportPatterns.any((pattern) => lower.contains(pattern))) {
-          return 'challenger';
-        }
-        // If emotional language present → therapist or companion
-        if (emotionalSupportPatterns.any((pattern) => lower.contains(pattern))) {
-          // High distress → therapist, moderate → companion
-          if (lower.contains('can\'t cope') || lower.contains('too much') || 
-              lower.contains('overwhelmed') || lower.contains('exhausted')) {
-            return 'therapist';
-          }
-          return 'companion';
-        }
-        // If practical language present → strategist or companion
-        if (practicalSupportPatterns.any((pattern) => lower.contains(pattern))) {
-          // Clear action needed → strategist, general guidance → companion
-          if (lower.contains('what steps') || lower.contains('how do i') ||
-              lower.contains('figure out') || lower.contains('solve')) {
-            return 'strategist';
-          }
-          return 'companion';
-        }
-        // General support request → companion (balanced, adaptive)
-        return 'companion';
-      }
-    
-    // Therapeutic questions → therapist
-    final therapistPatterns = [
-      'why do i', 'help me understand', 'process',
-      'feel', 'emotion', 'support', 'why am i',
-      'what does this mean', 'help me', 'struggling',
-      'difficult', 'hard time', 'coping',
-    ];
-    if (therapistPatterns.any((pattern) => lower.contains(pattern))) {
-      return 'therapist';
-    }
-    
-    // Reflective/Exploratory questions → companion (default for questions)
-    final companionPatterns = [
-      'what do you think', 'your thoughts', 'explore',
-      'reflect', 'consider', 'perspective', 'opinion',
-      'what are your', 'tell me', 'share',
-    ];
-    if (companionPatterns.any((pattern) => lower.contains(pattern))) {
-      return 'companion';
-    }
-    
-    // No clear intent detected
-    return null;
   }
   
   /// Detect response mode from user message

@@ -1,7 +1,25 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.67
+**Version:** 3.3.68
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.68] - March 10, 2026
+
+### Doc-config-git-backup run; Persona selector removal; LUMARA/settings/MCP/journal refinements
+
+**Action:** Second Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main → test.
+
+**Removed:**
+- **Persona selector:** persona_selector_widget.dart, lib/services/lumara/persona_selector.dart deleted; LUMARA persona selection consolidated/simplified in settings.
+
+**Updated (sync with repo):**
+- **LUMARA & services:** arc_subsystem.dart, enhanced_lumara_api.dart, lumara_control_state_builder.dart, lumara_reflection_settings_service.dart, lumara_settings_screen.dart.
+- **MCP:** mcp_export_service.dart, mcp_import_service.dart.
+- **Settings & UI:** advanced_settings_view.dart, settings_view.dart, journal_screen.dart, inline_reflection_block.dart.
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

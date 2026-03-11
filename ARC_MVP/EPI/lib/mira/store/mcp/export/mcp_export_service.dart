@@ -1475,8 +1475,6 @@ class McpExportService {
           'lookback_years': settings['lookbackYears'],
           'max_matches': settings['maxMatches'],
           'cross_modal_enabled': settings['crossModalEnabled'],
-          'therapeutic_presence_enabled': settings['therapeuticPresenceEnabled'],
-          'therapeutic_depth_level': settings['therapeuticDepthLevel'],
           'exported_at': DateTime.now().toIso8601String(),
         },
       );
