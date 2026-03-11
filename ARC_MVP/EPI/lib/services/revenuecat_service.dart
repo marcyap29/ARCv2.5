@@ -2,14 +2,20 @@
 // Stripe = web; IAP = in-app. See DOCS/PAYMENTS_CLARIFICATION.md and DOCS/revenuecat/REVENUECAT_INTEGRATION.md.
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 /// Entitlement identifier used in RevenueCat dashboard and for ARC Pro access.
 const String kRevenueCatEntitlementArcPro = 'ARC Pro';
 
-/// Test iOS API key. Replace with live key in production (e.g. via flavor/env).
+/// Test/sandbox iOS API key (RevenueCat → Project → API Keys → Public iOS Sandbox).
+/// Replace with your own after setup. See DOCS/revenuecat/REVENUECAT_SETUP.md.
 const String kRevenueCatIosApiKeyTest = 'test_bvEOhrZwfzRusfKcJYIFzYghpCK';
+
+/// Live iOS API key for production (RevenueCat → API Keys → Public iOS).
+/// Replace with your production key for release builds. See DOCS/revenuecat/REVENUECAT_SETUP.md.
+const String kRevenueCatIosApiKeyLive = 'test_bvEOhrZwfzRusfKcJYIFzYghpCK'; // TODO: replace with appl_... for production
 
 class RevenueCatService {
   RevenueCatService._();
@@ -24,8 +30,9 @@ class RevenueCatService {
     if (kIsWeb) return;
 
     if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final apiKey = kReleaseMode ? kRevenueCatIosApiKeyLive : kRevenueCatIosApiKeyTest;
       await Purchases.configure(
-        PurchasesConfiguration(kRevenueCatIosApiKeyTest)..appUserID = appUserId,
+        PurchasesConfiguration(apiKey)..appUserID = appUserId,
       );
       _configured = true;
       debugPrint('RevenueCat: Configured (iOS)');
@@ -102,7 +109,44 @@ class RevenueCatService {
     }
   }
 
+  /// Returns true if the exception is RevenueCat "Error 23" / configuration error
+  /// (products in RevenueCat dashboard could not be fetched from App Store Connect).
+  static bool isConfigurationError(dynamic e) {
+    if (e == null) return false;
+    final str = e.toString().toLowerCase();
+    if (str.contains('error 23') ||
+        str.contains('error 22') ||
+        str.contains('configuration') && str.contains('issue')) {
+      return true;
+    }
+    if (e is PlatformException) {
+      final code = e.code.toString();
+      if (code == '22' || code == '23') return true;
+    }
+    return false;
+  }
+
+  /// Check if offerings/products are available (no Error 23). Call before presenting paywall to show a friendly message instead of RevenueCat's generic dialog.
+  Future<bool> areOfferingsAvailable() async {
+    if (!_configured) return false;
+    try {
+      final offerings = await Purchases.getOfferings();
+      final current = offerings.current;
+      if (current == null) return false;
+      final packages = current.availablePackages;
+      return packages.isNotEmpty;
+    } on PlatformException catch (e) {
+      final code = e.code.toString();
+      if (code == '22' || code == '23') return false;
+      rethrow;
+    } catch (e) {
+      debugPrint('RevenueCat: areOfferingsAvailable $e');
+      return false;
+    }
+  }
+
   /// Present RevenueCat paywall (design in RevenueCat dashboard).
+  /// May throw; use [isConfigurationError] on catch to show a friendly message.
   Future<void> presentPaywall() async {
     if (!_configured) return;
     await RevenueCatUI.presentPaywall();

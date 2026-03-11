@@ -313,6 +313,20 @@ Future<void> restorePurchases() async {
 
 ## 11. Error handling and best practices
 
+### Error 23 (configuration)
+
+If you see **“Error 23: There is an issue with your configuration…”**, it means **none of the products registered in the RevenueCat dashboard could be fetched from App Store Connect** (or the StoreKit configuration file). Common causes:
+
+- Product identifiers in RevenueCat do not exactly match App Store Connect.
+- Products in App Store Connect are not in a valid/approved state.
+- Apple **Agreements, Tax, and Banking** not completed.
+- Using a **test** API key that has no offerings/products for this app.
+- App Store Connect app or bundle ID not correctly linked in RevenueCat.
+
+**Troubleshooting:** [Why are offerings empty?](https://rev.cat/why-are-offerings-empty)
+
+The app uses `RevenueCatService.areOfferingsAvailable()` before presenting the paywall and `RevenueCatService.isConfigurationError(e)` in catch blocks to show a friendly “In-App Purchases Unavailable” dialog and avoid falling back to Stripe on iOS for this case.
+
 - **Use `PurchasesErrorException`** from `purchases_flutter` to detect purchase/user errors and avoid exposing internal messages.
 - **Never log or send raw API keys**; use public SDK keys only; keep secret keys server-side if you add webhooks/backend.
 - **User identity:** Call `Purchases.logIn(firebaseUid)` after sign-in and `Purchases.logOut()` on sign-out so RevenueCat aligns with your auth.

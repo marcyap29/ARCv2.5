@@ -1,7 +1,27 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.69
+**Version:** 3.3.70
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.70] - March 10, 2026
+
+### Doc-config-git-backup run; RevenueCat/subscription docs and settings
+
+**Action:** Fourth Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main → test.
+
+**New:**
+- **IN_APP_PURCHASES_SETUP.md:** In-app purchases setup guide.
+- **revenuecat/REVENUECAT_SETUP.md:** RevenueCat setup documentation.
+- **revenuecat/REVENUECAT_SETUP_CHECKLIST.md:** RevenueCat setup checklist.
+
+**Updated (sync with repo):**
+- **Docs:** revenuecat/README.md, revenuecat/REVENUECAT_INTEGRATION.md.
+- **Services:** revenuecat_service.dart, subscription_service.dart.
+- **Settings & subscription UI:** settings_view.dart, simplified_settings_view.dart, lumara_subscription_status.dart, subscription_management_view.dart.
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

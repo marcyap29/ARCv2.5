@@ -26,14 +26,11 @@ class _PricingSelectorState extends State<PricingSelector> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionTitle('Free - Limited Access'),
+        _buildSectionTitle('Free access'),
         const SizedBox(height: 8),
-        _buildBulletRow(Icons.chat_bubble_outline, '4 LUMARA requests per conversation'),
-        _buildBulletRow(Icons.speed, '3 requests per minute'),
-        _buildBulletRow(Icons.chat_bubble_outline, '10 chat messages per day'),
-        _buildBulletRow(Icons.history, 'Limited phase history access'),
-        const SizedBox(height: 8),
-        _buildParagraph('Good for exploring. Not enough to build narrative intelligence.'),
+        _buildParagraph(
+          '20 total api calls per day across all modes - Chat, Reflection, Agent access. The number of calls resets daily.',
+        ),
         const SizedBox(height: 24),
 
         _buildSectionTitle('Premium'),
@@ -483,12 +480,6 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
               _subscriptionDetails?['usageStats']?['lumaraRequests']?.toString() ?? 'N/A',
               Icons.chat_bubble_outline,
             ),
-            const SizedBox(height: 8),
-            _buildUsageRow(
-              'Phase History Access',
-              _subscriptionDetails?['usageStats']?['phaseHistoryDays']?.toString() ?? 'N/A',
-              Icons.history,
-            ),
           ],
         ),
       ),
@@ -910,22 +901,37 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
       // Guideline 3.1.1: On iOS, subscriptions must be purchased via In-App Purchase (RevenueCat/StoreKit), not external payment.
       final useIap = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS);
       bool success = false;
+      bool skipStripeFallback = false; // When true, do not fall back to Stripe (e.g. RevenueCat config error on iOS).
 
       if (useIap) {
-        debugPrint('SubscriptionManagement: 🍎 iOS - Presenting In-App Purchase paywall (RevenueCat)...');
-        try {
-          await RevenueCatService.instance.presentPaywall();
-          SubscriptionService.instance.clearCache();
-          success = true;
+        // Pre-check: if offerings aren't available (Error 23 / config), show friendly dialog and don't fall back to Stripe.
+        final offeringsOk = await RevenueCatService.instance.areOfferingsAvailable();
+        if (!offeringsOk) {
+          debugPrint('SubscriptionManagement: RevenueCat offerings not available (config/product mismatch)');
           if (mounted) {
-            _loadSubscriptionDetails();
+            await _showRevenueCatConfigurationDialog(context);
+            skipStripeFallback = true;
           }
-        } catch (e) {
-          debugPrint('SubscriptionManagement: RevenueCat paywall error: $e');
+        } else {
+          debugPrint('SubscriptionManagement: 🍎 iOS - Presenting In-App Purchase paywall (RevenueCat)...');
+          try {
+            await RevenueCatService.instance.presentPaywall();
+            SubscriptionService.instance.clearCache();
+            success = true;
+            if (mounted) _loadSubscriptionDetails();
+          } catch (e) {
+            debugPrint('SubscriptionManagement: RevenueCat paywall error: $e');
+            if (RevenueCatService.isConfigurationError(e)) {
+              if (mounted) {
+                await _showRevenueCatConfigurationDialog(context);
+                skipStripeFallback = true;
+              }
+            }
+          }
         }
       }
 
-      if (!useIap || !success) {
+      if (!useIap || (!success && !skipStripeFallback)) {
         debugPrint('SubscriptionManagement: 🚀 Creating Stripe checkout session...');
         success = await SubscriptionService.instance.createStripeCheckoutSession(
           interval: interval,
@@ -964,6 +970,29 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         });
       }
     }
+  }
+
+  /// Shows a friendly dialog when RevenueCat returns Error 23 (products not fetchable from App Store Connect).
+  static Future<void> _showRevenueCatConfigurationDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('In-App Purchases Unavailable'),
+        content: const Text(
+          'Subscription products could not be loaded. This usually means:\n\n'
+          '• The app’s in-app products are still being set up in App Store Connect\n'
+          '• Product IDs in the RevenueCat dashboard don’t match App Store Connect\n'
+          '• Your Apple agreements or banking details need to be completed\n\n'
+          'Please try again later or contact support if the issue continues.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _openCustomerPortal() async {

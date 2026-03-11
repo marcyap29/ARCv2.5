@@ -23,7 +23,6 @@ import 'package:my_app/shared/ui/settings/memory_snapshot_management_view.dart';
 import 'package:my_app/shared/ui/settings/conflict_management_view.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/advanced_settings_view.dart';
-import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
@@ -560,18 +559,6 @@ class _SimplifiedSettingsViewState extends State<SimplifiedSettingsView> {
               context,
               title: 'Privacy & Security',
               children: [
-                _buildSettingsTile(
-                  context,
-                  title: 'Throttle',
-                  subtitle: 'Manage rate limiting settings',
-                  icon: Icons.speed,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ThrottleSettingsView()),
-                    );
-                  },
-                ),
                 _buildSettingsTile(
                   context,
                   title: 'Privacy Protection',

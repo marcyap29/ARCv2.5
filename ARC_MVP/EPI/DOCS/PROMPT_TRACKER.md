@@ -1,6 +1,6 @@
 # Prompt Tracker
 
-**Version:** 1.19.0  
+**Version:** 1.20.0  
 **Last Updated:** March 10, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-03-10 | Doc sync v3.3.70: Fourth doc-config-git-backup run; RevenueCat/subscription docs; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.70 |
 | 2026-03-10 | Doc sync v3.3.69: Third doc-config-git-backup run; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.69 |
 | 2026-03-10 | Doc sync v3.3.68: Second doc-config-git-backup run; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.68 |
 | 2026-03-10 | Doc sync v3.3.67: Documentation & Git Backup run; prompt audit — OpenAI provider and openai_adapter removed from codebase; no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.67 |

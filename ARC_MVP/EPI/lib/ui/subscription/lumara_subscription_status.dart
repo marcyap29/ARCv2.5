@@ -155,7 +155,6 @@ class _LumaraSubscriptionStatusState extends State<LumaraSubscriptionStatus> {
               ),
               const SizedBox(height: 8),
               _buildLimitationRow(Icons.chat_bubble_outline, '20 total API calls (Voice, Chat, Reflection, Agent)'),
-              _buildLimitationRow(Icons.history, 'Limited phase history access'),
             ] else ...[
               const SizedBox(height: 12),
               const Divider(),
@@ -171,7 +170,6 @@ class _LumaraSubscriptionStatusState extends State<LumaraSubscriptionStatus> {
               const SizedBox(height: 8),
               _buildBenefitRow(Icons.all_inclusive, 'Unlimited LUMARA requests'),
               _buildBenefitRow(Icons.flash_on, 'No rate limiting'),
-              _buildBenefitRow(Icons.history, 'Full phase history access'),
               _buildBenefitRow(Icons.priority_high, 'Priority support'),
             ],
           ],
@@ -218,6 +216,28 @@ class _LumaraSubscriptionStatusState extends State<LumaraSubscriptionStatus> {
     );
   }
 
+  static Future<void> _showRevenueCatConfigurationDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('In-App Purchases Unavailable'),
+        content: const Text(
+          'Subscription products could not be loaded. This usually means:\n\n'
+          '• The app\'s in-app products are still being set up in App Store Connect\n'
+          '• Product IDs in the RevenueCat dashboard don\'t match App Store Connect\n'
+          '• Your Apple agreements or banking details need to be completed\n\n'
+          'Please try again later or contact support if the issue continues.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showUpgradeDialog() {
     showDialog(
       context: context,
@@ -227,7 +247,7 @@ class _LumaraSubscriptionStatusState extends State<LumaraSubscriptionStatus> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Get unlimited LUMARA requests, full phase history access, and priority support.',
+              'Get unlimited LUMARA requests and priority support.',
             ),
             const SizedBox(height: 16),
             Row(
@@ -285,17 +305,31 @@ class _LumaraSubscriptionStatusState extends State<LumaraSubscriptionStatus> {
     try {
       final useIap = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS);
       bool success = false;
+      bool skipStripeFallback = false;
       if (useIap) {
-        try {
-          await RevenueCatService.instance.presentPaywall();
-          SubscriptionService.instance.clearCache();
-          if (mounted) _loadSubscriptionStatus();
-          success = true;
-        } catch (e) {
-          debugPrint('LumaraSubscriptionStatus: RevenueCat paywall: $e');
+        final offeringsOk = await RevenueCatService.instance.areOfferingsAvailable();
+        if (!offeringsOk) {
+          debugPrint('LumaraSubscriptionStatus: RevenueCat offerings not available');
+          if (mounted) {
+            await _showRevenueCatConfigurationDialog(context);
+            skipStripeFallback = true;
+          }
+        } else {
+          try {
+            await RevenueCatService.instance.presentPaywall();
+            SubscriptionService.instance.clearCache();
+            if (mounted) _loadSubscriptionStatus();
+            success = true;
+          } catch (e) {
+            debugPrint('LumaraSubscriptionStatus: RevenueCat paywall: $e');
+            if (RevenueCatService.isConfigurationError(e) && mounted) {
+              await _showRevenueCatConfigurationDialog(context);
+              skipStripeFallback = true;
+            }
+          }
         }
       }
-      if (!useIap || !success) {
+      if (!useIap || (!success && !skipStripeFallback)) {
         success = await SubscriptionService.instance.createStripeCheckoutSession(
           interval: interval,
         );

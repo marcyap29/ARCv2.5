@@ -1,6 +1,6 @@
 # RevenueCat (In-App Purchases) Documentation
 
-**Last Updated:** February 7, 2026
+**Last Updated:** March 10, 2026
 
 ---
 
@@ -12,7 +12,9 @@ RevenueCat powers **in-app purchases** for ARC on iOS (and optionally Android). 
 
 ## Documentation Index
 
-1. **[REVENUECAT_INTEGRATION.md](REVENUECAT_INTEGRATION.md)** – Full integration guide
+1. **[REVENUECAT_SETUP.md](REVENUECAT_SETUP.md)** – **Start here:** full step-by-step setup (RevenueCat project, App Store Connect products, entitlement, offering, paywall, API keys, testing).
+2. **[REVENUECAT_SETUP_CHECKLIST.md](REVENUECAT_SETUP_CHECKLIST.md)** – Short checklist version.
+3. **[REVENUECAT_INTEGRATION.md](REVENUECAT_INTEGRATION.md)** – Full integration guide
    - Flutter SDK installation (`purchases_flutter` + `purchases_ui_flutter`)
    - Configuration with API key and entitlement **ARC Pro**
    - Products: Monthly, Yearly, Lifetime

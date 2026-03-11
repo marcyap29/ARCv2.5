@@ -9,7 +9,6 @@ import 'package:my_app/shared/ui/settings/conflict_management_view.dart';
 import 'package:my_app/shared/ui/settings/favorites_management_view.dart';
 import 'package:my_app/shared/ui/settings/advanced_settings_view.dart';
 import 'package:my_app/shared/ui/settings/voiceover_preference_service.dart';
-import 'package:my_app/shared/ui/settings/throttle_settings_view.dart';
 // Health & Readiness UI disabled - no health/readiness tabs
 // import 'package:my_app/shared/ui/settings/health_readiness_view.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
@@ -425,7 +424,7 @@ class SubscriptionAccountFolderView extends StatelessWidget {
             const SizedBox(height: 8),
             _SettingsTile(
               title: 'Subscription Management',
-              subtitle: 'Manage your subscription tier and billing',
+              subtitle: 'Manage your subscription tier and billing. On iPhone, subscriptions are purchased through the App Store.',
               icon: Icons.workspace_premium,
               onTap: () {
                 Navigator.push(
@@ -2216,17 +2215,6 @@ class PrivacySecurityFolderView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SettingsTile(
-              title: 'Throttle',
-              subtitle: 'Manage rate limiting settings',
-              icon: Icons.speed,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ThrottleSettingsView()),
-                );
-              },
-            ),
             _SettingsTile(
               title: 'Privacy Protection',
               subtitle: 'Configure PII detection and masking settings',

@@ -1,4 +1,5 @@
 // Subscription service for managing user subscription tiers and access control
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -69,7 +70,7 @@ class SubscriptionFeatures {
     lumaraThrottled: true,
     phaseHistoryRestricted: true,
     dailyLumaraLimit: 20, // Total API calls (Voice, Chat, Reflection, Agent) across everything
-    displayText: 'Free - Limited Access',
+    displayText: 'Free access',
   );
 
   static const premium = SubscriptionFeatures(
@@ -395,19 +396,32 @@ class SubscriptionService {
         if (error is Exception) {
           if (kDebugMode) debugPrint('SubscriptionService: Error message: ${error.toString()}');
         }
-        
-        // Handle Firebase-specific errors
+
+        // FirebaseFunctionsException: code is e.g. 'failed-precondition' when Stripe is not configured
+        if (error is FirebaseFunctionsException) {
+          final code = error.code;
+          final message = error.message ?? '';
+          if (kDebugMode) debugPrint('SubscriptionService: Functions code=$code message=$message');
+          if (code == 'failed-precondition' || message.toLowerCase().contains('configuration')) {
+            throw Exception('Subscription service is not properly configured. Please contact support.');
+          }
+        }
+
+        // Handle Firebase/backend errors by message (e.g. "Error 23: There is an issue with your configuration...")
         final errorStr = error.toString().toLowerCase();
         if (errorStr.contains('unauthenticated') || errorStr.contains('auth')) {
           throw Exception('Please sign in to subscribe. Your session may have expired.');
         } else if (errorStr.contains('internal')) {
           throw Exception('Server error occurred. Please check your Stripe configuration or try again later.');
-        } else if (errorStr.contains('failed-precondition') || errorStr.contains('configuration')) {
+        } else if (errorStr.contains('failed-precondition') ||
+            errorStr.contains('configuration') ||
+            errorStr.contains('error 23') ||
+            errorStr.contains('issue with your configuration')) {
           throw Exception('Subscription service is not properly configured. Please contact support.');
         } else if (errorStr.contains('timeout')) {
           throw Exception('Request timed out. Please check your connection and try again.');
         }
-        
+
         // Re-throw with original error message
         throw Exception('Failed to create checkout session: ${error.toString()}');
       }
