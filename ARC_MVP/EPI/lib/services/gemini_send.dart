@@ -90,7 +90,47 @@ Future<String> _geminiDirectGenerateContent({
   }
 }
 
-/// Unified LUMARA send: PRISM scrub, optional transformation, proxyGroq, PII restore.
+/// Internal: call Gemini only (proxy or direct) with already-scrubbed system/user. Returns raw response; throws on failure.
+Future<String> _lumaraCallGeminiRaw({
+  required String system,
+  required String user,
+  String? chatId,
+  double temperature = 0.7,
+}) async {
+  final requestData = <String, dynamic>{
+    'system': system,
+    'user': user,
+    if (chatId != null) 'chatId': chatId,
+    'temperature': temperature,
+  };
+
+  final firebaseReady = await FirebaseService.instance.ensureReady();
+  final signedIn = FirebaseAuthService.instance.isSignedIn;
+
+  if (firebaseReady && signedIn) {
+    final functions = FirebaseService.instance.getFunctions();
+    final callable = functions.httpsCallable('proxyGemini');
+    final result = await callable.call(requestData);
+    final data = (result.data as Map<Object?, Object?>).cast<String, dynamic>();
+    final rawResult = _extractTextFromProxyResult(data);
+    if (rawResult == null || rawResult.isEmpty) throw Exception('Gemini returned empty');
+    return rawResult;
+  }
+
+  await LumaraAPIConfig.instance.initialize();
+  final geminiKey = LumaraAPIConfig.instance.getApiKey(LLMProvider.gemini);
+  if (geminiKey != null && geminiKey.trim().isNotEmpty) {
+    return await _geminiDirectGenerateContent(
+      apiKey: geminiKey,
+      system: system,
+      user: user,
+    );
+  }
+
+  throw Exception('Gemini unavailable: sign in for cloud AI or add a Gemini API key in Settings.');
+}
+
+/// Unified LUMARA send: PRISM scrub, optional transformation, then Gemini (primary, 2 tries) → Groq (backup), PII restore.
 /// Use this for all chat/reflection flows that may contain user PII.
 Future<String> lumaraSend({
   required String system,
@@ -103,7 +143,7 @@ Future<String> lumaraSend({
   double temperature = 0.7,
   int? maxTokens,
 }) async {
-  if (kDebugMode) print('LUMARA Send: PRISM scrub → groqSend → PII restore');
+  if (kDebugMode) print('LUMARA Send: PRISM scrub → Gemini (primary, 2 tries) → Groq (backup) → PII restore');
 
   // Bible questions: preserve names, skip transformation
   final isBibleQuestion = user.contains('[BIBLE_CONTEXT]') || user.contains('[BIBLE_VERSE_CONTEXT]');
@@ -167,22 +207,82 @@ Future<String> lumaraSend({
     }
   }
 
-  // Step 3: Call proxyGroq
-  final rawResponse = await groqSend(
-    user: transformedUserText,
-    system: transformedSystem.isNotEmpty ? transformedSystem : null,
-    temperature: temperature,
-    maxTokens: maxTokens,
-    entryId: entryId,
-    chatId: chatId,
-  );
+  // Step 3: Order of tries from manual provider (Settings → LUMARA → Primary API for experiment user)
+  await LumaraAPIConfig.instance.initialize();
+  final manual = LumaraAPIConfig.instance.getManualProvider();
+  final tryGroqFirst = manual == LLMProvider.groq;
 
-  // Step 4: Restore PII in response
-  final restored = PiiScrubber.restore(rawResponse, combinedReversibleMap);
-  if (restored != rawResponse && kDebugMode) {
-    print('PRISM: Restored PII in response (${combinedReversibleMap.length} items)');
+  const maxTries = 2;
+  Object? lastError;
+
+  Future<String?> tryGemini2x() async {
+    for (var attempt = 1; attempt <= maxTries; attempt++) {
+      try {
+        final raw = await _lumaraCallGeminiRaw(
+          system: transformedSystem,
+          user: transformedUserText,
+          chatId: chatId,
+          temperature: temperature,
+        );
+        if (raw.isNotEmpty) {
+          if (kDebugMode) print('LUMARA Send: Gemini succeeded (attempt $attempt)');
+          return raw;
+        }
+      } catch (e) {
+        lastError = e;
+        if (kDebugMode) print('LUMARA Send: Gemini attempt $attempt failed: $e');
+      }
+    }
+    return null;
   }
-  return restored;
+
+  Future<String?> tryGroq2x() async {
+    for (var attempt = 1; attempt <= maxTries; attempt++) {
+      try {
+        final raw = await groqSend(
+          user: transformedUserText,
+          system: transformedSystem.isNotEmpty ? transformedSystem : null,
+          temperature: temperature,
+          maxTokens: maxTokens,
+          entryId: entryId,
+          chatId: chatId,
+        );
+        if (raw.isNotEmpty) {
+          if (kDebugMode) print('LUMARA Send: Groq succeeded (attempt $attempt)');
+          return raw;
+        }
+      } catch (e) {
+        lastError = e;
+        if (kDebugMode) print('LUMARA Send: Groq attempt $attempt failed: $e');
+      }
+    }
+    return null;
+  }
+
+  String? rawResponse;
+  if (tryGroqFirst) {
+    rawResponse = await tryGroq2x();
+    rawResponse ??= await tryGemini2x();
+  } else {
+    rawResponse = await tryGemini2x();
+    rawResponse ??= await tryGroq2x();
+  }
+
+  if (rawResponse != null && rawResponse.isNotEmpty) {
+    final restored = PiiScrubber.restore(rawResponse, combinedReversibleMap);
+    if (restored != rawResponse && kDebugMode) {
+      print('PRISM: Restored PII in response (${combinedReversibleMap.length} items)');
+    }
+    return restored;
+  }
+
+  throw lastError is Exception
+      ? lastError as Exception
+      : Exception(
+          lastError != null
+              ? 'LUMARA: All API attempts failed. Last error: $lastError'
+              : 'LUMARA: All API attempts failed (empty responses).',
+        );
 }
 
 /// LUMARA send via Gemini (Mode 3 — Deep Analytical). Same PRISM scrub/restore as [lumaraSend], but routes to Gemini instead of Groq.

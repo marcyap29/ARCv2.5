@@ -1347,23 +1347,15 @@ Continue naturally.''';
     // Prepend mode tag to every user message
     final userWithModeTag = '${lumaraModeTag(currentMode)}\n\n$text';
 
-    // Route to Groq (Modes 1 & 2) or Gemini (Mode 3); no silent fallback
+    // Single path: lumaraSend tries Gemini (2 tries) then Groq for all modes
     String responseText;
 
     try {
-      if (currentMode == LumaraChatMode.deepAnalytical) {
-        responseText = await lumaraSendWithGemini(
-          system: effectiveSystemPrompt,
-          user: userWithModeTag,
-          chatId: currentChatSessionId,
-        );
-      } else {
-        responseText = await lumaraSend(
-          system: effectiveSystemPrompt,
-          user: userWithModeTag,
-          chatId: currentChatSessionId,
-        );
-      }
+      responseText = await lumaraSend(
+        system: effectiveSystemPrompt,
+        user: userWithModeTag,
+        chatId: currentChatSessionId,
+      );
 
       // Update the UI with the full response
         final currentMessages = state is LumaraAssistantLoaded

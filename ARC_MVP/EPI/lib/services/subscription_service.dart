@@ -68,7 +68,7 @@ class SubscriptionFeatures {
   static const free = SubscriptionFeatures(
     lumaraThrottled: true,
     phaseHistoryRestricted: true,
-    dailyLumaraLimit: 50,
+    dailyLumaraLimit: 20, // Total API calls (Voice, Chat, Reflection, Agent) across everything
     displayText: 'Free - Limited Access',
   );
 
@@ -130,6 +130,16 @@ class SubscriptionService {
         if (kDebugMode) debugPrint('SubscriptionService: ⚠️ User is anonymous, cannot access premium features');
         if (kDebugMode) debugPrint('SubscriptionService: 💡 Sign in with Google for premium subscription access');
         return SubscriptionTier.free;
+      }
+
+      // Premium account with no limits for designated email
+      const premiumEmail = 'marcyap@orbitalai.net';
+      final userEmail = authService.currentUser?.email?.trim().toLowerCase();
+      if (userEmail == premiumEmail) {
+        if (kDebugMode) debugPrint('SubscriptionService: ✅ Premium (no limits): $premiumEmail');
+        _cachedTier = SubscriptionTier.premium;
+        _cacheExpiry = DateTime.now().add(_cacheTimeout);
+        return SubscriptionTier.premium;
       }
 
       if (kDebugMode) debugPrint('SubscriptionService: ✅ Real user authenticated, fetching subscription from Firebase...');

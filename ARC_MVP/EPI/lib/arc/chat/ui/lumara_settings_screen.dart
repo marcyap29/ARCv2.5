@@ -13,7 +13,11 @@ import '../bloc/lumara_assistant_cubit.dart';
 import '../data/context_scope.dart';
 import '../services/lumara_reflection_settings_service.dart';
 import 'package:my_app/services/subscription_service.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/voice/config/wispr_config_service.dart';
+
+/// Email that gets premium (no limits) and Primary API (Groq/Google) toggle in Settings → LUMARA.
+const String _lumaraExperimentEmail = 'marcyap@orbitalai.net';
 
 /// LUMARA settings screen for API key management and provider selection
 class LumaraSettingsScreen extends StatefulWidget {
@@ -60,6 +64,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   
   // Subscription status
   SubscriptionTier _subscriptionTier = SubscriptionTier.free;
+
+  // Primary API toggle (only for _lumaraExperimentEmail): Groq vs Google
+  bool _showPrimaryApiToggle = false;
+  LLMProvider _primaryApiSelection = LLMProvider.gemini;
 
   // Agent Operating System (user context for Writing/Research agents)
   final TextEditingController _agentOsUserContextController = TextEditingController();
@@ -265,7 +273,14 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
   Future<void> _loadCurrentSettings() async {
     await _apiConfig.initialize();
-    
+
+    final email = FirebaseAuthService.instance.currentUser?.email?.trim().toLowerCase();
+    final showToggle = email == _lumaraExperimentEmail;
+    final manual = _apiConfig.getManualProvider();
+    final primaryApi = (manual == LLMProvider.groq || manual == LLMProvider.gemini)
+        ? manual!
+        : LLMProvider.gemini;
+
     // Load existing API keys
     for (final provider in LLMProvider.values) {
       final apiKey = _apiConfig.getApiKey(provider);
@@ -276,10 +291,14 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     final wisprKey = prefs.getString(_wisprApiKeyPrefKey) ?? '';
     _wisprApiKeyController.text = wisprKey;
-    
-    setState(() {
-      _wisprApiKeyConfigured = wisprKey.isNotEmpty;
-    });
+
+    if (mounted) {
+      setState(() {
+        _wisprApiKeyConfigured = wisprKey.isNotEmpty;
+        _showPrimaryApiToggle = showToggle;
+        _primaryApiSelection = primaryApi;
+      });
+    }
   }
 
   Future<void> _loadReflectionSettings() async {
@@ -328,6 +347,11 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Primary API: Groq vs Google (only for experiment email)
+            if (_showPrimaryApiToggle) ...[
+              _buildPrimaryApiCard(theme),
+              const SizedBox(height: 24),
+            ],
             // Context Scope Section
             _buildContextScopeCard(theme),
             const SizedBox(height: 24),
@@ -531,6 +555,61 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Primary API selector (Groq vs Google) — only shown for experiment email.
+  Widget _buildPrimaryApiCard(ThemeData theme) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.api, color: theme.colorScheme.primary, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  'Primary API',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Choose which API to use first (fallback to the other if needed).',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildPrimaryApiChip(theme, LLMProvider.groq, 'Groq'),
+                const SizedBox(width: 8),
+                _buildPrimaryApiChip(theme, LLMProvider.gemini, 'Google'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrimaryApiChip(ThemeData theme, LLMProvider provider, String label) {
+    final isSelected = _primaryApiSelection == provider;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) async {
+        if (!selected) return;
+        await _apiConfig.setManualProvider(provider);
+        if (mounted) setState(() => _primaryApiSelection = provider);
+      },
     );
   }
 

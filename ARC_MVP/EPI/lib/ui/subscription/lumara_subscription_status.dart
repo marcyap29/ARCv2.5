@@ -154,9 +154,7 @@ class _LumaraSubscriptionStatusState extends State<LumaraSubscriptionStatus> {
                 ),
               ),
               const SizedBox(height: 8),
-              _buildLimitationRow(Icons.chat_bubble_outline, '4 LUMARA requests per conversation'),
-              _buildLimitationRow(Icons.speed, '3 requests per minute'),
-              _buildLimitationRow(Icons.chat_bubble_outline, '10 chat messages per day'),
+              _buildLimitationRow(Icons.chat_bubble_outline, '20 total API calls (Voice, Chat, Reflection, Agent)'),
               _buildLimitationRow(Icons.history, 'Limited phase history access'),
             ] else ...[
               const SizedBox(height: 12),

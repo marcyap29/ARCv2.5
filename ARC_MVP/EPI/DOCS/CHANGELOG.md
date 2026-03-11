@@ -1,7 +1,22 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.68
+**Version:** 3.3.69
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.69] - March 10, 2026
+
+### Doc-config-git-backup run; LUMARA assistant/API/settings; gemini_send; subscription
+
+**Action:** Third Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main → test.
+
+**Updated (sync with repo):**
+- **LUMARA:** lumara_assistant_cubit.dart, enhanced_lumara_api.dart, lumara_settings_screen.dart.
+- **Services:** gemini_send.dart, subscription_service.dart.
+- **UI:** lumara_subscription_status.dart.
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

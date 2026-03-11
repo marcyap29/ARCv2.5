@@ -1327,137 +1327,26 @@ class EnhancedLumaraApi {
 
           onProgress?.call('Calling cloud API...');
 
-          // Primary: proxyGroq (GPT-OSS 120B) when signed in. Fallback: direct Groq API key. Deep Analytical → Gemini.
-          String? llmResponse;
-          Object? lastError;
-          if (mode == LumaraChatMode.deepAnalytical) {
-            try {
-              llmResponse = await lumaraSendWithGemini(
-                system: lumaraModeDefinitionBlock,
-                user: userPromptForApi,
-                skipTransformation: true,
-                temperature: _temperatureForMode(engagementMode),
-              );
-              if (llmResponse.isNotEmpty) {
-                print('LUMARA: Gemini (Deep Analytical) response received (length: ${llmResponse.length})');
-              }
-            } catch (e) {
-              print('LUMARA: Gemini reflection failed: $e');
-              rethrow;
-            }
-          }
-          if (llmResponse == null) {
-            int retryCount = 0;
-            const maxRetries = 2;
-            final firebaseReady = await FirebaseService.instance.ensureReady();
-            final signedIn = FirebaseAuthService.instance.isSignedIn;
-            final useProxy = firebaseReady && signedIn;
-            final useDirectGroq = !useProxy && _groq != null;
-            final temperature = _temperatureForMode(engagementMode);
-            print('LUMARA: Using ${useProxy ? "proxyGroq (GPT-OSS 120B)" : useDirectGroq ? "direct Groq (API key)" : "unavailable"} for reflection');
-
-          while (retryCount <= maxRetries && llmResponse == null) {
-            lastError = null;
-            try {
-              // 1. When signed in: proxyGroq (GPT-OSS 120B primary)
-              if (useProxy) {
-                try {
-                  llmResponse = await lumaraSend(
-                    system: systemPrompt,
-                    user: userPromptForApi,
-                    temperature: temperature,
-                    maxTokens: 4096,
-                    entryId: entryId,
-                    skipTransformation: true,
-                  );
-                  if (llmResponse.isNotEmpty) {
-                    print('LUMARA: proxyGroq response received (length: ${llmResponse.length})');
-                    break;
-                  }
-                  llmResponse = null;
-                } catch (groqErr) {
-                  lastError = groqErr;
-                  print('LUMARA: proxyGroq failed: $groqErr');
-                }
-              }
-              // 2. When not signed in: direct Groq via API key
-              if (llmResponse == null && useDirectGroq) {
-                try {
-                  if (onStreamChunk != null) {
-                    final buffer = StringBuffer();
-                    await for (final chunk in _groq!.generateContentStream(
-                      prompt: userPromptForApi,
-                      systemPrompt: systemPrompt,
-                      model: GroqModel.gptOss120b,
-                      temperature: temperature,
-                    )) {
-                      buffer.write(chunk);
-                      onStreamChunk(chunk);
-                    }
-                    llmResponse = buffer.toString();
-                  } else {
-                    llmResponse = await _groq!.generateContent(
-                      prompt: userPromptForApi,
-                      systemPrompt: systemPrompt,
-                      model: GroqModel.gptOss120b,
-                      temperature: temperature,
-                    );
-                  }
-                  if (llmResponse.isNotEmpty) {
-                    print('LUMARA: direct Groq response received (length: ${llmResponse.length})');
-                    break;
-                  }
-                  llmResponse = null;
-                } catch (groqErr) {
-                  lastError = groqErr;
-                  print('LUMARA: direct Groq failed: $groqErr');
-                }
-              }
-              // Both failed — retry or give up
-              if (llmResponse == null) {
-                retryCount++;
-                if (retryCount > maxRetries) {
-                  break;
-                }
-                onProgress?.call('Retrying API... ($retryCount/$maxRetries)');
-                await Future.delayed(const Duration(seconds: 2));
-              } else {
-                onProgress?.call('Processing response...');
-                break;
-              }
-            } catch (e) {
-              lastError = e;
-              retryCount++;
-              if (retryCount > maxRetries) {
-                print('LUMARA: Cloud API error after $maxRetries retries: $e');
-                rethrow;
-              }
-              if (!e.toString().contains('503') &&
-                  !e.toString().contains('overloaded') &&
-                  !e.toString().contains('UNAVAILABLE')) {
-                print('LUMARA: Cloud API error (non-retryable): $e');
-                rethrow;
-              }
-              onProgress?.call('Retrying API... ($retryCount/$maxRetries)');
-              await Future.delayed(const Duration(seconds: 2));
-            }
-          }
-          }
-
-          if (llmResponse == null) {
-            final errMsg = lastError != null
-                ? 'Cloud API failed: $lastError'
-                : 'Failed to generate response from cloud API (Groq). Sign in for proxy access, or add a Groq API key in Settings.';
-            throw Exception(errMsg);
-          }
+          // Gemini primary (2 tries), then Groq backup — via lumaraSend for all modes
+          final effectiveSystemPrompt = mode == LumaraChatMode.deepAnalytical
+              ? lumaraModeDefinitionBlock
+              : systemPrompt;
+          String llmResponse = await lumaraSend(
+            system: effectiveSystemPrompt,
+            user: userPromptForApi,
+            temperature: _temperatureForMode(engagementMode),
+            maxTokens: 4096,
+            entryId: entryId,
+            skipTransformation: true,
+          );
 
           // Restore PII in response when CHRONICLE context was scrubbed before send
           if (chronicleReversibleMap.isNotEmpty) {
             llmResponse = chroniclePrism.restore(llmResponse, chronicleReversibleMap);
           }
-          
+
           onProgress?.call('Finalizing insights...');
-          print('LUMARA Enhanced API v2.3: ✓ Groq API call completed');
+          print('LUMARA Enhanced API v2.3: ✓ API call completed (Gemini primary, Groq backup)');
           print('LUMARA Enhanced API v2.3: Response length: ${llmResponse.length}');
           
           // Score the response using the scoring heuristic
