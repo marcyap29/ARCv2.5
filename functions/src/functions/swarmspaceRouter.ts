@@ -303,13 +303,12 @@ export const swarmspaceRouter = onCall(
       });
     }
 
-    // Step 5: Forward the request to the Cloudflare worker.
-    // We stamp it with three headers the worker requires:
-    //   - Authorization        → proves this came from our router (not from the internet)
-    //   - X-SwarmSpace-User-Id → so the worker knows whose quota to check
-    //   - X-SwarmSpace-User-Tier → so the worker knows what limits to apply
+    // Step 5: Forward the request to the worker.
+    // Cloudflare workers expect POST to <base>/invoke; our own HTTP functions (vision-ocr, news)
+    // are deployed at the base URL only, so we must not append /invoke for them.
     const internalToken = SWARMSPACE_INTERNAL_TOKEN.value();
-    const workerUrl = `${plugin.workerUrl}/invoke`;
+    const isOurCloudFunction = plugin.workerUrl.includes("cloudfunctions.net");
+    const workerUrl = isOurCloudFunction ? plugin.workerUrl : `${plugin.workerUrl}/invoke`;
 
     let workerResponse: Response;
     try {

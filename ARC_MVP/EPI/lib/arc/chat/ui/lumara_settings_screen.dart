@@ -13,6 +13,10 @@ import '../prompts/lumara_mode_definition.dart';
 import 'package:my_app/services/subscription_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/voice/config/wispr_config_service.dart';
+import 'package:my_app/lumara/profile/user_profile_service.dart';
+import 'package:my_app/lumara/profile/lumara_preferences_model.dart';
+import 'package:my_app/lumara/profile/lumara_preferences_screen.dart';
+import 'package:my_app/lumara/profile/profile_fields_screen.dart';
 
 /// Email that gets premium (no limits) and Primary API (Groq/Google) toggle in Settings → LUMARA.
 const String _lumaraExperimentEmail = 'marcyap@orbitalai.net';
@@ -75,6 +79,13 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   final TextEditingController _agentOsCommunicationController = TextEditingController();
   final TextEditingController _agentOsMemoryController = TextEditingController();
   bool _agentOsLoading = true;
+
+  // Phase 6: LUMARA Preferences and My Profile
+  LumaraPreferences _lumaraPrefs = const LumaraPreferences();
+  final TextEditingController _lumaraPrefNameController = TextEditingController();
+  final Map<String, TextEditingController> _profileControllers = {};
+  bool _lumaraPrefsLoading = true;
+  bool _profileLoading = true;
   
   /// Clamp progress to 0-1 range, return null for invalid values (indeterminate progress)
   double? clamp01(num? x) {
@@ -90,10 +101,13 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   void initState() {
     super.initState();
     _initializeControllers();
+    _initProfileControllers();
     _loadSubscriptionTier();
     _loadCurrentSettings();
     _loadReflectionSettings();
     _loadAgentOsSettings();
+    _loadLumaraPrefs();
+    _loadProfile();
     _downloadStateService.addListener(_onDownloadStateChanged);
     // Refresh model states to handle model ID changes
     _downloadStateService.refreshAllStates();
@@ -116,11 +130,28 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     }
   }
 
+  void _initProfileControllers() {
+    for (final key in _profileKeys) {
+      _profileControllers[key] = TextEditingController();
+    }
+  }
+
+  static const List<String> _profileKeys = [
+    'full_name', 'preferred_name', 'email', 'phone',
+    'address_street', 'address_city', 'address_state', 'address_postcode', 'address_country',
+    'date_of_birth', 'employer', 'job_title',
+    'emergency_contact_name', 'emergency_contact_phone', 'health_insurance_number',
+  ];
+
   @override
   void dispose() {
     for (final controller in _apiKeyControllers.values) {
       controller.dispose();
     }
+    for (final controller in _profileControllers.values) {
+      controller.dispose();
+    }
+    _lumaraPrefNameController.dispose();
     _wisprApiKeyController.dispose();
     _agentOsUserContextController.dispose();
     _agentOsCommunicationController.dispose();
@@ -140,6 +171,52 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       _agentOsCommunicationController.text = communication;
       _agentOsMemoryController.text = memory;
       setState(() => _agentOsLoading = false);
+    }
+  }
+
+  Future<void> _loadLumaraPrefs() async {
+    final prefs = await LumaraPreferencesStore.instance.load();
+    if (mounted) {
+      _lumaraPrefNameController.text = prefs.preferredName;
+      setState(() {
+        _lumaraPrefs = prefs;
+        _lumaraPrefsLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadProfile() async {
+    final profile = await UserProfileService.instance.getProfile();
+    if (mounted) {
+      for (final key in _profileKeys) {
+        _profileControllers[key]?.text = profile[key] ?? '';
+      }
+      setState(() => _profileLoading = false);
+    }
+  }
+
+  Future<void> _saveLumaraPrefs() async {
+    final toSave = _lumaraPrefs.copyWith(preferredName: _lumaraPrefNameController.text.trim());
+    await LumaraPreferencesStore.instance.save(toSave);
+    setState(() => _lumaraPrefs = toSave);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('LUMARA preferences saved')),
+      );
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    final fields = <String, String>{};
+    for (final key in _profileKeys) {
+      final v = _profileControllers[key]?.text.trim();
+      if (v != null && v.isNotEmpty) fields[key] = v;
+    }
+    await UserProfileService.instance.saveProfile(fields);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile saved')),
+      );
     }
   }
 
@@ -356,6 +433,15 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Phase 6: Card with links to full-screen forms (same as onboarding)
+            _buildSetupFormsCard(theme),
+            const SizedBox(height: 24),
+            // Section 1: LUMARA Preferences (editable)
+            _buildLumaraPreferencesSection(theme),
+            const SizedBox(height: 24),
+            // Section 2: My Profile (editable + delete)
+            _buildMyProfileSection(theme),
+            const SizedBox(height: 24),
             // Primary API: Groq vs Google (only for experiment email)
             if (_showPrimaryApiToggle) ...[
               _buildPrimaryApiCard(theme),
@@ -401,6 +487,303 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   static const List<LLMProvider> _externalProvidersOrder = [
     LLMProvider.groq,
   ];
+
+  Widget _buildSetupFormsCard(ThemeData theme) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.tune, color: theme.colorScheme.primary, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  'Complete setup',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Open the same forms from onboarding to fill in or update your preferences and profile.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('LUMARA Preferences'),
+              subtitle: const Text('How LUMARA works with you'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (context) => LumaraPreferencesScreen(
+                      standaloneMode: true,
+                      onSaveAndComplete: () => Navigator.pop(context),
+                      onSkip: () => Navigator.pop(context),
+                    ),
+                  ),
+                ).then((_) {
+                  _loadLumaraPrefs();
+                });
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.badge_outlined),
+              title: const Text('My Profile'),
+              subtitle: const Text('Form pre-fill data (device only)'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (context) => ProfileFieldsScreen(
+                      standaloneMode: true,
+                      onSaveAndComplete: () => Navigator.pop(context),
+                      onSkip: () => Navigator.pop(context),
+                    ),
+                  ),
+                ).then((_) {
+                  _loadProfile();
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLumaraPreferencesSection(ThemeData theme) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.settings, color: theme.colorScheme.primary, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  'LUMARA Preferences',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            if (_lumaraPrefsLoading) ...[
+              const SizedBox(height: 16),
+              const Center(child: CircularProgressIndicator()),
+            ] else ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _lumaraPrefNameController,
+                onChanged: (v) => setState(() => _lumaraPrefs = _lumaraPrefs.copyWith(preferredName: v)),
+                decoration: const InputDecoration(
+                  labelText: 'What should LUMARA call you?',
+                  hintText: 'Your name or nickname',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('Communication style', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Short & punchy'),
+                    selected: _lumaraPrefs.communicationStyle == 'short',
+                    onSelected: (_) => setState(() => _lumaraPrefs = _lumaraPrefs.copyWith(communicationStyle: 'short')),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Balanced'),
+                    selected: _lumaraPrefs.communicationStyle == 'balanced',
+                    onSelected: (_) => setState(() => _lumaraPrefs = _lumaraPrefs.copyWith(communicationStyle: 'balanced')),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Long & detailed'),
+                    selected: _lumaraPrefs.communicationStyle == 'long',
+                    onSelected: (_) => setState(() => _lumaraPrefs = _lumaraPrefs.copyWith(communicationStyle: 'long')),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text('Challenge style', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Call me out directly'),
+                    selected: _lumaraPrefs.challengeStyle == 'direct',
+                    onSelected: (_) => setState(() => _lumaraPrefs = _lumaraPrefs.copyWith(challengeStyle: 'direct')),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Gentle nudges'),
+                    selected: _lumaraPrefs.challengeStyle == 'gentle',
+                    onSelected: (_) => setState(() => _lumaraPrefs = _lumaraPrefs.copyWith(challengeStyle: 'gentle')),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Just support me'),
+                    selected: _lumaraPrefs.challengeStyle == 'support',
+                    onSelected: (_) => setState(() => _lumaraPrefs = _lumaraPrefs.copyWith(challengeStyle: 'support')),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text('Tone', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Casual'),
+                    selected: _lumaraPrefs.tone == 'casual',
+                    onSelected: (_) => setState(() => _lumaraPrefs = _lumaraPrefs.copyWith(tone: 'casual')),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Professional'),
+                    selected: _lumaraPrefs.tone == 'professional',
+                    onSelected: (_) => setState(() => _lumaraPrefs = _lumaraPrefs.copyWith(tone: 'professional')),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _saveLumaraPrefs,
+                  icon: const Icon(Icons.save, size: 18),
+                  label: const Text('Save'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMyProfileSection(ThemeData theme) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.person, color: theme.colorScheme.primary, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  'My Profile',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Your profile is stored only on this device.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (_profileLoading) ...[
+              const SizedBox(height: 16),
+              const Center(child: CircularProgressIndicator()),
+            ] else ...[
+              const SizedBox(height: 16),
+              ..._profileKeys.map((key) {
+                final parts = key.split('_');
+                final label = parts.map((s) => s.isNotEmpty ? '${s[0].toUpperCase()}${s.substring(1)}' : s).join(' ');
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: TextField(
+                    controller: _profileControllers[key],
+                    decoration: InputDecoration(
+                      labelText: label,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _saveProfile,
+                  icon: const Icon(Icons.save, size: 18),
+                  label: const Text('Save changes'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete all profile data?'),
+                        content: const Text(
+                          'This will permanently delete your stored profile data. This cannot be undone.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok == true) {
+                      await UserProfileService.instance.deleteProfile();
+                      for (final c in _profileControllers.values) {
+                        c.clear();
+                      }
+                      if (mounted) {
+                        setState(() {});
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Profile data deleted')),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Delete all profile data'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                    side: BorderSide(color: theme.colorScheme.error),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildAgentOperatingSystemCard(ThemeData theme) {
     return Card(

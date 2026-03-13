@@ -7,6 +7,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:my_app/arc/outputs/output_tagging.dart';
 import 'package:my_app/lumara/agents/vision/parsed_document.dart';
+import 'package:my_app/lumara/profile/user_profile_service.dart';
+import 'package:my_app/lumara/profile/profile_fields_screen.dart';
+import 'package:my_app/lumara/agents/forms/form_matcher.dart';
+import 'package:my_app/lumara/agents/forms/form_review_screen.dart';
 import 'package:my_app/services/swarmspace/prism_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 
@@ -97,6 +101,90 @@ class _ScanActionSheetContent extends StatelessWidget {
   void _stubComingSoon(BuildContext context, String label) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$label — Coming soon')),
+    );
+  }
+
+  Future<void> _prefillForm(BuildContext context) async {
+    final hasProfile = await UserProfileService.instance.hasProfile();
+    if (!hasProfile) {
+      Navigator.pop(context);
+      if (!context.mounted) return;
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Set up your profile first to use form pre-fill',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (c) => ProfileFieldsScreen(
+                          standaloneMode: true,
+                          onSaveAndComplete: () => Navigator.pop(c),
+                          onSkip: () => Navigator.pop(c),
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('Set up profile'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Dismiss'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    final profile = await UserProfileService.instance.getProfile();
+    final matches = FormMatcher.match(document, profile);
+    final fieldsUsed = matches
+        .where((m) => m.profileKey != null)
+        .map((m) => m.profileKey!)
+        .toSet()
+        .toList();
+    final sensitiveFields = fieldsUsed
+        .where((k) => UserProfileService.instance.isSensitive(k))
+        .toList();
+    Navigator.pop(context);
+    if (!context.mounted) return;
+    if (fieldsUsed.isNotEmpty) {
+      final allowed = await PrismService.requestFormPrefillConsent(
+        context,
+        fieldsUsed: fieldsUsed,
+        sensitiveFields: sensitiveFields,
+      );
+      if (!allowed || !context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Form pre-fill cancelled')),
+        );
+        return;
+      }
+    }
+    if (!context.mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => FormReviewScreen(
+          document: document,
+          matches: matches,
+        ),
+      ),
     );
   }
 
@@ -194,7 +282,7 @@ class _ScanActionSheetContent extends StatelessWidget {
           _ActionTile(
             icon: Icons.edit_note,
             label: 'Pre-fill this form',
-            onTap: () => _stubComingSoon(context, 'Pre-fill this form'),
+            onTap: () => _prefillForm(context),
           ),
         if (documentType == 'medical')
           _ActionTile(

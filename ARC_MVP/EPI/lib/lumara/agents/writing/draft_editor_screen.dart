@@ -80,12 +80,12 @@ class _DraftEditorScreenState extends State<DraftEditorScreen> {
       final folderKey = draft.folderKey;
       final item = OutputItem(
         id: '',
-        agentKey: 'writer',
+        agentKey: 'writing',
         folderKey: folderKey,
         title: draft.topic,
         createdAt: DateTime.now(),
         contentJson: jsonEncode(draft.toJson()),
-        autoTags: pathTags('writer', folderKey),
+        autoTags: pathTags('writing', folderKey),
         userTags: [],
       );
       final saved = await OutputsRepository.instance.save(item);
@@ -190,19 +190,24 @@ class _DraftEditorScreenState extends State<DraftEditorScreen> {
             ),
           ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _bodyController,
-                maxLines: null,
-                expands: true,
-                textAlignVertical: TextAlignVertical.top,
-                decoration: const InputDecoration(
-                  hintText: 'Edit your draft...',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
+            child: GestureDetector(
+              onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  controller: _bodyController,
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  decoration: const InputDecoration(
+                    hintText: 'Edit your draft...',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
-                onChanged: (_) => setState(() {}),
               ),
             ),
           ),
@@ -227,8 +232,9 @@ class _DraftEditorScreenState extends State<DraftEditorScreen> {
           const Gap(8),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   OutlinedButton.icon(
                     onPressed: _regenerating || widget.onRegenerate == null
@@ -249,24 +255,40 @@ class _DraftEditorScreenState extends State<DraftEditorScreen> {
                           },
                     icon: _regenerating
                         ? const SizedBox(
-                            width: 16,
-                            height: 16,
+                            width: 14,
+                            height: 14,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.refresh, size: 18),
-                    label: const Text('Regenerate'),
+                        : const Icon(Icons.refresh, size: 16),
+                    label: Text('Regenerate', style: Theme.of(context).textTheme.labelSmall),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
-                  const SizedBox(width: 8),
                   OutlinedButton.icon(
                     onPressed: _copy,
-                    icon: const Icon(Icons.copy, size: 18),
-                    label: const Text('Copy'),
+                    icon: const Icon(Icons.copy, size: 16),
+                    label: Text('Copy', style: Theme.of(context).textTheme.labelSmall),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
-                  const Spacer(),
-                  FilledButton.icon(
-                    onPressed: _saving ? null : _saveToOutputs,
-                    icon: const Icon(Icons.save, size: 18),
-                    label: const Text('Save to Outputs'),
+                  Tooltip(
+                    message: 'Save to Outputs',
+                    child: FilledButton.icon(
+                      onPressed: _saving ? null : _saveToOutputs,
+                      icon: const Icon(Icons.save, size: 16),
+                      label: Text('Save', style: Theme.of(context).textTheme.labelSmall),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -6,9 +6,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_cubit.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 
 class PersonalitySetupScreen extends StatefulWidget {
-  const PersonalitySetupScreen({super.key});
+  const PersonalitySetupScreen({
+    super.key,
+    this.standaloneMode = false,
+    this.onSaveAndComplete,
+    this.onSkip,
+  });
+
+  /// When true, screen is shown alone (e.g. reminder); submit saves via service and calls [onSaveAndComplete]; [onSkip] shows a Skip button.
+  final bool standaloneMode;
+  final VoidCallback? onSaveAndComplete;
+  final VoidCallback? onSkip;
 
   @override
   State<PersonalitySetupScreen> createState() => _PersonalitySetupScreenState();
@@ -82,7 +93,12 @@ class _PersonalitySetupScreenState extends State<PersonalitySetupScreen> {
   Future<void> _submit() async {
     if (!_canSubmit || _isSubmitting) return;
     setState(() => _isSubmitting = true);
-    await context.read<ArcOnboardingCubit>().completePersonalityAndOnboarding(_buildAnswers());
+    if (widget.standaloneMode && widget.onSaveAndComplete != null) {
+      await LumaraReflectionSettingsService.instance.generateAndSavePersonalityConfig(_buildAnswers());
+      if (mounted) widget.onSaveAndComplete!();
+    } else {
+      await context.read<ArcOnboardingCubit>().completePersonalityAndOnboarding(_buildAnswers());
+    }
     if (mounted) setState(() => _isSubmitting = false);
   }
 
@@ -138,6 +154,7 @@ class _PersonalitySetupScreenState extends State<PersonalitySetupScreen> {
                       const SizedBox(height: 8),
                       TextField(
                         controller: _nameController,
+                        textCapitalization: TextCapitalization.sentences,
                         style: bodyStyle(context).copyWith(color: Colors.white),
                         decoration: InputDecoration(
                           hintText: 'Your name or nickname',
@@ -166,6 +183,7 @@ class _PersonalitySetupScreenState extends State<PersonalitySetupScreen> {
                       const SizedBox(height: 8),
                       TextField(
                         controller: _notesController,
+                        textCapitalization: TextCapitalization.sentences,
                         style: bodyStyle(context).copyWith(color: Colors.white),
                         maxLines: 3,
                         decoration: InputDecoration(
@@ -209,6 +227,19 @@ class _PersonalitySetupScreenState extends State<PersonalitySetupScreen> {
                               : const Text('Get started'),
                         ),
                       ),
+                      if (widget.standaloneMode && widget.onSkip != null) ...[
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: _isSubmitting ? null : widget.onSkip,
+                          child: Text(
+                            'Skip for now',
+                            style: bodyStyle(context).copyWith(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 24),
                     ],
                   ),

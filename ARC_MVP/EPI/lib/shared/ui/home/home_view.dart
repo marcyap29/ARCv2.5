@@ -118,6 +118,11 @@ class _HomeViewState extends State<HomeView> {
       _startVeilChronicleScheduler();
     });
 
+    // Phase 6: One-time nudge if user skipped LUMARA Preferences or Profile Fields during onboarding
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowLumaraSetupNudge();
+    });
+
     // Start scheduled local backup (nightly backup + optional Google Drive upload) if enabled
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(seconds: 3), () async {
@@ -278,6 +283,27 @@ class _HomeViewState extends State<HomeView> {
         }
       }
     });
+  }
+
+  static const String _keyShowLumaraSetupNudge = 'show_lumara_setup_nudge';
+  static const String _keyOnboardingNudgeShown = 'onboarding_nudge_shown';
+
+  Future<void> _maybeShowLumaraSetupNudge() async {
+    final prefs = await SharedPreferences.getInstance();
+    final shouldShow = prefs.getBool(_keyShowLumaraSetupNudge) ?? false;
+    final alreadyShown = prefs.getBool(_keyOnboardingNudgeShown) ?? false;
+    if (!shouldShow || alreadyShown || !mounted) return;
+    await prefs.setBool(_keyOnboardingNudgeShown, true);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          'You can set up your LUMARA preferences and profile anytime in Settings → LUMARA.',
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   @override

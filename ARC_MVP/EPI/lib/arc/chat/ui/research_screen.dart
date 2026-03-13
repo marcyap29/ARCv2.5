@@ -266,8 +266,12 @@ class _ResearchScreenState extends State<ResearchScreen> {
           final isMobile = constraints.maxWidth < 600;
           final padding = EdgeInsets.all(isMobile ? 20 : 16);
           final sectionGap = isMobile ? 20.0 : 12.0;
-          return SingleChildScrollView(
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: SingleChildScrollView(
         padding: padding,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -399,6 +403,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
             ],
           ],
         ),
+      ),
       );
         },
       ),

@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 10, 2026 (doc sync 2026-03-10, v3.3.72)  
+**Last Updated:** March 10, 2026 (doc sync 2026-03-10, v3.3.73)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -46,9 +46,9 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-10 | ✅ Synced | v3.3.67 - HealthKit removal, OpenAI provider removal |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-10 | ✅ Synced | v3.3.72 - Outputs system, Firestore rules/index, SwarmSpace/research/vision/writing, plugin activity, PRISM |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-10 | ✅ Synced | v3.3.73 - LUMARA settings/onboarding; forms/profile; outputs/agents; swarmspaceRouter |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-10 | ✅ Synced | v2.9.0 - no new prompts this run |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-10 | ✅ Synced | v1.21.0 - Doc sync 2026-03-10 (v3.3.72) row |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-10 | ✅ Synced | v1.22.0 - Doc sync 2026-03-10 (v3.3.73) row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-10 | ✅ Synced | v3.5.0 - 40 records; Last Updated 2026-03-10 |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-10 | ✅ Synced | v3.3.67 - doc sync |
 | README.md | `/DOCS/README.md` | 2026-03-10 | ✅ Synced | Key docs table; CHANGELOG version ref updated |
@@ -119,6 +119,20 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-10 - Documentation & Git Backup run (v3.3.73; doc sync 2026-03-10)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §284–501). Trigger: user request. Then commit, push, merge main → test.
+
+**PROMPT REFERENCES AUDIT:** No new LLM prompt definition files. PROMPT_REFERENCES.md unchanged (v2.9.0).
+
+**Git Backup — Identify what changed (since v3.3.72):** Uncommitted: lumara_reflection_settings_service, lumara_settings_screen, lumara_splash_screen; arc_onboarding_cubit, arc_onboarding_sequence, arc_onboarding_state, personality_setup_screen, personality_reminder_screen (new); research_screen, writing_screen; outputs (output_detail_screen, outputs_models, outputs_tab_screen, scan_action_sheet, output_folder_tile, output_item_card); agent_tips, research_pipeline, agents_screen, vision_ocr_screen, writing_agent_tab, draft_editor_screen, pipeline_draft; prism_service, swarmspace_client; home_view; swarmspaceRouter.ts. New: lib/lumara/agents/forms/, lib/lumara/profile/; test/lumara/forms/, test/lumara/profile/.
+
+**Updates:** CHANGELOG.md v3.3.73; CONFIGURATION_MANAGEMENT.md this entry + inventory; PROMPT_TRACKER.md v1.22.0; bug_tracker.md Recent code changes row + Last Updated.
+
+**Status:** ✅ Doc updates applied; commit (docs + code) and push, then merge main into test.
+
+---
 
 ### 2026-03-10 - Documentation & Git Backup run (v3.3.72; doc sync 2026-03-10)
 

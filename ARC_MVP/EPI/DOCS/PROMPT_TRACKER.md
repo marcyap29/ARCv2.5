@@ -1,6 +1,6 @@
 # Prompt Tracker
 
-**Version:** 1.21.0  
+**Version:** 1.22.0  
 **Last Updated:** March 10, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-03-10 | Doc sync v3.3.73: Doc-config-git-backup run; LUMARA settings/onboarding; forms/profile; outputs/agents; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.73 |
 | 2026-03-10 | Doc sync v3.3.72: Doc-config-git-backup run; Outputs, Firestore, SwarmSpace/research/vision/writing; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.72 |
 | 2026-03-10 | Doc sync v3.3.71: Doc-config-git-backup run; Vision OCR, Cloud Vision setup, agents; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.71 |
 | 2026-03-10 | Doc sync v3.3.69: Third doc-config-git-backup run; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.69 |

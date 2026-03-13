@@ -69,6 +69,10 @@ class LumaraReflectionSettingsService {
   static const String _keyPersonalityRawAnswers = 'lumara_personality_raw_answers';
   static const String _keyUserName = 'lumara_user_name';
 
+  /// Launch count for "How we'll work together" reminder (when user hasn't filled it). Show every 5–10 launches.
+  static const String _keyPersonalityReminderLaunchCount = 'lumara_personality_reminder_launch_count';
+  static const int _personalityReminderInterval = 7; // Show reminder every 7 launches (middle of 5–10)
+
   // Inferred preferences (overrides over time; high confidence overrides baseline)
   static const String _keyInferredPreferences = 'lumara_inferred_preferences';
 
@@ -186,6 +190,15 @@ class LumaraReflectionSettingsService {
     await _prefs!.setString(_keyPersonalityConfig, config);
   }
 
+  /// True if user has completed the "How we'll work together" setup (has config or raw answers).
+  Future<bool> hasPersonalityFilled() async {
+    await initialize();
+    final config = _prefs!.getString(_keyPersonalityConfig);
+    if (config != null && config.isNotEmpty) return true;
+    final raw = _prefs!.getString(_keyPersonalityRawAnswers);
+    return raw != null && raw.isNotEmpty;
+  }
+
   /// Get raw onboarding answers for regeneration. Null if never set.
   Future<Map<String, dynamic>?> getPersonalityRawAnswers() async {
     await initialize();
@@ -203,6 +216,19 @@ class LumaraReflectionSettingsService {
   Future<void> setPersonalityRawAnswers(Map<String, dynamic> answers) async {
     await initialize();
     await _prefs!.setString(_keyPersonalityRawAnswers, jsonEncode(answers));
+  }
+
+  /// Increment launch count for personality reminder; returns true if we should show the reminder this launch.
+  Future<bool> shouldShowPersonalityReminderThisLaunch() async {
+    await initialize();
+    final count = _prefs!.getInt(_keyPersonalityReminderLaunchCount) ?? 0;
+    final next = count + 1;
+    await _prefs!.setInt(_keyPersonalityReminderLaunchCount, next);
+    if (next >= _personalityReminderInterval) {
+      await _prefs!.setInt(_keyPersonalityReminderLaunchCount, 0);
+      return true;
+    }
+    return false;
   }
 
   /// Get user's preferred name (what LUMARA should call them). Empty if not set.

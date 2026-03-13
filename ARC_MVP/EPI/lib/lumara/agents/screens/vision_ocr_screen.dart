@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:my_app/arc/chat/ui/research_screen.dart';
 import 'package:my_app/arc/outputs/outputs_chronicle_service.dart';
 import 'package:my_app/arc/outputs/outputs_models.dart';
@@ -149,16 +150,41 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
 
   Future<void> _onSaveScanToOutputs(OutputSaveRequest req) async {
     try {
+      String contentJson = req.contentJson;
+      String? thumbnailUrl = req.thumbnailUrl;
+
+      // Persist scan image to app storage (reflection-style) and attach to content.
+      if (_image != null) {
+        try {
+          final appDir = await getApplicationDocumentsDirectory();
+          final scansDir = Directory('${appDir.path}/scans');
+          if (!await scansDir.exists()) await scansDir.create(recursive: true);
+          final name = 'scan_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final path = '${scansDir.path}/$name';
+          await File(_image!.path).copy(path);
+          thumbnailUrl = path;
+          final contentMap = jsonDecode(contentJson) as Map<String, dynamic>;
+          contentMap['image_path'] = path;
+          contentJson = jsonEncode(contentMap);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Image save failed: $e'), backgroundColor: Colors.orange),
+            );
+          }
+        }
+      }
+
       final item = OutputItem(
         id: '',
         agentKey: req.agentKey,
         folderKey: req.folderKey,
         title: req.title,
         createdAt: DateTime.now(),
-        contentJson: req.contentJson,
+        contentJson: contentJson,
         autoTags: req.autoTags,
         userTags: const [],
-        thumbnailUrl: req.thumbnailUrl,
+        thumbnailUrl: thumbnailUrl,
       );
       final saved = await OutputsRepository.instance.save(item);
       OutputsChronicleService.instance.onOutputSaved(type: 'output_created', item: saved);
@@ -240,7 +266,16 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
                     ButtonSegment(value: false, label: Text('Understand'), icon: Icon(Icons.auto_awesome)),
                   ],
                   selected: {_modeOcr},
-                  onSelectionChanged: (s) => setState(() => _modeOcr = s.first),
+                  onSelectionChanged: (s) {
+                    if (s.isEmpty) return;
+                    setState(() {
+                      _modeOcr = s.first;
+                      // Clear previous error/result so the same photo can be re-scanned in the new mode.
+                      _error = null;
+                      _result = null;
+                      _lastParsedDocument = null;
+                    });
+                  },
                 ),
                 if (!_modeOcr) ...[
                   const Gap(12),

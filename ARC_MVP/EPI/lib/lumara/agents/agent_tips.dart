@@ -1,6 +1,6 @@
 // lib/lumara/agents/agent_tips.dart
 //
-// Tips shown occasionally on agent screens (Research, Writer, Plugin Catalog, Agents).
+// Tips shown occasionally on agent screens (Research, Writing, Plugin Catalog, Agents).
 // Helps users remember e.g. Vision API vs Gemini, and other agent capabilities.
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,7 +20,7 @@ class AgentTip {
 final List<AgentTip> kAgentTips = [
   const AgentTip('Vision vs OCR: Use Vision API for exact text extraction; use Gemini for understanding and summarizing images.'),
   const AgentTip('Research uses Brave Search, Tavily, and more—sources are cited in the report.'),
-  const AgentTip('Writer keeps your voice and themes; paste a research summary for better drafts.'),
+  const AgentTip('Writing keeps your voice and themes; paste a research summary for better drafts.'),
   const AgentTip('Plugins in the catalog show tier (free/standard/premium) and example queries.'),
   const AgentTip('URL Reader fetches and extracts article content for Research—great for deep dives.'),
   const AgentTip('First time using a plugin? You\'ll be asked to approve it once; then it\'s remembered.'),

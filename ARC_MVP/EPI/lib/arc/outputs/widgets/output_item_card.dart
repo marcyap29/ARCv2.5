@@ -1,6 +1,9 @@
 // lib/arc/outputs/widgets/output_item_card.dart
 //
 // Phase 5a: Single output item card (title, date, tags; long-press menu).
+// For scans: shows a leading thumbnail when thumbnailUrl is a local path.
+
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -38,7 +41,31 @@ class OutputItemCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (item.thumbnailUrl != null &&
+                      item.thumbnailUrl!.isNotEmpty &&
+                      item.thumbnailUrl!.contains('/')) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(item.thumbnailUrl!),
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => SizedBox(
+                          width: 56,
+                          height: 56,
+                          child: Icon(
+                            Icons.photo_outlined,
+                            color: kcSecondaryTextColor.withOpacity(0.5),
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
                     child: Text(
                       item.title,

@@ -274,6 +274,14 @@ class SwarmSpaceClient {
       }
 
       final data = jsonDecode(body) as Map<String, dynamic>;
+      // Callable returns { result: ... } on success or { result: null, error: { message } } on failure.
+      final err = data['error'];
+      if (err is Map<String, dynamic>) {
+        final message = err['message'] as String?;
+        if (message != null && message.isNotEmpty) {
+          return SwarmSpaceResult.error(message);
+        }
+      }
       final resultData = (data['result'] as Map<String, dynamic>?) ?? data;
       final swResult = SwarmSpaceResult.fromData(
         Map<String, dynamic>.from(resultData),

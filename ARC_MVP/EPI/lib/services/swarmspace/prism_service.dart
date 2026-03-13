@@ -201,6 +201,41 @@ class PrismService {
     return ok ?? false;
   }
 
+  /// Form pre-fill: full modal listing profile fields (and sensitive ones) before using profile data.
+  /// Returns true if user consents. No SwarmSpace call; consent is for showing pre-filled form.
+  static Future<bool> requestFormPrefillConsent(
+    BuildContext context, {
+    required List<String> fieldsUsed,
+    required List<String> sensitiveFields,
+  }) async {
+    String description = 'LUMARA will use the following from your profile to pre-fill this form: '
+        '${fieldsUsed.join(", ")}.';
+    if (sensitiveFields.isNotEmpty) {
+      description += ' The following are sensitive and will only be used with your permission: '
+          '${sensitiveFields.join(", ")}.';
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Use your profile to pre-fill this form?'),
+        content: Text(description),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: kcPrimaryColor),
+            child: const Text('I understand, continue'),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
   /// STRUCTURED_PERSONAL: full modal every time. No persistence.
   Future<bool> _showStructuredPersonalConsent(BuildContext context, String pluginId) async {
     final name = SwarmSpaceClient.pluginDisplayName(pluginId);

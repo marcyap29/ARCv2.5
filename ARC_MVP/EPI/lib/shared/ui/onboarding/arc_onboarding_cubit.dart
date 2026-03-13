@@ -2,6 +2,7 @@
 // Cubit for managing ARC onboarding sequence state
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_state.dart';
 import 'package:my_app/shared/ui/onboarding/onboarding_phase_detector.dart';
 import 'package:my_app/models/phase_models.dart';
@@ -11,6 +12,11 @@ import 'package:my_app/services/user_phase_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:hive/hive.dart';
 import 'package:logger/logger.dart';
+
+const String _keyLumaraPrefsSkipped = 'lumara_prefs_skipped';
+const String _keyProfileFieldsSkipped = 'profile_fields_skipped';
+const String _keyShowLumaraSetupNudge = 'show_lumara_setup_nudge';
+const String _keyOnboardingNudgeShown = 'onboarding_nudge_shown';
 
 class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
   ArcOnboardingCubit() : super(const ArcOnboardingState(
@@ -195,18 +201,34 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     emit(state.copyWith(currentScreen: OnboardingScreen.personalitySetup));
   }
 
-  /// Persist personality answers, generate config, set default phase (internal use only), then complete onboarding.
+  /// Persist personality answers, generate config, set default phase, then go to LUMARA Preferences (Phase 6).
   Future<void> completePersonalityAndOnboarding(Map<String, dynamic> answers) async {
     try {
       await LumaraReflectionSettingsService.instance.generateAndSavePersonalityConfig(answers);
     } catch (e) {
       _logger.e('Error saving personality config: $e');
     }
-    // Set default phase for internal model use only (not shown to user).
     try {
       await _setUserPhase(PhaseLabel.discovery);
     } catch (e) {
       _logger.e('Error setting default phase: $e');
+    }
+    emit(state.copyWith(currentScreen: OnboardingScreen.lumaraPreferences));
+  }
+
+  /// Advance from LUMARA Preferences to Profile Fields (after save or skip).
+  void advanceAfterLumaraPrefs() {
+    emit(state.copyWith(currentScreen: OnboardingScreen.profileFields));
+  }
+
+  /// Advance from Profile Fields to complete onboarding (after save or skip).
+  /// If user skipped LUMARA prefs or profile fields, set flag so HomeView shows one-time nudge.
+  Future<void> advanceAfterProfileFields() async {
+    final prefs = await SharedPreferences.getInstance();
+    final skippedPrefs = prefs.getBool(_keyLumaraPrefsSkipped) ?? false;
+    final skippedProfile = prefs.getBool(_keyProfileFieldsSkipped) ?? false;
+    if (skippedPrefs || skippedProfile) {
+      await prefs.setBool(_keyShowLumaraSetupNudge, true);
     }
     await UserPhaseService.setOnboardingCompleted(true);
     emit(state.copyWith(currentScreen: OnboardingScreen.complete));

@@ -3,7 +3,7 @@
 // Phase 5b: Draft produced by the writing pipeline (gemini-flash).
 // Used by DraftEditorScreen and Save to Outputs.
 
-/// Format for generated content; maps to Writer subfolders.
+/// Format for generated content; maps to Writing subfolders.
 enum WritingFormat {
   article,
   linkedin,
@@ -108,7 +108,7 @@ class PipelineDraft {
     );
   }
 
-  /// Writer folderKey for Outputs (article → articles, etc.).
+  /// Writing folderKey for Outputs (article → articles, etc.).
   String get folderKey {
     switch (format) {
       case WritingFormat.article:

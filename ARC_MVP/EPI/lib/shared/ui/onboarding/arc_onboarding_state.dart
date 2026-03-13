@@ -15,6 +15,8 @@ enum OnboardingScreen {
   phaseAnalysis,
   phaseReveal,
   personalitySetup,
+  lumaraPreferences,
+  profileFields,
   complete,
 }
 

@@ -2,19 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
 import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
-import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/lumara/agents/research/content_brief.dart';
 import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
 import 'package:my_app/lumara/agents/writing/draft_editor_screen.dart';
 import 'package:my_app/lumara/agents/writing/pipeline_draft.dart';
-import 'package:my_app/lumara/agents/writing/writing_agent.dart';
-import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
 import 'package:my_app/lumara/agents/writing/style_profile_service.dart';
 import 'package:my_app/lumara/agents/writing/writing_prompts.dart';
 import 'package:my_app/lumara/agents/widgets/agent_tip_banner.dart';
 import 'package:my_app/lumara/agents/writing/writing_models.dart';
-import 'package:my_app/services/firebase_auth_service.dart';
-import 'package:my_app/services/swarmspace/prism_service.dart';
 import 'package:my_app/arc/ui/widgets/reflection_draft_text_field.dart';
 import 'package:my_app/lumara/agents/models/research_models.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -43,9 +38,7 @@ class WritingScreen extends StatefulWidget {
 
 class _WritingScreenState extends State<WritingScreen> {
   final TextEditingController _promptController = TextEditingController();
-  final TextEditingController _customContentTypeController = TextEditingController();
   final TextEditingController _draftBodyController = TextEditingController();
-  ContentType _contentType = ContentType.linkedIn;
   Draft? _draft;
   double? _voiceScore;
   double? _themeAlignment;
@@ -56,14 +49,11 @@ class _WritingScreenState extends State<WritingScreen> {
   String? _error;
   /// When set, we're viewing/editing an existing draft (e.g. from Outputs).
   String? _editingDraftId;
-  /// When user opened Writing from a research report, this is the report content for public_context.
-  String? _researchSourceMaterial;
   // Phase 5b
   WritingFormat _phase5bFormat = WritingFormat.article;
   WritingTone _phase5bTone = WritingTone.informative;
   bool _styleProfileOn = false;
   String? _styleExcerpt;
-  bool _phase5bLoading = false;
   bool _bannerDismissed = false;
 
   @override
@@ -116,8 +106,6 @@ class _WritingScreenState extends State<WritingScreen> {
           buf.writeln();
           buf.writeln(report.detailedFindings);
           prompt = buf.toString();
-          // Pass same content as research source material so the Writing Agent can use it in public_context.
-          _researchSourceMaterial = buf.toString();
         }
       }
     }
@@ -186,69 +174,9 @@ class _WritingScreenState extends State<WritingScreen> {
   @override
   void dispose() {
     _promptController.dispose();
-    _customContentTypeController.dispose();
     _draftBodyController.dispose();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
-  }
-
-  Future<void> _generate() async {
-    final prompt = _promptController.text.trim();
-    if (prompt.isEmpty) {
-      setState(() {
-        _error = 'Enter a prompt (e.g. what to write about).';
-      });
-      return;
-    }
-    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      setState(() {
-        _loading = true;
-        _error = null;
-        _draft = null;
-        _voiceScore = null;
-        _themeAlignment = null;
-        _suggestedEdits = [];
-      });
-    try {
-      final agent = WritingAgent(
-        draftRepository: WritingDraftRepositoryImpl(),
-        getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
-        generateContent: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          return generateForAgents(
-            systemPrompt: systemPrompt,
-            userPrompt: userPrompt,
-            maxTokens: maxTokens ?? 800,
-          );
-        },
-      );
-      final customDesc = _contentType == ContentType.custom
-          ? _customContentTypeController.text.trim()
-          : null;
-      final composed = await agent.composeContent(
-        userId: userId,
-        prompt: prompt,
-        type: _contentType,
-        customContentTypeDescription: customDesc?.isEmpty == true ? null : customDesc,
-        researchSourceMaterial: _researchSourceMaterial,
-        maxCritiqueIterations: 2,
-      );
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _draft = composed.draft;
-          _voiceScore = composed.voiceScore;
-          _themeAlignment = composed.themeAlignment;
-          _suggestedEdits = composed.suggestedEdits;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = e.toString();
-        });
-      }
-    }
   }
 
   void _copyDraft() {
@@ -261,7 +189,8 @@ class _WritingScreenState extends State<WritingScreen> {
     }
   }
 
-  /// Phase 5b: Run gemini-flash writing pipeline and navigate to DraftEditorScreen.
+  /// Run writing pipeline using the same path as legacy (generateForAgents: SwarmSpace then Groq).
+  /// Uses Phase 5b prompt: Format, Tone, Style, optional Brief. Navigates to DraftEditorScreen.
   Future<void> _runPhase5bPipeline() async {
     final topic = _promptController.text.trim();
     if (topic.isEmpty) {
@@ -269,7 +198,7 @@ class _WritingScreenState extends State<WritingScreen> {
       return;
     }
     setState(() {
-      _phase5bLoading = true;
+      _loading = true;
       _error = null;
     });
     try {
@@ -281,36 +210,15 @@ class _WritingScreenState extends State<WritingScreen> {
         styleExcerpt: styleExcerpt,
         brief: widget.initialBrief,
       );
-      final prismResult = await PrismService.instance.authoriseAndCall(
-        pluginId: 'gemini-flash',
-        params: {
-          'system': promptResult.systemPrompt,
-          'user': promptResult.userPrompt,
-          'max_tokens': 1500,
-          'temperature': 0.7,
-        },
-        context: context,
+      final body = await generateForAgents(
+        systemPrompt: promptResult.systemPrompt,
+        userPrompt: promptResult.userPrompt,
+        maxTokens: 1500,
       );
       if (!mounted) return;
-      if (prismResult.isDenied) {
+      if (body.trim().isEmpty) {
         setState(() {
-          _phase5bLoading = false;
-          _error = 'Writing was skipped.';
-        });
-        return;
-      }
-      final result = prismResult.result!;
-      if (!result.success || result.data == null) {
-        setState(() {
-          _phase5bLoading = false;
-          _error = result.error ?? 'Writing failed.';
-        });
-        return;
-      }
-      final body = _extractGeminiText(result.data!);
-      if (body == null || body.isEmpty) {
-        setState(() {
-          _phase5bLoading = false;
+          _loading = false;
           _error = 'No draft text returned.';
         });
         return;
@@ -325,8 +233,8 @@ class _WritingScreenState extends State<WritingScreen> {
         createdAt: DateTime.now(),
         versions: [],
       );
+      setState(() => _loading = false);
       if (!mounted) return;
-      setState(() => _phase5bLoading = false);
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -339,7 +247,7 @@ class _WritingScreenState extends State<WritingScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _phase5bLoading = false;
+          _loading = false;
           _error = e.toString();
         });
       }
@@ -347,6 +255,7 @@ class _WritingScreenState extends State<WritingScreen> {
   }
 
   /// Called from DraftEditorScreen Regenerate: same inputs, new body; append current body to versions.
+  /// Uses generateForAgents (same working path as Generate).
   Future<PipelineDraft?> _runPhase5bPipelineForRegenerate(PipelineDraft current) async {
     final topic = current.topic;
     final styleExcerpt = _styleProfileOn == true ? _styleExcerpt : null;
@@ -357,45 +266,21 @@ class _WritingScreenState extends State<WritingScreen> {
       styleExcerpt: styleExcerpt,
       brief: widget.initialBrief,
     );
-    final prismResult = await PrismService.instance.authoriseAndCall(
-      pluginId: 'gemini-flash',
-      params: {
-        'system': promptResult.systemPrompt,
-        'user': promptResult.userPrompt,
-        'max_tokens': 1500,
-        'temperature': 0.7,
-      },
-      context: context,
-    );
-    if (prismResult.isDenied || prismResult.result == null || !prismResult.result!.success) {
+    try {
+      final body = await generateForAgents(
+        systemPrompt: promptResult.systemPrompt,
+        userPrompt: promptResult.userPrompt,
+        maxTokens: 1500,
+      );
+      if (body.trim().isEmpty) return null;
+      final newVersions = [...current.versions, current.body];
+      return current.copyWith(
+        body: body.trim(),
+        versions: newVersions,
+      );
+    } catch (_) {
       return null;
     }
-    final body = _extractGeminiText(prismResult.result!.data!);
-    if (body == null || body.isEmpty) return null;
-    final newVersions = [...current.versions, current.body];
-    return current.copyWith(
-      body: body.trim(),
-      versions: newVersions,
-    );
-  }
-
-  String? _extractGeminiText(Map<String, dynamic> data) {
-    final text = data['text'] as String?;
-    if (text != null && text.isNotEmpty) return text.trim();
-    final content = data['content'] as String?;
-    if (content != null && content.isNotEmpty) return content.trim();
-    final candidates = data['candidates'] as List?;
-    if (candidates != null && candidates.isNotEmpty) {
-      final first = candidates.first as Map<String, dynamic>?;
-      final contentObj = first?['content'] as Map<String, dynamic>?;
-      final parts = contentObj?['parts'] as List?;
-      if (parts != null && parts.isNotEmpty) {
-        final part = parts.first as Map<String, dynamic>?;
-        final partText = part?['text'] as String?;
-        if (partText != null && partText.isNotEmpty) return partText.trim();
-      }
-    }
-    return null;
   }
 
   void _showStyleProfileSheet() {
@@ -487,9 +372,12 @@ class _WritingScreenState extends State<WritingScreen> {
       appBar: AppBar(
         title: const Text('LUMARA Writing'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const AgentTipBanner(),
@@ -525,6 +413,7 @@ class _WritingScreenState extends State<WritingScreen> {
             if (widget.initialBrief != null && !_bannerDismissed) const Gap(12),
             TextField(
               controller: _promptController,
+              textCapitalization: TextCapitalization.sentences,
               decoration: const InputDecoration(
                 labelText: 'What do you want to write about?',
                 hintText: 'e.g. Why CHRONICLE hierarchical aggregation matters for AI memory',
@@ -586,57 +475,14 @@ class _WritingScreenState extends State<WritingScreen> {
             ),
             const Gap(24),
             FilledButton(
-              onPressed: (_phase5bLoading || _loading) ? null : () async {
-                await _runPhase5bPipeline();
-              },
-              child: _phase5bLoading
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Generate'),
-            ),
-            const Gap(16),
-            DropdownButtonFormField<ContentType>(
-              // ignore: deprecated_member_use
-              value: _contentType,
-              decoration: const InputDecoration(
-                labelText: 'Content type (legacy)',
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: ContentType.linkedIn, child: Text('LinkedIn post')),
-                DropdownMenuItem(value: ContentType.substack, child: Text('Substack article')),
-                DropdownMenuItem(value: ContentType.technical, child: Text('Technical doc')),
-                DropdownMenuItem(
-                  value: ContentType.custom,
-                  child: Text('Custom'),
-                ),
-              ],
-              onChanged: (v) => setState(() => _contentType = v ?? ContentType.linkedIn),
-            ),
-            if (_contentType == ContentType.custom) ...[
-              const Gap(12),
-              TextField(
-                controller: _customContentTypeController,
-                decoration: const InputDecoration(
-                  labelText: 'Describe format',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
-              ),
-            ],
-            const Gap(12),
-            FilledButton(
-              onPressed: _loading ? null : _generate,
+              onPressed: _loading ? null : () async { await _runPhase5bPipeline(); },
               child: _loading
                   ? const SizedBox(
                       height: 24,
                       width: 24,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Generate draft (legacy)'),
+                  : const Text('Generate'),
             ),
             if (_error != null) ...[
               const Gap(16),
@@ -705,7 +551,7 @@ class _WritingScreenState extends State<WritingScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  'Your draft will appear here after you generate. Use "Generate draft" above.',
+                  'Tap Generate above to create a draft, then edit it in the next screen.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: kcSecondaryTextColor,
                       ),
@@ -750,7 +596,7 @@ class _WritingScreenState extends State<WritingScreen> {
               ),
               const Gap(12),
               Text(
-                'Saved to My Drafts. Open Agents → Writer to see all drafts.',
+                'Saved to My Drafts. Open Agents → Writing to see all drafts.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: kcSecondaryTextColor,
                     ),
@@ -792,6 +638,7 @@ class _WritingScreenState extends State<WritingScreen> {
               ],
             ],
           ],
+        ),
         ),
       ),
     );

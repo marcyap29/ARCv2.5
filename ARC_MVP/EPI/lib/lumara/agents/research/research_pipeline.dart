@@ -123,7 +123,12 @@ Future<ContentBrief?> runResearchPipeline({
   });
 
   if (geminiResult.isDenied || geminiResult.result == null || !geminiResult.result!.success) {
-    setError(kPipelineFailureMessage);
+    final specificError = geminiResult.result?.error;
+    setError(
+      (specificError != null && specificError.trim().isNotEmpty)
+          ? specificError
+          : kPipelineFailureMessage,
+    );
     return null;
   }
 

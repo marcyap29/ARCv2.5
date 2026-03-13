@@ -1,7 +1,27 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.72
+**Version:** 3.3.73
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.73] - March 10, 2026
+
+### Doc-config-git-backup run; LUMARA settings/splash/onboarding; forms/profile; outputs/agents refinements; swarmspaceRouter
+
+**Action:** Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main → test.
+
+**New:**
+- **LUMARA:** lib/lumara/agents/forms/, lib/lumara/profile/; personality_reminder_screen.dart; test/lumara/forms/, test/lumara/profile/.
+
+**Updated (sync with repo):**
+- **LUMARA & onboarding:** lumara_reflection_settings_service, lumara_settings_screen, lumara_splash_screen; arc_onboarding_cubit, arc_onboarding_sequence, arc_onboarding_state, personality_setup_screen.
+- **Outputs:** output_detail_screen, outputs_models, outputs_tab_screen, scan_action_sheet, output_folder_tile, output_item_card.
+- **Agents:** research_screen, writing_screen, agent_tips, research_pipeline, agents_screen, vision_ocr_screen, writing_agent_tab, draft_editor_screen, pipeline_draft.
+- **Services:** prism_service, swarmspace_client; home_view.
+- **Firebase:** swarmspaceRouter.ts.
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

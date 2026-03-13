@@ -6,12 +6,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
+import 'package:my_app/lumara/profile/lumara_preferences_screen.dart';
+import 'package:my_app/lumara/profile/profile_fields_screen.dart';
 import 'arc_onboarding_cubit.dart';
 import 'arc_onboarding_state.dart';
 import 'widgets/lumara_pulsing_symbol.dart';
 import 'widgets/phase_explanation_screen.dart';
-// Old PhaseQuizScreen removed - replaced by PhaseQuizV2
-// import 'widgets/phase_quiz_screen.dart'; // DEPRECATED
 import 'widgets/phase_analysis_screen.dart';
 import 'widgets/phase_reveal_screen.dart';
 import 'widgets/personality_setup_screen.dart';
@@ -99,6 +99,14 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               currentScreen = const PersonalitySetupScreen();
               screenKey = 'personality_setup';
               break;
+            case OnboardingScreen.lumaraPreferences:
+              currentScreen = const LumaraPreferencesScreen();
+              screenKey = 'lumara_preferences';
+              break;
+            case OnboardingScreen.profileFields:
+              currentScreen = const ProfileFieldsScreen();
+              screenKey = 'profile_fields';
+              break;
             case OnboardingScreen.complete:
               // Navigation handled by listener
               currentScreen = const Center(child: CircularProgressIndicator());
@@ -112,7 +120,9 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               state.currentScreen == OnboardingScreen.narrativeIntelligence ||
               state.currentScreen == OnboardingScreen.sentinelIntro ||
               state.currentScreen == OnboardingScreen.phaseExplanation ||
-              state.currentScreen == OnboardingScreen.personalitySetup) {
+              state.currentScreen == OnboardingScreen.personalitySetup ||
+              state.currentScreen == OnboardingScreen.lumaraPreferences ||
+              state.currentScreen == OnboardingScreen.profileFields) {
             return AnimatedSwitcher(
               duration: const Duration(milliseconds: 1600),
               switchInCurve: const Cubic(0.25, 0.1, 0.25, 1.0), // Custom eased curve
@@ -320,7 +330,7 @@ class _LumaraCapabilitiesScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 TextButton(
-                  onPressed: () => cubit.startPersonalitySetup(),
+                  onPressed: () => cubit.completeOnboardingFromCapabilities(),
                   child: Text(
                     'Jump in →',
                     style: bodyStyle(context).copyWith(

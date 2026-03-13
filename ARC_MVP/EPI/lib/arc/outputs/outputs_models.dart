@@ -106,14 +106,14 @@ const List<OutputFolder> kOutputFolders = [
   OutputFolder(agentKey: 'forms', folderKey: 'completed_forms', label: 'Completed Forms'),
   OutputFolder(agentKey: 'research', folderKey: 'research', label: 'Research'),
   OutputFolder(agentKey: 'scanner', folderKey: 'scans', label: 'Scans'),
-  OutputFolder(agentKey: 'writer', folderKey: 'articles', label: 'Articles'),
-  OutputFolder(agentKey: 'writer', folderKey: 'bluesky', label: 'Bluesky'),
-  OutputFolder(agentKey: 'writer', folderKey: 'linkedin', label: 'LinkedIn'),
-  OutputFolder(agentKey: 'writer', folderKey: 'substack', label: 'Substack'),
-  OutputFolder(agentKey: 'writer', folderKey: 'threads', label: 'Threads'),
+  OutputFolder(agentKey: 'writing', folderKey: 'articles', label: 'Articles'),
+  OutputFolder(agentKey: 'writing', folderKey: 'bluesky', label: 'Bluesky'),
+  OutputFolder(agentKey: 'writing', folderKey: 'linkedin', label: 'LinkedIn'),
+  OutputFolder(agentKey: 'writing', folderKey: 'substack', label: 'Substack'),
+  OutputFolder(agentKey: 'writing', folderKey: 'threads', label: 'Threads'),
 ];
 
-/// Top-level agent labels for grouping (Forms, Research, Scanner, Writer).
+/// Top-level agent labels for grouping (Forms, Research, Scanner, Writing).
 String outputAgentLabel(String agentKey) {
   switch (agentKey) {
     case 'forms':
@@ -122,8 +122,9 @@ String outputAgentLabel(String agentKey) {
       return 'Research';
     case 'scanner':
       return 'Scanner';
-    case 'writer':
-      return 'Writer';
+    case 'writing':
+    case 'writer': // legacy
+      return 'Writing';
     default:
       return agentKey;
   }
