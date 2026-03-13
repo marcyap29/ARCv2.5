@@ -1,10 +1,13 @@
 # EPI Documentation Context Guide
 
-**Version:** 3.3.28
-**Last Updated:** March 5, 2026
+**Version:** 3.3.29
+**Last Updated:** March 12, 2026
 **Current Branch:** `test`
 
-### Recent Updates (v3.3.28)
+### Recent Updates (v3.3.29)
+- **Bug tracker incorporated for regression prevention**: The bugtracker is now explicitly part of this context. Before generating or modifying code, you **must** use the [Bug prevention](#bug-prevention-avoid-reintroducing) list below and, for affected areas, `DOCS/bugtracker/` (index, records, master index) to avoid reintroducing known bugs. See [Bug Tracking](#bug-tracking) and the mandate there.
+
+### Earlier Updates (v3.3.28)
 - **Unified feed Pinned filter & timeline bookmark (bug prevention)**: Doc updated so these don't regress. (1) Feed Pinned filter: `FeedEntry.isPinned` for journal entries must come from FavoritesService (`getFavoriteJournalEntries()` → entryId set); FeedRepository must resolve this on refresh—do not hardcode `isPinned: false`. (2) Timeline favorite bookmark: use ≥44pt tap target and tooltip; see Bug prevention → LUMARA & journal, Timeline & UI.
 
 ### Earlier Updates (v3.3.27)
@@ -59,8 +62,9 @@
 | **git.md** | Git history & commits | `DOCS/git.md` |
 | **backend.md** | Backend architecture | `DOCS/backend.md` |
 | **CONFIGURATION_MANAGEMENT.md** | Docs inventory and change log | `DOCS/CONFIGURATION_MANAGEMENT.md` |
-| **bugtracker/** | Bug tracker (records and index) | `DOCS/bugtracker/` |
-| **Bug prevention** | Avoid reintroducing known bugs (summary in claude.md) | [Bug prevention](#bug-prevention-avoid-reintroducing) |
+| **bugtracker/** | Bug tracker: index, 40 records, master index, audit, review | `DOCS/bugtracker/` |
+| **Bug prevention** | Avoid reintroducing known bugs — **check before coding** | [Bug prevention](#bug-prevention-avoid-reintroducing) |
+| **BUGTRACKER_MASTER_INDEX.md** | Structure, format, tags, resolution patterns, maintenance | `DOCS/bugtracker/BUGTRACKER_MASTER_INDEX.md` |
 | **CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md** | Full-repo Code Simplifier plan: scan, divisible phases, agent roles | `DOCS/CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md` |
 | **Documentation, Config & Git Backup** | Universal prompt for docs, config, and backup sync | This file: section "Ultimate Documentation, Configuration Management and Git Backup Prompt" |
 | **CLOUD_VISION_SETUP.md** | Vision/OCR plugin: enable Vision API, IAM, deploy workaround | `DOCS/CLOUD_VISION_SETUP.md` |
@@ -144,18 +148,22 @@ Full steps and verify checklist: **`DOCS/CLOUD_VISION_SETUP.md`**.
 
 ## Bug Tracking
 
-### 🐛 Bugtracker
+**Mandate — prevent regeneration of bugs:** When generating or modifying code, treat the bugtracker as a **constraint**. (1) **Always** apply the [Bug prevention](#bug-prevention-avoid-reintroducing) list below. (2) Before changing LUMARA, CHRONICLE, timeline, export/import, auth/subscription, build, or UI/feed: skim `DOCS/bugtracker/bug_tracker.md` and, if relevant, the specific record in `DOCS/bugtracker/records/`. (3) Do **not** introduce code paths that contradict fix instructions or patterns documented in the bugtracker. This prevents known bugs from being reintroduced.
+
+### 🐛 Bugtracker (canonical location)
 Location: `DOCS/bugtracker/`
-- All bugs encountered and fixes
-- `bug_tracker.md` - Main tracker index
-- `bug_tracker_part1.md` - Dec 2025–Jan 2026 (v2.1.43–v2.1.86)
-- `bug_tracker_part2.md` - Nov 2025 (v2.1.27–v2.1.42)
-- `bug_tracker_part3.md` - Jan–Oct 2025 (v2.0.0–v2.1.26)
-- `records/` - Individual bug records (including recent fixes)
+- **`bug_tracker.md`** — Main index: categories, links to all 40 records, recent code changes table. **Start here** to find bugs by area.
+- **`BUGTRACKER_MASTER_INDEX.md`** — Structure, standardized format, tags, resolution patterns, maintenance procedures.
+- **`BUGTRACKER_AUDIT_REPORT.md`** — Full inventory, format analysis, static analysis (e.g. BUG-ANALYZER-001).
+- **`BUGTRACKER_REVIEW_REPORT.md`** — Reviewer PASS/FAIL per area from discovery/consolidation runs.
+- **`bug_tracker_part1.md`** — Dec 2025–Jan 2026 (v2.1.43–v2.1.86)
+- **`bug_tracker_part2.md`** — Nov 2025 (v2.1.27–v2.1.42)
+- **`bug_tracker_part3.md`** — Jan–Oct 2025 (v2.0.0–v2.1.26)
+- **`records/`** — Individual bug records (40 files); each has fix details and “how to fix” guidance.
 
 ### ⛔ Bug prevention (avoid reintroducing)
 
-When generating or modifying code, **do not reintroduce** the following. Full details and fix instructions are in `DOCS/bugtracker/` (see above).
+When generating or modifying code, **do not reintroduce** the following. Full details and fix instructions are in `DOCS/bugtracker/` (see above). **Checking this list and the relevant records before coding reduces regressions.**
 
 **LUMARA & journal**
 - **Never** send an empty user string to Gemini/journal reflection APIs (rejection). Validate non-empty before calling.
@@ -196,7 +204,7 @@ When generating or modifying code, **do not reintroduce** the following. Full de
 **Privacy & security**
 - All user content sent to cloud LLMs must pass through PRISM (scrub/PII); no code paths that send raw journal or chat text to external APIs without scrub.
 
-Before implementing features that touch LUMARA, CHRONICLE, timeline, export/import, or auth/subscription, skim `DOCS/bugtracker/bug_tracker.md` and the relevant part file or record to avoid regressions.
+Before implementing features that touch LUMARA, CHRONICLE, timeline, export/import, or auth/subscription, skim `DOCS/bugtracker/bug_tracker.md` and the relevant part file or record to avoid regressions. **Summary:** The bugtracker is incorporated into this document so that all code generation and edits respect known fixes and do not regenerate resolved bugs.
 
 ---
 

@@ -1,6 +1,9 @@
 // LUMARA Writing Agent system prompt.
 // Merged: enhanced timeline/voice/phase spec + single longitudinal anchor + internal process + footer D (context signals + score metadata).
 
+import 'package:my_app/lumara/agents/research/content_brief.dart';
+import 'package:my_app/lumara/agents/writing/pipeline_draft.dart';
+
 const String kWritingAgentSystemPromptTemplate = r'''
 <orchestration_framework>
 
@@ -476,3 +479,69 @@ Timeline References: [the one specific entry/period/pattern you cited]
 
 Now generate content based on the user's request, grounding it in their actual timeline while matching their authentic voice. Include exactly one explicit longitudinal reference in the draft, then the two footer blocks above.
 ''';
+
+// --- Phase 5b: Simple prompt for gemini-flash (no timeline). ---
+
+/// Format-specific instructions appended to the Phase 5b user prompt.
+String phase5bFormatInstructions(WritingFormat format) {
+  switch (format) {
+    case WritingFormat.article:
+      return 'Structure with a headline, 3–5 paragraphs, and a closing thought. Approximately 600–900 words.';
+    case WritingFormat.linkedin:
+      return 'Write as a professional LinkedIn post. 150–300 words. First line must be a hook. Use short paragraphs. End with a question or call to action.';
+    case WritingFormat.substack:
+      return 'Write as a Substack newsletter section. 400–700 words. Conversational but substantive. Include a clear opening and a closing that invites reply.';
+    case WritingFormat.bluesky:
+      return 'Write as a Bluesky post. Maximum 300 characters. Direct and punchy.';
+    case WritingFormat.threads:
+      return 'Write as a Threads post. 150–500 characters. Casual and engaging.';
+  }
+}
+
+/// Builds the Phase 5b system and user prompt for gemini-flash.
+/// [styleExcerpt] optional, max ~300 words; when present, instructs writing in user's voice.
+/// [brief] optional research context; when present, adds key points and sources.
+Phase5bPromptResult buildPhase5bWritingPrompt({
+  required String topic,
+  required WritingFormat format,
+  required WritingTone tone,
+  String? styleExcerpt,
+  ContentBrief? brief,
+}) {
+  final formatStr = format.name.replaceFirst(format.name[0], format.name[0].toUpperCase());
+  final toneStr = tone.name.replaceFirst(tone.name[0], tone.name[0].toUpperCase());
+  final sb = StringBuffer();
+  sb.writeln('You are a writing assistant helping the user create a $formatStr piece.');
+  sb.writeln('Tone: $toneStr.');
+  if (styleExcerpt != null && styleExcerpt.trim().isNotEmpty) {
+    final excerpt = styleExcerpt.length > 1200 ? '${styleExcerpt.substring(0, 1200)}...' : styleExcerpt;
+    sb.writeln('Write in the following personal voice and style:');
+    sb.writeln(excerpt);
+    sb.writeln();
+  }
+  if (brief != null) {
+    sb.writeln('Use the following research as source material:');
+    sb.writeln('Topic: ${brief.title}');
+    sb.writeln('Key points:');
+    for (final p in brief.keyPoints) sb.writeln('- $p');
+    if (brief.sources.isNotEmpty) {
+      sb.writeln('Sources:');
+      for (final s in brief.sources) sb.writeln('- ${s.title}: ${s.url}');
+    }
+    sb.writeln();
+  }
+  sb.writeln('Write a complete $formatStr draft on the topic: $topic');
+  sb.writeln('Return only the draft text. No preamble, no meta-commentary.');
+  sb.writeln();
+  sb.writeln(phase5bFormatInstructions(format));
+  final userPrompt = sb.toString();
+  final systemPrompt = 'You are a writing assistant. Follow the user instructions exactly. Return only the requested draft text.';
+  return Phase5bPromptResult(systemPrompt: systemPrompt, userPrompt: userPrompt);
+}
+
+/// Result of building the Phase 5b prompt.
+class Phase5bPromptResult {
+  final String systemPrompt;
+  final String userPrompt;
+  const Phase5bPromptResult({required this.systemPrompt, required this.userPrompt});
+}

@@ -25,6 +25,8 @@ class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen>
   late List<String> _tags;
   bool _saving = false;
   String? _saveError;
+  /// When false, Detailed Findings is shown as rendered markdown; when true, as editable text field.
+  bool _detailedFindingsEditing = false;
   ResearchReport get report => widget.report;
 
   @override
@@ -284,6 +286,81 @@ class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen>
                 ),
             linkColor: kcPrimaryColor,
           ),
+        ),
+      ],
+    );
+  }
+
+  /// Detailed Findings: by default show markdown-rendered content; "Edit" reveals the text field.
+  Widget _buildDetailedFindingsSection(BuildContext context, bool isMobile) {
+    final content = _detailedFindingsController.text;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              'Detailed Findings',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: kcPrimaryTextColor,
+                  ),
+            ),
+            if (!_detailedFindingsEditing)
+              TextButton.icon(
+                onPressed: () => setState(() => _detailedFindingsEditing = true),
+                icon: const Icon(Icons.edit, size: 18),
+                label: const Text('Edit'),
+                style: TextButton.styleFrom(foregroundColor: kcPrimaryColor),
+              )
+            else
+              TextButton.icon(
+                onPressed: () => setState(() => _detailedFindingsEditing = false),
+                icon: const Icon(Icons.visibility, size: 18),
+                label: const Text('Done'),
+                style: TextButton.styleFrom(foregroundColor: kcPrimaryColor),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(isMobile ? 16 : 12),
+          decoration: BoxDecoration(
+            color: kcSurfaceAltColor,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: _detailedFindingsEditing
+              ? ReflectionDraftTextField(
+                  controller: _detailedFindingsController,
+                  hintText: 'Detailed Findings',
+                  minLines: 8,
+                  maxLines: null,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        height: isMobile ? 1.75 : 1.6,
+                        color: kcPrimaryTextColor,
+                        fontSize: isMobile ? 16 : null,
+                      ),
+                )
+              : (content.trim().isEmpty
+                  ? Text(
+                      'No detailed findings yet.',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: kcSecondaryColor,
+                            height: isMobile ? 1.75 : 1.6,
+                          ),
+                    )
+                  : LumaraMessageBody(
+                      content: content,
+                      textStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            height: isMobile ? 1.75 : 1.6,
+                            color: kcPrimaryTextColor,
+                            fontSize: isMobile ? 16 : null,
+                          ),
+                      linkColor: kcPrimaryColor,
+                    )),
         ),
       ],
     );
@@ -670,7 +747,7 @@ class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen>
             ],
             _buildEditableSection(context, 'Summary', _summaryController, isMobile: isMobile),
             SizedBox(height: sectionSpacing),
-            _buildEditableSection(context, 'Detailed Findings', _detailedFindingsController, isMobile: isMobile, minLines: 8),
+            _buildDetailedFindingsSection(context, isMobile),
             if (report.keyInsights.isNotEmpty) ...[
               SizedBox(height: sectionSpacing),
               _buildInsightsSection(context, isMobile),

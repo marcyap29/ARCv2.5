@@ -191,17 +191,21 @@ class SwarmSpaceClient {
     Map<String, dynamic> params, {
     Future<bool> Function(String pluginId)? onConsentRequired,
   }) async {
-    final store = SwarmSpacePluginApprovalStore.instance;
-    final approved = await store.isApproved(pluginId);
-    if (!approved) {
-      if (onConsentRequired != null) {
-        final userApproved = await onConsentRequired(pluginId);
-        if (!userApproved) {
+    // PRISM: if caller already attached consent (e.g. PrismService), skip approval check.
+    final hasPrismConsent = params['_prism_consent'] == true || params['_prism_consent'] == 'true';
+    if (!hasPrismConsent) {
+      final store = SwarmSpacePluginApprovalStore.instance;
+      final approved = await store.isApproved(pluginId);
+      if (!approved) {
+        if (onConsentRequired != null) {
+          final userApproved = await onConsentRequired(pluginId);
+          if (!userApproved) {
+            return SwarmSpaceResult.error('Plugin skipped by user');
+          }
+          await store.setApproved(pluginId);
+        } else {
           return SwarmSpaceResult.error('Plugin skipped by user');
         }
-        await store.setApproved(pluginId);
-      } else {
-        return SwarmSpaceResult.error('Plugin skipped by user');
       }
     }
 

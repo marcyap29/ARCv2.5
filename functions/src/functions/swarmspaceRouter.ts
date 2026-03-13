@@ -22,9 +22,12 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
+import { getFirestore } from "firebase-admin/firestore";
 import { enforceAuth } from "../authGuard";
 import { loadUserLlmSettings } from "../userLlmSettings";
 import { LLM_SETTINGS_ENCRYPTION_KEY } from "../config";
+
+const PLUGIN_ACTIVITY_COLLECTION = "plugin_activity_log";
 
 // ── Secrets ────────────────────────────────────────────────────────────────────
 // Set these once via Firebase CLI:
@@ -61,6 +64,8 @@ interface PluginConfig {
 
 const PLUGIN_REGISTRY: Record<string, PluginConfig> = {
   // ── Free tier ──────────────────────────────────────────────────────────────
+  // IMPORTANT: The gemini-flash worker must use model gemini-3-flash-preview so it
+  // matches proxyGemini and visionOcrInvoke. See DOCS/SWARMSPACE_GEMINI_MODEL_ALIGNMENT.md.
   "gemini-flash": {
     workerUrl: "https://swarmspace-plugin-gemini-flash.orbitalai.workers.dev",
     requiredTier: "free",
@@ -127,6 +132,14 @@ const PLUGIN_REGISTRY: Record<string, PluginConfig> = {
     exampleQuery: "Read and summarize this article: https://...",
     privacy_data_required: true,
   },
+  "media-upload": {
+    workerUrl: "https://swarmspace-media-upload.orbitalai.workers.dev",
+    requiredTier: "standard",
+    capabilities: ["media_host", "image_upload"],
+    description: "Upload image and get a public URL (24h TTL)",
+    exampleQuery: "Upload image for sharing",
+    privacy_data_required: true,
+  },
   "tavily-search": {
     workerUrl: "https://swarmspace-plugin-tavily-search.orbitalai.workers.dev",
     requiredTier: "standard",
@@ -167,6 +180,28 @@ const TIER_RANK: Record<Tier, number> = { free: 0, standard: 1, premium: 2 };
 
 function canAccessPlugin(userTier: Tier, requiredTier: Tier): boolean {
   return TIER_RANK[userTier] >= TIER_RANK[requiredTier];
+}
+
+// ── Activity log (PRISM Phase 1) ───────────────────────────────────────────────
+// Fire-and-forget write to Firestore so every plugin call is recorded for Activity tab.
+function writePluginActivityLog(entry: {
+  user_id: string;
+  plugin_id: string;
+  plugin_name: string;
+  user_tier: string;
+  privacy_required: boolean;
+  consent_given: boolean;
+  data_fields_sent: string[];
+  result: "success" | "error";
+  error_message?: string;
+}): void {
+  const db = getFirestore();
+  db.collection(PLUGIN_ACTIVITY_COLLECTION)
+    .add({
+      ...entry,
+      called_at: new Date(),
+    })
+    .catch((err) => logger.warn("plugin_activity_log write failed", err));
 }
 
 // ── The router function ────────────────────────────────────────────────────────
@@ -237,6 +272,11 @@ export const swarmspaceRouter = onCall(
     const consentGiven = paramsToSend._prism_consent === true || paramsToSend._prism_consent === "true";
     const paramsForWorker = { ...paramsToSend };
     delete (paramsForWorker as Record<string, unknown>)._prism_consent;
+    const dataFieldsSent = typeof paramsForWorker === "object" && paramsForWorker !== null
+      ? Object.keys(paramsForWorker).filter((k) =>
+          ["image_b64", "image_url", "url", "image_base64"].includes(k)
+        )
+      : [];
     if (privacyRequired && hasSensitivePayload && !consentGiven) {
       logger.info("prism_transaction", {
         phase: "pre_invoke",
@@ -288,6 +328,17 @@ export const swarmspaceRouter = onCall(
       });
     } catch (err: any) {
       logger.error(`Worker fetch failed for plugin ${plugin_id}:`, err);
+      writePluginActivityLog({
+        user_id: userId,
+        plugin_id,
+        plugin_name: plugin.description,
+        user_tier: userTier,
+        privacy_required: privacyRequired,
+        consent_given: consentGiven,
+        data_fields_sent: dataFieldsSent,
+        result: "error",
+        error_message: err?.message ?? "Worker fetch failed",
+      });
       throw new HttpsError(
         "unavailable",
         `Plugin ${plugin_id} is temporarily unavailable. Try again shortly.`
@@ -310,7 +361,17 @@ export const swarmspaceRouter = onCall(
       logger.warn(
         `Plugin ${plugin_id} returned ${workerResponse.status}: ${workerError}`
       );
-
+      writePluginActivityLog({
+        user_id: userId,
+        plugin_id,
+        plugin_name: plugin.description,
+        user_tier: userTier,
+        privacy_required: privacyRequired,
+        consent_given: consentGiven,
+        data_fields_sent: dataFieldsSent,
+        result: "error",
+        error_message: workerError,
+      });
       // 429 = quota exceeded — this is expected, not a crash
       if (workerResponse.status === 429) {
         throw new HttpsError("resource-exhausted", workerError, {
@@ -318,16 +379,24 @@ export const swarmspaceRouter = onCall(
           quota: body?.quota,
         });
       }
-
       // 403 = tier insufficient (shouldn't happen since we check above, but belt+suspenders)
       if (workerResponse.status === 403) {
         throw new HttpsError("permission-denied", workerError);
       }
-
       throw new HttpsError("internal", workerError);
     }
 
     logger.info(`SwarmSpace plugin ${plugin_id} success for user ${userId}`);
+    writePluginActivityLog({
+      user_id: userId,
+      plugin_id,
+      plugin_name: plugin.description,
+      user_tier: userTier,
+      privacy_required: privacyRequired,
+      consent_given: consentGiven,
+      data_fields_sent: dataFieldsSent,
+      result: "success",
+    });
 
     // Return the worker's response body to LUMARA
     return workerBody;

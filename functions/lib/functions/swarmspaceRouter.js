@@ -24,9 +24,11 @@ exports.swarmspacePluginCatalog = exports.swarmspacePluginStatus = exports.swarm
 const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
 const params_1 = require("firebase-functions/params");
+const firestore_1 = require("firebase-admin/firestore");
 const authGuard_1 = require("../authGuard");
 const userLlmSettings_1 = require("../userLlmSettings");
 const config_1 = require("../config");
+const PLUGIN_ACTIVITY_COLLECTION = "plugin_activity_log";
 // ── Secrets ────────────────────────────────────────────────────────────────────
 // Set these once via Firebase CLI:
 //   firebase functions:secrets:set SWARMSPACE_INTERNAL_TOKEN
@@ -37,6 +39,8 @@ const config_1 = require("../config");
 const SWARMSPACE_INTERNAL_TOKEN = (0, params_1.defineSecret)("SWARMSPACE_INTERNAL_TOKEN");
 const PLUGIN_REGISTRY = {
     // ── Free tier ──────────────────────────────────────────────────────────────
+    // IMPORTANT: The gemini-flash worker must use model gemini-3-flash-preview so it
+    // matches proxyGemini and visionOcrInvoke. See DOCS/SWARMSPACE_GEMINI_MODEL_ALIGNMENT.md.
     "gemini-flash": {
         workerUrl: "https://swarmspace-plugin-gemini-flash.orbitalai.workers.dev",
         requiredTier: "free",
@@ -142,6 +146,17 @@ const TIER_RANK = { free: 0, standard: 1, premium: 2 };
 function canAccessPlugin(userTier, requiredTier) {
     return TIER_RANK[userTier] >= TIER_RANK[requiredTier];
 }
+// ── Activity log (PRISM Phase 1) ───────────────────────────────────────────────
+// Fire-and-forget write to Firestore so every plugin call is recorded for Activity tab.
+function writePluginActivityLog(entry) {
+    const db = (0, firestore_1.getFirestore)();
+    db.collection(PLUGIN_ACTIVITY_COLLECTION)
+        .add({
+        ...entry,
+        called_at: new Date(),
+    })
+        .catch((err) => firebase_functions_1.logger.warn("plugin_activity_log write failed", err));
+}
 // ── The router function ────────────────────────────────────────────────────────
 /** Plugin IDs that accept per-user API key override (LLM plugins) */
 const LLM_PLUGINS = new Set(["gemini-flash"]);
@@ -193,6 +208,9 @@ exports.swarmspaceRouter = (0, https_1.onCall)({
     const consentGiven = paramsToSend._prism_consent === true || paramsToSend._prism_consent === "true";
     const paramsForWorker = { ...paramsToSend };
     delete paramsForWorker._prism_consent;
+    const dataFieldsSent = typeof paramsForWorker === "object" && paramsForWorker !== null
+        ? Object.keys(paramsForWorker).filter((k) => ["image_b64", "image_url", "url", "image_base64"].includes(k))
+        : [];
     if (privacyRequired && hasSensitivePayload && !consentGiven) {
         firebase_functions_1.logger.info("prism_transaction", {
             phase: "pre_invoke",
@@ -244,6 +262,17 @@ exports.swarmspaceRouter = (0, https_1.onCall)({
     }
     catch (err) {
         firebase_functions_1.logger.error(`Worker fetch failed for plugin ${plugin_id}:`, err);
+        writePluginActivityLog({
+            user_id: userId,
+            plugin_id,
+            plugin_name: plugin.description,
+            user_tier: userTier,
+            privacy_required: privacyRequired,
+            consent_given: consentGiven,
+            data_fields_sent: dataFieldsSent,
+            result: "error",
+            error_message: err?.message ?? "Worker fetch failed",
+        });
         throw new https_1.HttpsError("unavailable", `Plugin ${plugin_id} is temporarily unavailable. Try again shortly.`);
     }
     // Step 6: Parse and return the worker's response.
@@ -260,6 +289,17 @@ exports.swarmspaceRouter = (0, https_1.onCall)({
         const body = workerBody;
         const workerError = body?.error ?? "Plugin error";
         firebase_functions_1.logger.warn(`Plugin ${plugin_id} returned ${workerResponse.status}: ${workerError}`);
+        writePluginActivityLog({
+            user_id: userId,
+            plugin_id,
+            plugin_name: plugin.description,
+            user_tier: userTier,
+            privacy_required: privacyRequired,
+            consent_given: consentGiven,
+            data_fields_sent: dataFieldsSent,
+            result: "error",
+            error_message: workerError,
+        });
         // 429 = quota exceeded — this is expected, not a crash
         if (workerResponse.status === 429) {
             throw new https_1.HttpsError("resource-exhausted", workerError, {
@@ -274,6 +314,16 @@ exports.swarmspaceRouter = (0, https_1.onCall)({
         throw new https_1.HttpsError("internal", workerError);
     }
     firebase_functions_1.logger.info(`SwarmSpace plugin ${plugin_id} success for user ${userId}`);
+    writePluginActivityLog({
+        user_id: userId,
+        plugin_id,
+        plugin_name: plugin.description,
+        user_tier: userTier,
+        privacy_required: privacyRequired,
+        consent_given: consentGiven,
+        data_fields_sent: dataFieldsSent,
+        result: "success",
+    });
     // Return the worker's response body to LUMARA
     return workerBody;
 });

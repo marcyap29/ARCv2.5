@@ -96,6 +96,8 @@ class RawEntryAnalysis {
   final Map<String, dynamic>? decisionData;
   /// Populated when entryType == chat
   final Map<String, dynamic>? chatData;
+  /// Phase 5a: Populated when entryType == 'output_created' or 'output_tagged'
+  final Map<String, dynamic>? outputData;
 
   const RawEntryAnalysis({
     this.sentinelScore,
@@ -107,10 +109,12 @@ class RawEntryAnalysis {
     this.entryType,
     this.decisionData,
     this.chatData,
+    this.outputData,
   });
 
   bool get isDecision => entryType == 'decision';
   bool get isChat => entryType == 'chat';
+  bool get isOutput => entryType == 'output_created' || entryType == 'output_tagged';
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{
@@ -124,6 +128,7 @@ class RawEntryAnalysis {
     if (entryType != null) map['entry_type'] = entryType;
     if (decisionData != null) map['decision_data'] = decisionData;
     if (chatData != null) map['chat_data'] = chatData;
+    if (outputData != null) map['output_data'] = outputData;
     return map;
   }
 
@@ -147,6 +152,9 @@ class RawEntryAnalysis {
           : null,
       chatData: json['chat_data'] != null
           ? Map<String, dynamic>.from(json['chat_data'] as Map)
+          : null,
+      outputData: json['output_data'] != null
+          ? Map<String, dynamic>.from(json['output_data'] as Map)
           : null,
     );
   }

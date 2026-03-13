@@ -22,11 +22,6 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Helper function: Check if user is not anonymous (has email)
-    function isRealUser() {
-      return isAuthenticated() && request.auth.token.email != null;
-    }
-    
     // ============================================
     // USERS COLLECTION
     // ============================================
@@ -71,6 +66,11 @@ service cloud.firestore {
 
       // Sentinel crisis mode state
       match /sentinel_state/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Phase 5a: Outputs (agent outputs: scans, research, writer)
+      match /outputs/{itemId} {
         allow read, write: if isOwner(userId);
       }
     }

@@ -1,39 +1,39 @@
 /// Outputs Tab Screen
 ///
-/// Browse and search LUMARA agent outputs: research reports and writing drafts.
-/// Search filters by keywords in titles, subjects, and content.
+/// Phase 5a: Two-level folder taxonomy (Agent → Category), item cards, sort/filter, tag editing.
 library;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:my_app/arc/chat/ui/writing_screen.dart';
-import 'package:my_app/lumara/agents/models/content_draft.dart';
-import 'package:my_app/lumara/agents/models/research_models.dart';
-import 'package:my_app/lumara/agents/screens/research_report_detail_screen.dart';
-import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
-import 'package:my_app/lumara/agents/widgets/content_draft_card.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:my_app/arc/outputs/output_detail_screen.dart';
+import 'package:my_app/arc/outputs/outputs_chronicle_service.dart';
+import 'package:my_app/arc/outputs/outputs_cubit.dart';
+import 'package:my_app/arc/outputs/outputs_models.dart';
+import 'package:my_app/arc/outputs/outputs_repository.dart';
+import 'package:my_app/arc/outputs/widgets/output_folder_tile.dart';
 import 'package:my_app/shared/app_colors.dart';
 
-class OutputsTabScreen extends StatefulWidget {
+class OutputsTabScreen extends StatelessWidget {
   const OutputsTabScreen({super.key});
 
   @override
-  State<OutputsTabScreen> createState() => _OutputsTabScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => OutputsCubit(),
+      child: const _OutputsTabBody(),
+    );
+  }
 }
 
-class _OutputsTabScreenState extends State<OutputsTabScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  List<ResearchReport> _reports = [];
-  List<ContentDraft> _drafts = [];
-  bool _loading = true;
-  String? _error;
+class _OutputsTabBody extends StatefulWidget {
+  const _OutputsTabBody();
 
   @override
-  void initState() {
-    super.initState();
-    _loadOutputs();
-  }
+  State<_OutputsTabBody> createState() => _OutputsTabBodyState();
+}
+
+class _OutputsTabBodyState extends State<_OutputsTabBody> {
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void dispose() {
@@ -41,48 +41,15 @@ class _OutputsTabScreenState extends State<OutputsTabScreen> {
     super.dispose();
   }
 
-  Future<void> _loadOutputs() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final userId = await AgentsChronicleService.instance.getCurrentUserId();
-      final reports = await AgentsChronicleService.instance.getResearchReports(userId);
-      final drafts = await AgentsChronicleService.instance.getContentDrafts(userId);
-      if (mounted) {
-        setState(() {
-          _reports = reports;
-          _drafts = drafts;
-          _loading = false;
-        });
+  List<OutputItem> _filterBySearch(List<OutputItem> items, String query) {
+    if (query.isEmpty) return items;
+    final q = query.toLowerCase();
+    return items.where((i) {
+      if (i.title.toLowerCase().contains(q)) return true;
+      for (final t in [...i.autoTags, ...i.userTags]) {
+        if (t.toLowerCase().contains(q)) return true;
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = e.toString();
-        });
-      }
-    }
-  }
-
-  List<ResearchReport> get _filteredReports {
-    if (_searchQuery.isEmpty) return _reports;
-    final q = _searchQuery.toLowerCase();
-    return _reports.where((r) {
-      return (r.query.toLowerCase().contains(q)) ||
-          (r.summary.toLowerCase().contains(q));
-    }).toList();
-  }
-
-  List<ContentDraft> get _filteredDrafts {
-    if (_searchQuery.isEmpty) return _drafts;
-    final q = _searchQuery.toLowerCase();
-    return _drafts.where((d) {
-      return (d.title.toLowerCase().contains(q)) ||
-          (d.preview.toLowerCase().contains(q)) ||
-          ((d.contentType ?? '').toLowerCase().contains(q));
+      return false;
     }).toList();
   }
 
@@ -93,15 +60,14 @@ class _OutputsTabScreenState extends State<OutputsTabScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Search bar
             Padding(
               padding: const EdgeInsets.all(16),
               child: TextField(
                 controller: _searchController,
-                onChanged: (v) => setState(() => _searchQuery = v),
+                onChanged: (_) => context.read<OutputsCubit>().setSearchQuery(_searchController.text),
                 style: const TextStyle(color: kcPrimaryTextColor),
                 decoration: InputDecoration(
-                  hintText: 'Search reports and writings by title, subject...',
+                  hintText: 'Search by title or tag...',
                   hintStyle: TextStyle(color: kcSecondaryTextColor.withOpacity(0.5)),
                   prefixIcon: Icon(Icons.search, color: kcSecondaryTextColor.withOpacity(0.5)),
                   filled: true,
@@ -113,267 +79,136 @@ class _OutputsTabScreenState extends State<OutputsTabScreen> {
                 ),
               ),
             ),
-
-            // Content
+            const SizedBox(height: 12),
             Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Could not load outputs',
-                                  style: TextStyle(color: kcSecondaryTextColor, fontSize: 16),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _error!,
-                                  style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.7), fontSize: 12),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 16),
-                                TextButton(
-                                  onPressed: _loadOutputs,
-                                  child: const Text('Retry'),
-                                ),
-                              ],
+              child: BlocBuilder<OutputsCubit, OutputsState>(
+                builder: (context, state) {
+                  final filtered = _filterBySearch(state.items, state.searchQuery);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Sort:',
+                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                    color: kcSecondaryTextColor,
+                                  ),
                             ),
-                          ),
-                        )
-                      : _buildContent(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContent() {
-    final reports = _filteredReports;
-    final drafts = _filteredDrafts;
-    final isEmpty = reports.isEmpty && drafts.isEmpty;
-
-    if (isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.folder_open, size: 64, color: kcSecondaryTextColor.withOpacity(0.4)),
-            const SizedBox(height: 16),
-            Text(
-              _searchQuery.isEmpty ? 'No outputs yet' : 'No matching outputs',
-              style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.8), fontSize: 16),
-            ),
-            if (_searchQuery.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Try different keywords',
-                style: TextStyle(color: kcSecondaryTextColor.withOpacity(0.5), fontSize: 14),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadOutputs,
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          if (reports.isNotEmpty) _buildReportsSection(reports),
-          if (drafts.isNotEmpty) _buildDraftsSection(drafts),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReportsSection(List<ResearchReport> reports) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Text(
-            'Reports',
-            style: TextStyle(
-              color: kcSecondaryTextColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        ...reports.map((r) => _ReportTile(
-              report: r,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (context) => ResearchReportDetailScreen(report: r),
-                  ),
-                ).then((_) => _loadOutputs());
-              },
-            )),
-      ],
-    );
-  }
-
-  Widget _buildDraftsSection(List<ContentDraft> drafts) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text(
-            'Writing',
-            style: TextStyle(
-              color: kcSecondaryTextColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: drafts.length,
-            itemBuilder: (context, index) {
-              final d = drafts[index];
-              return ContentDraftCard(
-                draft: d,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (context) => WritingScreen(draftId: d.id),
-                    ),
-                  ).then((_) => _loadOutputs());
+                            const SizedBox(width: 8),
+                            SegmentedButton<bool>(
+                              segments: const [
+                                ButtonSegment(value: false, label: Text('Date')),
+                                ButtonSegment(value: true, label: Text('A–Z')),
+                              ],
+                              selected: {state.sortByTitle},
+                              onSelectionChanged: (s) {
+                                context.read<OutputsCubit>().setSortByTitle(s.first);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: _OutputsFolderList(
+                          filteredItems: filtered,
+                          sortByTitle: state.sortByTitle,
+                          onItemTap: (item) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (context) => OutputDetailScreen(item: item),
+                              ),
+                            );
+                          },
+                          onItemTagsChanged: (item, userTags) async {
+                            final updated = item.copyWith(userTags: userTags);
+                            await OutputsRepository.instance.updateUserTags(item.id, userTags);
+                            OutputsChronicleService.instance.onOutputSaved(
+                              type: 'output_tagged',
+                              item: updated,
+                            );
+                          },
+                          onItemDelete: (item) async {
+                            await context.read<OutputsCubit>().deleteItem(item.id);
+                          },
+                        ),
+                      ),
+                    ],
+                  );
                 },
-                onMarkFinished: () => _markFinished(d),
-                onArchive: () => _archive(d),
-                onUnarchive: () => _unarchive(d),
-                onDelete: () => _delete(d),
-                onChanged: _loadOutputs,
-              );
-            },
-          ),
+              ),
+            ),
+          ],
         ),
-      ],
-    );
-  }
-
-  Future<void> _markFinished(ContentDraft draft) async {
-    final userId = await AgentsChronicleService.instance.getCurrentUserId();
-    await AgentsChronicleService.instance.markDraftFinished(userId, draft.id);
-    _loadOutputs();
-  }
-
-  Future<void> _archive(ContentDraft draft) async {
-    final userId = await AgentsChronicleService.instance.getCurrentUserId();
-    await AgentsChronicleService.instance.archiveDraft(userId, draft.id);
-    _loadOutputs();
-  }
-
-  Future<void> _unarchive(ContentDraft draft) async {
-    final userId = await AgentsChronicleService.instance.getCurrentUserId();
-    await AgentsChronicleService.instance.unarchiveDraft(userId, draft.id);
-    _loadOutputs();
-  }
-
-  Future<void> _delete(ContentDraft draft) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete draft?'),
-        content: Text('Delete "${draft.title}"? This cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
       ),
     );
-    if (ok != true) return;
-    final userId = await AgentsChronicleService.instance.getCurrentUserId();
-    await AgentsChronicleService.instance.deleteDraft(userId, draft.id);
-    _loadOutputs();
   }
 }
 
-class _ReportTile extends StatelessWidget {
-  final ResearchReport report;
-  final VoidCallback onTap;
+/// Folder list with Writer subfolders grouped under a non-tappable "Writer" section header.
+class _OutputsFolderList extends StatelessWidget {
+  final List<OutputItem> filteredItems;
+  final bool sortByTitle;
+  final void Function(OutputItem) onItemTap;
+  final void Function(OutputItem item, List<String> userTags) onItemTagsChanged;
+  final void Function(OutputItem) onItemDelete;
 
-  const _ReportTile({required this.report, required this.onTap});
+  const _OutputsFolderList({
+    required this.filteredItems,
+    required this.sortByTitle,
+    required this.onItemTap,
+    required this.onItemTagsChanged,
+    required this.onItemDelete,
+  });
+
+  static List<OutputFolder> get _nonWriterFolders =>
+      kOutputFolders.where((f) => f.agentKey != 'writer').toList();
+  static List<OutputFolder> get _writerFolders =>
+      kOutputFolders.where((f) => f.agentKey == 'writer').toList();
+
+  Widget _buildTile(BuildContext context, OutputFolder folder) {
+    final folderItems = filteredItems
+        .where((i) => i.agentKey == folder.agentKey && i.folderKey == folder.folderKey)
+        .toList();
+    return OutputFolderTile(
+      folder: folder,
+      items: folderItems,
+      sortByTitle: sortByTitle,
+      onItemTap: onItemTap,
+      onItemTagsChanged: onItemTagsChanged,
+      onItemDelete: onItemDelete,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = DateFormat.yMMMd().format(report.generatedAt);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: kcSurfaceAltColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.assignment, size: 20, color: kcPrimaryColor),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      report.query,
-                      style: const TextStyle(
-                        color: kcPrimaryTextColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+    final nonWriter = _nonWriterFolders;
+    final writer = _writerFolders;
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 24),
+      itemCount: nonWriter.length + 1 + writer.length,
+      itemBuilder: (context, index) {
+        if (index < nonWriter.length) {
+          return _buildTile(context, nonWriter[index]);
+        }
+        if (index == nonWriter.length) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Writer',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: kcSecondaryTextColor,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
-              ),
-              if (report.summary.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  report.summary,
-                  style: TextStyle(
-                    color: kcSecondaryTextColor.withOpacity(0.9),
-                    fontSize: 13,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const SizedBox(height: 6),
-              Text(
-                dateStr,
-                style: TextStyle(
-                  color: kcSecondaryTextColor.withOpacity(0.6),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+            ),
+          );
+        }
+        return _buildTile(context, writer[index - nonWriter.length - 1]);
+      },
     );
   }
 }

@@ -528,8 +528,10 @@ rm /tmp/groq_key.txt
 
 ### List Secrets
 
+Firebase CLI has no `functions:secrets:list`; use Google Cloud Secret Manager:
+
 ```bash
-firebase functions:secrets:list
+gcloud secrets list --project arc-epi
 ```
 
 ### Access Secrets

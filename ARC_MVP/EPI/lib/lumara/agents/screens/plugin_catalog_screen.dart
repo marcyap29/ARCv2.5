@@ -4,6 +4,7 @@
 // Unavailable plugins are greyed out. Used for discovery and transparency.
 
 import 'package:flutter/material.dart';
+import 'package:my_app/lumara/agents/screens/plugin_activity_screen.dart';
 import 'package:my_app/lumara/agents/widgets/agent_tip_banner.dart';
 import 'package:my_app/services/swarmspace/swarmspace_client.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -19,7 +20,7 @@ String _pluginDisplayName(String pluginId) {
     'wikipedia': 'Wikipedia',
     'currency': 'Currency',
     'news': 'News',
-    'vision-ocr': 'Vision / OCR',
+    'vision-ocr': 'Vision/Scanning',
     'url-reader': 'URL Reader',
     'tavily-search': 'Tavily Search',
     'exa-search': 'Exa Search',
@@ -98,6 +99,19 @@ class _PluginCatalogScreenState extends State<PluginCatalogScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (context) => const PluginActivityScreen(),
+                ),
+              );
+            },
+            tooltip: 'Plugin Activity',
+            color: kcPrimaryTextColor,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _loadCatalog,

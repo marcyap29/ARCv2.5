@@ -13,28 +13,33 @@
 //
 // News routing: Key phrase "get me news on/about/concerning X"; also "news", "headlines", "latest", "today", etc.
 
+import 'package:flutter/material.dart';
+import 'package:my_app/services/swarmspace/prism_service.dart';
 import 'package:my_app/services/swarmspace/swarmspace_client.dart';
 import 'research_models.dart';
 import 'web_search_tool.dart';
 
 /// SwarmSpace-backed web search. Replaces StubWebSearchTool.
 ///
-/// Instantiate once and pass to ResearchAgent:
+/// Instantiate with [context] when available (e.g. from Research screen) so url-reader
+/// and other plugins go through PRISM consent. Without context, falls back to
+/// [onConsentRequired] for first-use consent.
 ///
-///   final searchTool = SwarmSpaceWebSearchTool();
+///   final searchTool = SwarmSpaceWebSearchTool(context: context);
 ///   final agent = ResearchAgent(searchTool: searchTool, ...);
-/// Callback when a plugin is first used and not yet approved (LUMARA–SwarmSpace docking).
-/// Return true to approve and persist; false to skip this plugin for this session.
 typedef SwarmSpaceConsentCallback = Future<bool> Function(String pluginId);
 
 class SwarmSpaceWebSearchTool implements WebSearchTool {
   final SwarmSpaceClient _client;
+  final BuildContext? context;
   final SwarmSpaceConsentCallback? onConsentRequired;
 
   SwarmSpaceWebSearchTool({
+    BuildContext? context,
     SwarmSpaceClient? client,
     this.onConsentRequired,
-  }) : _client = client ?? SwarmSpaceClient.instance;
+  })  : context = context,
+        _client = client ?? SwarmSpaceClient.instance;
 
   // Key phrase "get me news on/about/concerning X" activates news (NewsData.io).
   static final _newsKeywords = RegExp(
@@ -76,17 +81,29 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
 
   @override
   Future<FetchedPage?> fetchPage(String url) async {
-    // URL Reader plugin (standard tier) — fetch and extract page content.
-    final result = await _client.invoke(
-      'url-reader',
-      {
-        'url': url,
-        'summarize': false,
-        'max_length': 6000,
-        'include_metadata': true,
-      },
-      onConsentRequired: onConsentRequired,
-    );
+    final params = {
+      'url': url,
+      'summarize': false,
+      'max_length': 6000,
+      'include_metadata': true,
+    };
+    final SwarmSpaceResult result;
+    if (context != null) {
+      final prismResult = await PrismService.instance.authoriseAndCall(
+        pluginId: 'url-reader',
+        params: params,
+        context: context,
+      );
+      if (prismResult.isDenied) return null;
+      result = prismResult.result!;
+    } else {
+      final r = await _client.invoke(
+        'url-reader',
+        params,
+        onConsentRequired: onConsentRequired,
+      );
+      result = r;
+    }
 
     if (!result.success || result.data == null) return null;
 
@@ -105,6 +122,19 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
 
   // ── Plugin calls ────────────────────────────────────────────────────────────
 
+  Future<SwarmSpaceResult> _invokePlugin(String pluginId, Map<String, dynamic> params) async {
+    if (context != null) {
+      final prismResult = await PrismService.instance.authoriseAndCall(
+        pluginId: pluginId,
+        params: params,
+        context: context,
+      );
+      if (prismResult.isDenied) return SwarmSpaceResult.error('Plugin skipped by user');
+      return prismResult.result!;
+    }
+    return _client.invoke(pluginId, params, onConsentRequired: onConsentRequired);
+  }
+
   Future<List<SearchSnippet>?> _tryNews(String query) async {
     // Extract search terms: "latest news on AI" → "AI", "top tech news today" → "tech"
     final cleanQuery = query
@@ -113,11 +143,7 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
         .trim();
     final searchQ = cleanQuery.isEmpty ? 'technology' : cleanQuery;
 
-    final result = await _client.invoke(
-      'news',
-      {'query': searchQ, 'language': 'en'},
-      onConsentRequired: onConsentRequired,
-    );
+    final result = await _invokePlugin('news', {'query': searchQ, 'language': 'en'});
 
     if (!result.success || result.data == null) return null;
 
@@ -141,16 +167,12 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
   }
 
   Future<List<SearchSnippet>?> _tryTavilySearch(String query) async {
-    final result = await _client.invoke(
-      'tavily-search',
-      {
-        'query': query,
-        'max_results': 8,
-        'include_answer': true,
-        'search_depth': 'basic',
-      },
-      onConsentRequired: onConsentRequired,
-    );
+    final result = await _invokePlugin('tavily-search', {
+      'query': query,
+      'max_results': 8,
+      'include_answer': true,
+      'search_depth': 'basic',
+    });
 
     if (!result.success || result.data == null) return null;
 
@@ -183,11 +205,7 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
   }
 
   Future<List<SearchSnippet>?> _tryBraveSearch(String query) async {
-    final result = await _client.invoke(
-      'brave-search',
-      {'query': query, 'count': 8},
-      onConsentRequired: onConsentRequired,
-    );
+    final result = await _invokePlugin('brave-search', {'query': query, 'count': 8});
 
     if (!result.success) {
       print('SwarmSpace: brave-search failed: ${result.error}');
@@ -220,11 +238,7 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
   }
 
   Future<List<SearchSnippet>?> _tryWikipedia(String query) async {
-    final result = await _client.invoke(
-      'wikipedia',
-      {'query': query, 'mode': 'search', 'limit': 3},
-      onConsentRequired: onConsentRequired,
-    );
+    final result = await _invokePlugin('wikipedia', {'query': query, 'mode': 'search', 'limit': 3});
 
     if (!result.success || result.data == null) return null;
 

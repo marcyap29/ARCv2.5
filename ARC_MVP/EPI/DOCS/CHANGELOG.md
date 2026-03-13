@@ -1,7 +1,32 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.71
+**Version:** 3.3.72
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.72] - March 10, 2026
+
+### Doc-config-git-backup run; Outputs system; Firestore rules/index; SwarmSpace/build/model alignment; research/vision/writing pipelines; plugin activity; PRISM service
+
+**Action:** Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main → test.
+
+**New:**
+- **Outputs:** output_detail_screen, output_tagging, outputs_chronicle_service, outputs_cubit, outputs_models, outputs_repository, scan_action_sheet, outputs widgets; test/arc/outputs/.
+- **Research:** content_brief.dart, research_pipeline.dart; plugin_activity_screen; test/lumara/research/.
+- **Vision:** lib/lumara/agents/vision/; test/lumara/vision/.
+- **Writing:** draft_editor_screen.dart, pipeline_draft.dart, style_profile_service.dart; test/lumara/writing/.
+- **SwarmSpace:** plugin_activity_log_service, prism_service.
+- **Docs:** FIREBASE_GEMINI_SECRET_SETUP.md, FIRESTORE_ACTIVITY_INDEX_AND_RULES.md, Key Commands to Remember.md, LUMARA_SWARMSPACE_BUILD_STATUS.md, SWARMSPACE_GEMINI_MODEL_ALIGNMENT.md, bugtracker/BUGTRACKER_REVIEW_REPORT.md.
+
+**Updated (sync with repo):**
+- **LUMARA:** lumara_cloud_generate.
+- **Agents:** research_screen, writing_screen, outputs_tab_screen, agent_tips, swarmspace_web_search_tool, agents_screen, plugin_catalog_screen, research_report_detail_screen, vision_ocr_screen, writing_agent_tab, writing_prompts; swarmspace_client; home_view.
+- **Chronicle:** raw_entry_schema.
+- **Firebase:** firestore.rules; swarmspaceRouter.ts; package/package-lock.
+- **Docs:** FIREBASE.md, LUMARA_Overview.md, bugtracker (BUGTRACKER_AUDIT_REPORT, BUGTRACKER_MASTER_INDEX), claude.md.
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

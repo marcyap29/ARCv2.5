@@ -11,6 +11,7 @@ import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/gemini_send.dart';
 import 'package:my_app/services/lumara/pii_scrub.dart';
+import 'package:my_app/services/swarmspace/prism_service.dart';
 import 'package:my_app/services/swarmspace/swarmspace_client.dart';
 
 /// Tries SwarmSpace gemini-flash first (for Writing/Research agents), then falls back to Groq.
@@ -55,12 +56,18 @@ Future<String?> generateWithSwarmSpaceGemini({
   final available = await client.isPluginAvailable('gemini-flash');
   if (!available) return null;
 
-  final result = await client.invoke('gemini-flash', {
-    'system': systemPrompt,
-    'user': userPrompt,
-    'max_tokens': maxTokens,
-    'temperature': 0.7,
-  });
+  final prismResult = await PrismService.instance.authoriseAndCall(
+    pluginId: 'gemini-flash',
+    params: {
+      'system': systemPrompt,
+      'user': userPrompt,
+      'max_tokens': maxTokens,
+      'temperature': 0.7,
+    },
+    context: null,
+  );
+  if (prismResult.isDenied) return null;
+  final result = prismResult.result!;
 
   if (!result.success || result.data == null) return null;
 

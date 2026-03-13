@@ -56,7 +56,7 @@ class _WritingAgentTabState extends State<WritingAgentTab> {
               ).then((_) => _refresh());
             },
             icon: const Icon(Icons.edit_note),
-            label: const Text('Open Writing Agent'),
+            label: const Text('Open Writer'),
             style: ElevatedButton.styleFrom(
               backgroundColor: kcPrimaryColor,
               foregroundColor: Colors.white,

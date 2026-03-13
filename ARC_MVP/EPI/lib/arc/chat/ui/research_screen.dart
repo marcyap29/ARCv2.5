@@ -1,26 +1,34 @@
-import 'package:my_app/lumara/agents/research/swarmspace_web_search_tool.dart';
 // lib/arc/chat/ui/research_screen.dart
 // Dedicated screen for the LUMARA Research Agent (Agents tab).
+// Phase 3: Research pipeline; Phase 4: Scan document; Phase 5a: Auto-save to Outputs.
+
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../services/lumara_cloud_generate.dart';
-import 'package:my_app/lumara/agents/research/research_agent.dart';
-import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
-import 'package:my_app/lumara/agents/research/research_models.dart';
+import 'package:my_app/arc/outputs/output_tagging.dart';
+import 'package:my_app/arc/outputs/outputs_chronicle_service.dart';
+import 'package:my_app/arc/outputs/outputs_models.dart';
+import 'package:my_app/arc/outputs/outputs_repository.dart';
+import 'package:my_app/arc/chat/ui/writing_screen.dart';
+import 'package:my_app/lumara/agents/research/content_brief.dart';
+import 'package:my_app/lumara/agents/research/research_pipeline.dart';
 import 'package:my_app/lumara/agents/screens/research_agent_tab.dart';
-import 'package:my_app/lumara/agents/screens/research_report_detail_screen.dart';
+import 'package:my_app/lumara/agents/vision/document_parser.dart';
+import 'package:my_app/lumara/agents/vision/parsed_document.dart';
 import 'package:my_app/lumara/agents/widgets/agent_tip_banner.dart';
-import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
-import 'package:my_app/services/firebase_auth_service.dart';
 
 /// Screen for the LUMARA Research Agent: enter a question, get a synthesized report.
 class ResearchScreen extends StatefulWidget {
-  const ResearchScreen({super.key, this.initialQuery});
+  const ResearchScreen({super.key, this.initialQuery, this.initialDocumentContext});
 
   final String? initialQuery;
+  /// Phase 5a: When opening from post-scan "Add to Research", pre-fill document context.
+  final String? initialDocumentContext;
 
   @override
   State<ResearchScreen> createState() => _ResearchScreenState();
@@ -29,16 +37,23 @@ class ResearchScreen extends StatefulWidget {
 class _ResearchScreenState extends State<ResearchScreen> {
   late final TextEditingController _queryController;
 
+  ContentBrief? _brief;
+  bool _loading = false;
+  String? _stage;
+  String? _error;
+  final List<String> _pipelineError = [];
+  /// Context from scanned document (Phase 4); injected into pipeline when running research.
+  String? _documentContext;
+  static final ImagePicker _imagePicker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
     _queryController = TextEditingController(text: widget.initialQuery ?? '');
+    if (widget.initialDocumentContext != null) {
+      _documentContext = widget.initialDocumentContext;
+    }
   }
-
-  ResearchReport? _report;
-  String? _reportSessionId;
-  bool _loading = false;
-  String? _error;
 
   @override
   void dispose() {
@@ -49,87 +64,166 @@ class _ResearchScreenState extends State<ResearchScreen> {
   Future<void> _runResearch() async {
     final query = _queryController.text.trim();
     if (query.isEmpty) {
-      setState(() {
-        _error = 'Enter a research question.';
-      });
+      setState(() => _error = 'Enter a research question.');
       return;
     }
-    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
     setState(() {
       _loading = true;
       _error = null;
-      _report = null;
+      _stage = null;
+      _brief = null;
+      _pipelineError.clear();
     });
-    try {
-      final agent = ResearchAgent(
-        getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
-        generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
-          return generateForAgents(
-            systemPrompt: systemPrompt,
-            userPrompt: userPrompt,
-            maxTokens: maxTokens ?? 1200,
-          );
-        },
-        searchTool: SwarmSpaceWebSearchTool(),
-      );
-      final result = await agent.conductResearch(
-        userId: userId,
-        query: query,
-      );
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _report = result.report;
-          _reportSessionId = result.sessionId;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = e.toString();
-        });
-      }
-    }
-  }
-
-  Future<void> _openSaveShare(BuildContext context) async {
-    if (_reportSessionId == null) return;
-    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-    final report = await AgentsChronicleService.instance.getResearchReportById(userId, _reportSessionId!);
-    if (!context.mounted || report == null) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (context) => ResearchReportDetailScreen(report: report),
-      ),
+    final brief = await runResearchPipeline(
+      query: query,
+      context: context,
+      onStage: (stage) {
+        if (mounted) setState(() => _stage = stage);
+      },
+      errorOut: _pipelineError,
+      documentContext: _documentContext,
     );
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _stage = null;
+      _brief = brief;
+      if (brief == null && _pipelineError.isNotEmpty) {
+        _error = _pipelineError.first;
+      }
+    });
+    // Phase 5a: Auto-save research brief to Outputs
+    if (brief != null) {
+      _saveBriefToOutputs(brief);
+    }
   }
 
-  void _copyReport() {
-    if (_report == null) return;
-    final buf = StringBuffer();
-    buf.writeln('# Research: ${_report!.query}');
-    buf.writeln();
-    buf.writeln('## Summary');
-    buf.writeln(_report!.summary);
-    buf.writeln();
-    buf.writeln('## Key Insights');
-    for (final i in _report!.keyInsights) {
-      buf.writeln('- ${i.statement}');
+  Future<void> _saveBriefToOutputs(ContentBrief brief) async {
+    try {
+      final repo = OutputsRepository.instance;
+      final autoTags = [...pathTags('research', 'research'), ...contentTagsFromBrief(brief)];
+      final item = OutputItem(
+        id: '',
+        agentKey: 'research',
+        folderKey: 'research',
+        title: brief.title,
+        createdAt: brief.createdAt,
+        contentJson: jsonEncode(brief.toJson()),
+        autoTags: autoTags,
+        userTags: const [],
+      );
+      final saved = await repo.save(item);
+      OutputsChronicleService.instance.onOutputSaved(type: 'output_created', item: saved);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Saved to Outputs')),
+        );
+      }
+    } catch (_) {
+      // Fire-and-forget; don't surface errors
     }
+  }
+
+  void _copyBrief() {
+    if (_brief == null) return;
+    final buf = StringBuffer();
+    buf.writeln('# ${_brief!.title}');
     buf.writeln();
-    buf.writeln('## Detailed Findings');
-    buf.writeln(_report!.detailedFindings);
+    buf.writeln(_brief!.summary);
+    buf.writeln();
+    for (final k in _brief!.keyPoints) {
+      buf.writeln('- $k');
+    }
     buf.writeln();
     buf.writeln('## Sources');
-    for (final c in _report!.citations) {
-      buf.writeln('[${c.id}] ${c.title} - ${c.url}');
+    for (final s in _brief!.sources) {
+      buf.writeln('- ${s.title} ${s.url}');
     }
     Clipboard.setData(ClipboardData(text: buf.toString()));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Report copied to clipboard')),
+      const SnackBar(content: Text('Brief copied to clipboard')),
     );
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _scanDocument() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    final xFile = await _imagePicker.pickImage(
+      source: source,
+      maxWidth: 1920,
+      imageQuality: 85,
+    );
+    if (xFile == null || !mounted) return;
+    setState(() {
+      _loading = true;
+      _stage = 'Scanning document...';
+      _error = null;
+    });
+    final parseError = <String>[];
+    final parsed = await parseDocument(
+      image: xFile,
+      context: context,
+      errorOut: parseError,
+    );
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _stage = null;
+      if (parsed.rawText.isEmpty && parsed.keyFields.isEmpty) {
+        _error = parseError.isNotEmpty ? parseError.first : 'No text could be read from the image.';
+      } else {
+        _documentContext = _buildDocumentContext(parsed);
+        _error = null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Document context added. Run research to use it.')),
+        );
+      }
+    });
+  }
+
+  String _buildDocumentContext(ParsedDocument doc) {
+    final buf = StringBuffer();
+    if (doc.title != null && doc.title!.trim().isNotEmpty) {
+      buf.writeln('Document title: ${doc.title!.trim()}');
+    }
+    if (doc.date != null && doc.date!.trim().isNotEmpty) {
+      buf.writeln('Date: ${doc.date!.trim()}');
+    }
+    for (final f in doc.keyFields) {
+      if (f.label.trim().isNotEmpty || f.value.trim().isNotEmpty) {
+        buf.writeln('${f.label}: ${f.value}');
+      }
+    }
+    buf.writeln();
+    buf.write(doc.rawText);
+    return buf.toString();
   }
 
   /// Less dense on mobile: larger line height and spacing.
@@ -189,16 +283,64 @@ class _ResearchScreenState extends State<ResearchScreen> {
               ),
               maxLines: 3,
             ),
+            if (_documentContext != null) ...[
+              const Gap(8),
+              Row(
+                children: [
+                  Icon(Icons.document_scanner, size: 18, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Document context added',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () => setState(() => _documentContext = null),
+                    child: const Text('Clear'),
+                  ),
+                ],
+              ),
+            ],
             const Gap(16),
-            FilledButton(
-              onPressed: _loading ? null : _runResearch,
-              child: _loading
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Run research'),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _loading ? null : _runResearch,
+                    child: _loading
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                              if (_stage != null) ...[
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _stage!,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          )
+                        : const Text('Run research'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : _scanDocument,
+                  icon: const Icon(Icons.document_scanner, size: 20),
+                  label: const Text('Scan document'),
+                ),
+              ],
             ),
             if (_error != null) ...[
               const Gap(16),
@@ -207,34 +349,24 @@ class _ResearchScreenState extends State<ResearchScreen> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],
-                Gap(sectionGap * 2),
+            Gap(sectionGap * 2),
             const Divider(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Report',
+                  'Research brief',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                if (_report != null)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextButton.icon(
-                        onPressed: _copyReport,
-                        icon: const Icon(Icons.copy, size: 18),
-                        label: const Text('Copy'),
-                      ),
-                      TextButton.icon(
-                        onPressed: _reportSessionId != null ? () => _openSaveShare(context) : null,
-                        icon: const Icon(Icons.save_alt, size: 18),
-                        label: const Text('Save / Share'),
-                      ),
-                    ],
+                if (_brief != null)
+                  TextButton.icon(
+                    onPressed: _copyBrief,
+                    icon: const Icon(Icons.copy, size: 18),
+                    label: const Text('Copy'),
                   ),
               ],
             ),
-            if (_report == null)
+            if (_brief == null && !_loading)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -243,110 +375,27 @@ class _ResearchScreenState extends State<ResearchScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'Your research report will appear here after you run a query above. Reports are saved automatically to My Research.',
+                  'Your research brief will appear here after you run a query. We search the web and academic sources, then synthesise key points.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               )
-            else ...[
-              const Gap(8),
-              Text(
-                'Saved to My Research. Open Agents → Research to see all reports.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-              ),
+            else if (_brief != null) ...[
               const Gap(12),
-              if (_report!.abstractBullets.isNotEmpty) ...[
-                _Section(
-                  title: 'Abstract',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _report!.abstractBullets
-                        .map((b) => Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '• ',
-                                    style: Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                  Expanded(
-                                    child: SelectableText(
-                                      b,
-                                      style: _bodyStyle(context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ))
-                        .toList(),
-                  ),
+              _ContentBriefCard(
+                brief: _brief!,
+                bodyStyle: _bodyStyle,
+                onOpenUrl: _openUrl,
+                onUseInWriting: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => WritingScreen(initialBrief: _brief),
+                    ),
+                  );
+                },
               ),
-              Gap(sectionGap),
-              ],
-              _Section(
-                title: 'Summary',
-                child: SelectableText(
-                  _report!.summary,
-                  style: _bodyStyle(context),
-                ),
-              ),
-              if (_report!.keyInsights.isNotEmpty) ...[
-                Gap(sectionGap),
-                _Section(
-                  title: 'Key insights',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _report!.keyInsights
-                        .map((i) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(Icons.lightbulb_outline, size: 18),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: SelectableText(
-                                      i.statement,
-                                      style: _bodyStyle(context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ))
-                        .toList(),
-                  ),
-                ),
-              ],
-              Gap(sectionGap),
-              _Section(
-                title: 'Detailed findings',
-                child: SelectableText(
-                  _report!.detailedFindings,
-                  style: _bodyStyle(context),
-                ),
-              ),
-              if (_report!.citations.isNotEmpty) ...[
-                Gap(sectionGap),
-                _Section(
-                  title: 'Sources',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _report!.citations
-                        .map((c) => Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: SelectableText(
-                                '[${c.id}] ${c.title}\n${c.url}',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ))
-                        .toList(),
-                  ),
-                ),
-              ],
             ],
           ],
         ),
@@ -381,6 +430,124 @@ class _Section extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
           ),
           child: child,
+        ),
+      ],
+    );
+  }
+}
+
+class _ContentBriefCard extends StatefulWidget {
+  final ContentBrief brief;
+  final TextStyle Function(BuildContext) bodyStyle;
+  final Future<void> Function(String url) onOpenUrl;
+  final VoidCallback onUseInWriting;
+
+  const _ContentBriefCard({
+    required this.brief,
+    required this.bodyStyle,
+    required this.onOpenUrl,
+    required this.onUseInWriting,
+  });
+
+  @override
+  State<_ContentBriefCard> createState() => _ContentBriefCardState();
+}
+
+class _ContentBriefCardState extends State<_ContentBriefCard> {
+  bool _summaryExpanded = false;
+  static const int _summaryPreviewLength = 200;
+
+  @override
+  Widget build(BuildContext context) {
+    final brief = widget.brief;
+    final sectionGap = MediaQuery.sizeOf(context).width < 600 ? 20.0 : 12.0;
+    final isLongSummary = brief.summary.length > _summaryPreviewLength;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          brief.title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+        Gap(sectionGap),
+        _Section(
+          title: 'Summary',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText(
+                _summaryExpanded || !isLongSummary
+                    ? brief.summary
+                    : '${brief.summary.substring(0, _summaryPreviewLength)}...',
+                style: widget.bodyStyle(context),
+              ),
+              if (isLongSummary)
+                TextButton(
+                  onPressed: () => setState(() => _summaryExpanded = !_summaryExpanded),
+                  child: Text(_summaryExpanded ? 'Show less' : 'Show more'),
+                ),
+            ],
+          ),
+        ),
+        if (brief.keyPoints.isNotEmpty) ...[
+          Gap(sectionGap),
+          _Section(
+            title: 'Key points',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: brief.keyPoints
+                  .map((k) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('• ', style: widget.bodyStyle(context)),
+                            Expanded(
+                              child: SelectableText(k, style: widget.bodyStyle(context)),
+                            ),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
+        ],
+        if (brief.sources.isNotEmpty) ...[
+          Gap(sectionGap),
+          _Section(
+            title: 'Sources',
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: brief.sources
+                  .map((s) => InkWell(
+                        onTap: () => widget.onOpenUrl(s.url),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          child: Text(
+                            s.title.isNotEmpty ? s.title : s.url,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
+        ],
+        Gap(sectionGap),
+        OutlinedButton.icon(
+          onPressed: widget.onUseInWriting,
+          icon: const Icon(Icons.edit_note, size: 20),
+          label: const Text('Use in Writing'),
         ),
       ],
     );
