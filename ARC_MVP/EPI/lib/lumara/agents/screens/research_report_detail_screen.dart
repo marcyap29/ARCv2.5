@@ -1,27 +1,86 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/arc/chat/ui/writing_screen.dart';
 import 'package:my_app/arc/chat/widgets/lumara_message_body.dart';
+import 'package:my_app/arc/ui/widgets/reflection_draft_text_field.dart';
 import 'package:my_app/lumara/agents/models/research_models.dart';
-import 'package:my_app/lumara/agents/screens/report_editor_screen.dart';
 import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
 import 'package:my_app/lumara/agents/services/report_export_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 
-class ResearchReportDetailScreen extends StatelessWidget {
+class ResearchReportDetailScreen extends StatefulWidget {
   final ResearchReport report;
   final VoidCallback? onDeleted;
 
   const ResearchReportDetailScreen({super.key, required this.report, this.onDeleted});
 
-  Future<void> _editReport(BuildContext context) async {
-    final updated = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (context) => ReportEditorScreen(report: report)),
-    );
-    if (updated == true && context.mounted) {
-      onDeleted?.call();
-      Navigator.pop(context, true);
+  @override
+  State<ResearchReportDetailScreen> createState() => _ResearchReportDetailScreenState();
+}
+
+class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen> {
+  late TextEditingController _queryController;
+  late TextEditingController _summaryController;
+  late TextEditingController _detailedFindingsController;
+  late List<String> _tags;
+  bool _saving = false;
+  String? _saveError;
+  ResearchReport get report => widget.report;
+
+  @override
+  void initState() {
+    super.initState();
+    _queryController = TextEditingController(text: report.query);
+    _summaryController = TextEditingController(text: report.summary);
+    _detailedFindingsController = TextEditingController(text: report.detailedFindings);
+    _tags = List<String>.from(report.tags);
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    _summaryController.dispose();
+    _detailedFindingsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveEdits() async {
+    final query = _queryController.text.trim();
+    final summary = _summaryController.text.trim();
+    final detailed = _detailedFindingsController.text.trim();
+    if (query.isEmpty) {
+      setState(() => _saveError = 'Enter a title');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
+    try {
+      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+      await AgentsChronicleService.instance.updateResearchReport(
+        userId,
+        report.id,
+        query: query,
+        summary: summary,
+        detailedFindings: detailed,
+        tags: _tags,
+      );
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Saved. Changes appear in timeline and Outputs.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _saveError = e.toString();
+        });
+      }
     }
   }
 
@@ -41,25 +100,8 @@ class ResearchReportDetailScreen extends StatelessWidget {
     final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
     await AgentsChronicleService.instance.deleteResearchReport(userId, report.id);
     if (!context.mounted) return;
-    onDeleted?.call();
+    widget.onDeleted?.call();
     Navigator.pop(context, true);
-  }
-
-  Color _getPhaseColor(AtlasPhase phase) {
-    switch (phase) {
-      case AtlasPhase.recovery:
-        return Colors.blue;
-      case AtlasPhase.transition:
-        return Colors.amber;
-      case AtlasPhase.discovery:
-        return Colors.purple;
-      case AtlasPhase.expansion:
-        return Colors.green;
-      case AtlasPhase.breakthrough:
-        return Colors.orange;
-      case AtlasPhase.consolidation:
-        return Colors.teal;
-    }
   }
 
   Color _getConfidenceColor(double confidence) {
@@ -78,27 +120,11 @@ class ResearchReportDetailScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final phaseColor = _getPhaseColor(report.phase);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: phaseColor.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                '${report.phase.name} Phase',
-                style: TextStyle(
-                  color: phaseColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
             const Spacer(),
             Text(
               _formatDate(report.generatedAt),
@@ -109,8 +135,9 @@ class ResearchReportDetailScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        Text(
-          report.query,
+        ReflectionDraftTextField(
+          controller: _queryController,
+          hintText: 'Research question or title',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: kcPrimaryTextColor,
@@ -120,9 +147,115 @@ class ResearchReportDetailScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildTagsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tags (for CHRONICLE)',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: kcSecondaryTextColor,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ..._tags.map((tag) => Chip(
+                  label: Text(tag),
+                  deleteIcon: const Icon(Icons.close, size: 16),
+                  onDeleted: () => setState(() => _tags.remove(tag)),
+                  backgroundColor: kcPrimaryColor.withValues(alpha: 0.15),
+                )),
+            ActionChip(
+              avatar: const Icon(Icons.add, size: 18, color: kcPrimaryColor),
+              label: const Text('Add tag'),
+              onPressed: () async {
+                final text = await showDialog<String>(
+                  context: context,
+                  builder: (ctx) {
+                    final controller = TextEditingController();
+                    return AlertDialog(
+                      title: const Text('Add tag'),
+                      content: TextField(
+                        controller: controller,
+                        decoration: const InputDecoration(
+                          hintText: 'e.g. project name, topic',
+                        ),
+                        onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                          child: const Text('Add'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (text != null && text.isNotEmpty && mounted) {
+                  setState(() => _tags.add(text));
+                }
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Editable section (reflection-style) for Summary and Detailed Findings.
+  Widget _buildEditableSection(
+    BuildContext context,
+    String title,
+    TextEditingController controller, {
+    bool isMobile = false,
+    int minLines = 3,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: kcPrimaryTextColor,
+              ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(isMobile ? 16 : 12),
+          decoration: BoxDecoration(
+            color: kcSurfaceAltColor,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: ReflectionDraftTextField(
+            controller: controller,
+            hintText: title,
+            minLines: minLines,
+            maxLines: null,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  height: isMobile ? 1.75 : 1.6,
+                  color: kcPrimaryTextColor,
+                  fontSize: isMobile ? 16 : null,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+
   /// Build a section with markdown-rendered content (same architecture as reflection preview).
+  /// [isMobile] reduces density with larger line height and padding.
   Widget _buildMarkdownSection(
-      BuildContext context, String title, String content) {
+      BuildContext context, String title, String content, [bool isMobile = false]) {
     if (content.trim().isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,7 +270,7 @@ class ResearchReportDetailScreen extends StatelessWidget {
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(isMobile ? 16 : 12),
           decoration: BoxDecoration(
             color: kcSurfaceAltColor,
             borderRadius: BorderRadius.circular(10),
@@ -145,8 +278,9 @@ class ResearchReportDetailScreen extends StatelessWidget {
           child: LumaraMessageBody(
             content: content,
             textStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  height: 1.6,
+                  height: isMobile ? 1.75 : 1.6,
                   color: kcPrimaryTextColor,
+                  fontSize: isMobile ? 16 : null,
                 ),
             linkColor: kcPrimaryColor,
           ),
@@ -155,7 +289,7 @@ class ResearchReportDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInsightsSection(BuildContext context) {
+  Widget _buildInsightsSection(BuildContext context, [bool isMobile = false]) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -176,7 +310,7 @@ class ResearchReportDetailScreen extends StatelessWidget {
             child: Card(
               color: kcSurfaceAltColor,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(isMobile ? 20 : 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -321,7 +455,9 @@ class ResearchReportDetailScreen extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 12),
-        ...report.citations.map((citation) {
+        ...report.citations.asMap().entries.map((entry) {
+          final refNum = entry.key + 1;
+          final citation = entry.value;
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: InkWell(
@@ -332,7 +468,7 @@ class ResearchReportDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '[${citation.id}]',
+                    '[$refNum]',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: kcPrimaryColor,
@@ -437,7 +573,7 @@ class ResearchReportDetailScreen extends StatelessWidget {
         final path = await svc.exportToFile(report, format: result.format);
         if (path != null && context.mounted) {
           messenger.showSnackBar(SnackBar(
-            content: Text('Saved to device: ${path.split('/').last}'),
+            content: Text('Saved to LUMARA_Backups/LUMARA_Outputs: ${path.split('/').last}'),
             backgroundColor: Colors.green,
           ));
         } else {
@@ -482,10 +618,21 @@ class ResearchReportDetailScreen extends StatelessWidget {
         ),
         iconTheme: const IconThemeData(color: kcPrimaryTextColor),
         actions: [
+          if (_saveError != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Text(
+                _saveError!,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Edit',
-            onPressed: () => _editReport(context),
+            icon: _saving
+                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.save_outlined),
+            tooltip: 'Save',
+            onPressed: _saving ? null : _saveEdits,
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
@@ -503,38 +650,106 @@ class ResearchReportDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+          final padding = EdgeInsets.all(isMobile ? 20 : 16);
+          final sectionSpacing = isMobile ? 28.0 : 24.0;
+          return SingleChildScrollView(
+        padding: padding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(context),
-            const SizedBox(height: 24),
-            _buildMarkdownSection(context, 'Summary', report.summary),
-            const SizedBox(height: 24),
-            if (report.keyInsights.isNotEmpty) ...[
-              _buildInsightsSection(context),
-              const SizedBox(height: 24),
+            SizedBox(height: sectionSpacing),
+            _buildTagsSection(context),
+            SizedBox(height: sectionSpacing),
+            if (report.abstractBullets.isNotEmpty) ...[
+              _buildAbstractSection(context, isMobile),
+              SizedBox(height: sectionSpacing),
             ],
-            _buildMarkdownSection(
-                context, 'Detailed Findings', report.detailedFindings),
+            _buildEditableSection(context, 'Summary', _summaryController, isMobile: isMobile),
+            SizedBox(height: sectionSpacing),
+            _buildEditableSection(context, 'Detailed Findings', _detailedFindingsController, isMobile: isMobile, minLines: 8),
+            if (report.keyInsights.isNotEmpty) ...[
+              SizedBox(height: sectionSpacing),
+              _buildInsightsSection(context, isMobile),
+              SizedBox(height: sectionSpacing),
+            ],
             if (report.strategicImplications.isNotEmpty) ...[
-              const SizedBox(height: 24),
+              SizedBox(height: sectionSpacing),
               _buildMarkdownSection(context, 'Strategic Implications',
-                  report.strategicImplications),
+                  report.strategicImplications, isMobile),
             ],
             if (report.nextSteps.isNotEmpty) ...[
-              const SizedBox(height: 24),
+              SizedBox(height: sectionSpacing),
               _buildNextStepsSection(context),
             ],
-            const SizedBox(height: 24),
+            SizedBox(height: sectionSpacing),
             if (report.citations.isNotEmpty) _buildSourcesSection(context),
             const SizedBox(height: 32),
             _buildActionButtons(context),
             const SizedBox(height: 32),
           ],
         ),
+      );
+        },
       ),
+    );
+  }
+
+  Widget _buildAbstractSection(BuildContext context, bool isMobile) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Abstract',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: kcPrimaryTextColor,
+              ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(isMobile ? 16 : 12),
+          decoration: BoxDecoration(
+            color: kcSurfaceAltColor,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: report.abstractBullets
+                .map((b) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '• ',
+                            style: TextStyle(
+                              color: kcPrimaryColor,
+                              height: isMobile ? 1.7 : 1.5,
+                              fontSize: isMobile ? 16 : 14,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              b,
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    height: isMobile ? 1.7 : 1.6,
+                                    color: kcPrimaryTextColor,
+                                    fontSize: isMobile ? 16 : null,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ))
+                .toList(),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -579,20 +794,25 @@ class _ReportExportSheetState extends State<_ReportExportSheet> {
               ),
             ),
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _FormatChip(
                   label: '.md',
                   selected: _format == ReportExportFormat.markdown,
                   onTap: () => setState(() => _format = ReportExportFormat.markdown),
                 ),
-                const SizedBox(width: 8),
+                _FormatChip(
+                  label: '.txt',
+                  selected: _format == ReportExportFormat.plainText,
+                  onTap: () => setState(() => _format = ReportExportFormat.plainText),
+                ),
                 _FormatChip(
                   label: '.pdf',
                   selected: _format == ReportExportFormat.pdf,
                   onTap: () => setState(() => _format = ReportExportFormat.pdf),
                 ),
-                const SizedBox(width: 8),
                 _FormatChip(
                   label: '.docx',
                   selected: _format == ReportExportFormat.docx,
@@ -617,6 +837,7 @@ class _ReportExportSheetState extends State<_ReportExportSheet> {
                 _DestChip(
                   icon: Icons.phone_android,
                   label: 'Device',
+                  subtitle: 'LUMARA_Backups/LUMARA_Outputs',
                   selected: _dest == ReportExportDestination.device,
                   onTap: () => setState(() => _dest = ReportExportDestination.device),
                 ),

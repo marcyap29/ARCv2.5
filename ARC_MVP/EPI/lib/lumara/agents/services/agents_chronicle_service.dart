@@ -33,8 +33,10 @@ class AgentsChronicleService {
     return list.map((a) => ResearchReport(
       id: a.sessionId,
       query: a.query,
+      abstractBullets: a.abstractBullets,
       summary: a.summary,
       detailedFindings: a.detailedFindings,
+      tags: a.tags,
       generatedAt: a.timestamp,
       phase: _phaseNameToAtlas(a.phaseName),
       archived: a.archived,
@@ -69,13 +71,14 @@ class AgentsChronicleService {
     await ResearchArtifactRepository.instance.deleteArtifact(userId, sessionId);
   }
 
-  /// Update research report content. Saves to artifact; visible in timeline and Outputs.
+  /// Update research report content and tags. Saves to artifact; visible in timeline and Outputs.
   Future<void> updateResearchReport(
     String userId,
     String sessionId, {
     String? query,
     String? summary,
     String? detailedFindings,
+    List<String>? tags,
   }) async {
     await ResearchArtifactRepository.instance.updateArtifactContent(
       userId: userId,
@@ -83,6 +86,7 @@ class AgentsChronicleService {
       query: query,
       summary: summary,
       detailedFindings: detailedFindings,
+      tags: tags,
     );
   }
 

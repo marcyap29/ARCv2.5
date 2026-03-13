@@ -4,8 +4,6 @@
 import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/services/user_phase_service.dart';
 
-import 'package:my_app/lumara/agents/services/timeline_context_service.dart';
-import 'chronicle_cross_reference.dart';
 import 'query_planner.dart';
 import 'research_models.dart';
 import 'research_session_manager.dart';
@@ -48,32 +46,27 @@ class ResearchResult {
   const ResearchResult({required this.report, required this.sessionId});
 }
 
-/// Orchestrates multi-step research: CHRONICLE cross-reference, query planning, search, synthesis.
+/// Orchestrates multi-step research: query planning, search, synthesis.
+/// Research is subject-only; no CHRONICLE (timeline/themes) or user data is used.
 class ResearchAgent {
   final QueryPlanner _queryPlanner;
-  final ChronicleCrossReference _chronicleCrossRef;
   final SearchOrchestrator _searchOrchestrator;
   final SynthesisEngine _synthesisEngine;
   final ResearchSessionManager _sessionManager;
-  final TimelineContextService _timelineContextService;
   final Future<String> Function()? _getAgentOsPrefix;
 
   ResearchAgent({
     required LlmGenerate generate,
     required WebSearchTool searchTool,
-    ChronicleCrossReference? chronicleCrossRef,
     ResearchSessionManager? sessionManager,
-    TimelineContextService? timelineContextService,
     Future<String> Function()? getAgentOsPrefix,
   })  : _queryPlanner = QueryPlanner(generate: generate),
-        _chronicleCrossRef = chronicleCrossRef ?? ChronicleCrossReference(),
         _searchOrchestrator = SearchOrchestrator(searchTool: searchTool),
         _synthesisEngine = SynthesisEngine(generate: generate),
         _sessionManager = sessionManager ?? ResearchSessionManager(),
-        _timelineContextService = timelineContextService ?? TimelineContextService(),
         _getAgentOsPrefix = getAgentOsPrefix;
 
-  static const int _totalSteps = 6;
+  static const int _totalSteps = 5;
 
   /// Run full research pipeline and return report with session id.
   /// [onProgress] is optional; when provided, called at each step for chat UI.
@@ -91,7 +84,7 @@ class ResearchAgent {
     final readiness = readinessOverride ?? 50.0;
 
     onProgress?.call(ResearchProgress(
-      status: 'Checking prior research in CHRONICLE...',
+      status: 'Planning research queries...',
       currentStep: 1,
       totalSteps: _totalSteps,
     ));
@@ -103,16 +96,14 @@ class ResearchAgent {
       readinessScore: readiness,
     );
 
-    final priorContext = await _chronicleCrossRef.checkPriorResearch(
-      userId: userId,
-      query: query,
+    // Research is subject-only: no CHRONICLE (timeline/themes) or prior user data.
+    final priorContext = PriorResearchContext(
+      hasRelatedResearch: false,
+      priorSessions: const [],
+      relatedEntries: const [],
+      existingKnowledge: const ExistingKnowledge(summary: ''),
+      knowledgeGaps: [query],
     );
-
-    onProgress?.call(ResearchProgress(
-      status: 'Planning research queries...',
-      currentStep: 2,
-      totalSteps: _totalSteps,
-    ));
 
     final plan = await _queryPlanner.planResearch(
       userQuery: query,
@@ -121,7 +112,7 @@ class ResearchAgent {
 
     onProgress?.call(ResearchProgress(
       status: 'Executing ${plan.subQueries.length} searches...',
-      currentStep: 3,
+      currentStep: 2,
       totalSteps: _totalSteps,
     ));
 
@@ -135,14 +126,11 @@ class ResearchAgent {
 
     onProgress?.call(ResearchProgress(
       status: 'Synthesizing findings...',
-      currentStep: 4,
+      currentStep: 3,
       totalSteps: _totalSteps,
     ));
 
-    final timelineContext = await _timelineContextService.getResearchContext(
-      userId: userId,
-      pastResearchSummary: priorContext.existingKnowledge.summary,
-    );
+    // No CHRONICLE/timeline: research is subject-only for the user to learn about the topic.
     final depthLabel = researchDepth != null ? _researchDepthToLabel(researchDepth) : null;
     final systemPromptPrefix = _getAgentOsPrefix != null ? await _getAgentOsPrefix!() : null;
 
@@ -152,14 +140,14 @@ class ResearchAgent {
       priorContext: priorContext,
       currentPhase: phase,
       readinessScore: readiness,
-      timelineContext: timelineContext,
+      timelineContext: null,
       researchDepthLabel: depthLabel,
       systemPromptPrefix: systemPromptPrefix,
     );
 
     onProgress?.call(ResearchProgress(
       status: 'Saving research session...',
-      currentStep: 5,
+      currentStep: 4,
       totalSteps: _totalSteps,
     ));
 
@@ -207,10 +195,6 @@ class ResearchAgent {
     session.searchResults.addAll(additionalResults);
 
     final allResults = List<SearchResult>.from(session.searchResults);
-    final timelineContext = await _timelineContextService.getResearchContext(
-      userId: session.userId,
-      pastResearchSummary: priorContext.existingKnowledge.summary,
-    );
     final systemPromptPrefix = _getAgentOsPrefix != null ? await _getAgentOsPrefix!() : null;
 
     final refinedReport = await _synthesisEngine.synthesizeFindings(
@@ -219,7 +203,7 @@ class ResearchAgent {
       priorContext: priorContext,
       currentPhase: session.phase,
       readinessScore: session.readinessScore,
-      timelineContext: timelineContext,
+      timelineContext: null,
       systemPromptPrefix: systemPromptPrefix,
     );
 

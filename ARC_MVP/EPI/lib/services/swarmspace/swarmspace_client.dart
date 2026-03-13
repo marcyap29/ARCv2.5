@@ -87,6 +87,8 @@ class PluginCatalogEntry {
   final String description;
   final String exampleQuery;
   final bool available;
+  /// PRISM: when true, plugin receives sensitive data (e.g. images, URLs); consent may be required.
+  final bool privacyDataRequired;
 
   const PluginCatalogEntry({
     required this.pluginId,
@@ -95,6 +97,7 @@ class PluginCatalogEntry {
     required this.description,
     required this.exampleQuery,
     required this.available,
+    this.privacyDataRequired = false,
   });
 
   factory PluginCatalogEntry.fromJson(Map<String, dynamic> json) {
@@ -107,6 +110,7 @@ class PluginCatalogEntry {
       description: json['description'] as String? ?? '',
       exampleQuery: json['example_query'] as String? ?? '',
       available: json['available'] as bool? ?? false,
+      privacyDataRequired: json['privacy_data_required'] as bool? ?? false,
     );
   }
 }

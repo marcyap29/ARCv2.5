@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:my_app/lumara/agents/research/swarmspace_web_search_tool.dart';
 import 'package:my_app/services/swarmspace/swarmspace_client.dart';
 import 'package:flutter/foundation.dart';
@@ -953,28 +952,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
         
         models.ConversationMode? detectedMode = conversationMode;
         detectedMode ??= _detectConversationModeFromText(text);
-            
-        // Convert phase hint JSON to PhaseHint enum
-        models.PhaseHint? phaseHintEnum;
-        final phaseHint = _buildPhaseHint(await _contextProvider.buildContext(scope: currentState.scope));
-        if (phaseHint != null && phaseHint != 'null') {
-                try {
-                  final phaseData = jsonDecode(phaseHint) as Map<String, dynamic>;
-                  final phaseName = phaseData['phase'] as String?;
-                  if (phaseName != null) {
-                    phaseHintEnum = models.PhaseHint.values.firstWhere(
-                      (e) => e.name == phaseName.toLowerCase(),
-                      orElse: () => models.PhaseHint.consolidation,
-                    );
-                  }
-          } catch (e) {
-            print('LUMARA Chat: Error parsing phase hint: $e');
-          }
-        }
 
         final request = models.LumaraReflectionRequest(
           userText: text,
-                phaseHint: phaseHintEnum,
+                phaseHint: null,
                 entryType: models.EntryType.chat,
                 priorKeywords: [],
                 matchedNodeHints: [],
@@ -1300,24 +1281,30 @@ Continue naturally.''';
         contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
         print('LUMARA Debug: Built context with ${contextAttributionTraces.length} attribution traces (fallback)');
       }
-    final phaseHint = _buildPhaseHint(context);
     final keywords = _buildKeywordsContext(context);
 
     final loadedState = state is LumaraAssistantLoaded ? state as LumaraAssistantLoaded : null;
     final currentMode = loadedState?.lumaraChatMode ?? LumaraChatMode.personal;
-    final injectFullBlock = baseMessages.isEmpty || (currentMode != loadedState?.modeDefinitionInjectedForMode);
+    final isSessionStart = baseMessages.isEmpty;
+    final isModeSwitch = baseMessages.isNotEmpty &&
+        loadedState?.modeDefinitionInjectedForMode != null &&
+        currentMode != loadedState!.modeDefinitionInjectedForMode;
 
-    // Build system prompt (pass user message and mode; empty for Deep Analytical)
-    String baseSystemPrompt = await _buildSystemPrompt(entryText, phaseHint, keywords, userMessage: text, mode: currentMode);
-    if (injectFullBlock && baseSystemPrompt.isNotEmpty) {
-      baseSystemPrompt = '$lumaraModeDefinitionBlock\n\n$baseSystemPrompt';
-    } else if (injectFullBlock && baseSystemPrompt.isEmpty) {
-      baseSystemPrompt = lumaraModeDefinitionBlock;
+    // Build system prompt. Session start = full three-mode block; mode switch = mode-only block; else = no block (tag only on user message).
+    String baseSystemPrompt = await _buildSystemPrompt(entryText, null, keywords, userMessage: text, mode: currentMode);
+    if (isSessionStart) {
+      baseSystemPrompt = baseSystemPrompt.isNotEmpty
+          ? '$lumaraModeDefinitionBlock\n\n$baseSystemPrompt'
+          : lumaraModeDefinitionBlock;
+    } else if (isModeSwitch) {
+      baseSystemPrompt = baseSystemPrompt.isNotEmpty
+          ? '${lumaraModeSwitchBlock(currentMode)}\n\n$baseSystemPrompt'
+          : lumaraModeSwitchBlock(currentMode);
     }
     final systemPrompt = baseSystemPrompt;
 
     print('LUMARA Debug: Starting API request...');
-    print('LUMARA Debug: Mode=$currentMode, injectFullBlock=$injectFullBlock');
+    print('LUMARA Debug: Mode=$currentMode, isSessionStart=$isSessionStart, isModeSwitch=$isModeSwitch');
     print('LUMARA Debug: Attribution traces from context: ${contextAttributionTraces.length}');
     print('LUMARA Debug: Chat session ID for rate limiting: $currentChatSessionId');
 
@@ -1766,53 +1753,6 @@ Continue naturally.''';
     
     print('LUMARA Debug: Defaulting to chat task');
     return InsightKind.chat;
-  }
-  
-  /// Update scope settings
-  Future<void> updateScope(LumaraScope newScope) async {
-    final currentState = state;
-    if (currentState is! LumaraAssistantLoaded) return;
-    
-    emit(currentState.copyWith(scope: newScope));
-  }
-
-  /// Toggle scope setting
-  void toggleScope(String scopeType) {
-    if (state is! LumaraAssistantLoaded) return;
-    
-    final currentState = state as LumaraAssistantLoaded;
-    LumaraScope newScope;
-    
-    switch (scopeType) {
-      case 'journal':
-        newScope = currentState.scope.copyWith(journal: !currentState.scope.journal);
-        break;
-      case 'phase':
-        newScope = currentState.scope.copyWith(phase: !currentState.scope.phase);
-        break;
-      case 'arcforms':
-        newScope = currentState.scope.copyWith(arcforms: !currentState.scope.arcforms);
-        break;
-      case 'voice':
-        newScope = currentState.scope.copyWith(voice: !currentState.scope.voice);
-        break;
-      case 'media':
-        newScope = currentState.scope.copyWith(media: !currentState.scope.media);
-        break;
-      case 'drafts':
-        newScope = currentState.scope.copyWith(drafts: !currentState.scope.drafts);
-        break;
-      case 'chats':
-        newScope = currentState.scope.copyWith(chats: !currentState.scope.chats);
-        break;
-      default:
-        return;
-    }
-    
-    debugPrint('toggleScope: $scopeType - old: ${currentState.scope}, new: $newScope');
-    final newState = currentState.copyWith(scope: newScope);
-    emit(newState);
-    debugPrint('toggleScope: emitted new state with scope: ${newState.scope}');
   }
   
   /// Clear chat history
@@ -2293,45 +2233,6 @@ Continue naturally.''';
     
     // Clamp to 0.75-0.85 range
     return confidence.clamp(0.75, 0.85);
-  }
-
-  /// Build phase hint for ArcLLM - uses actual current phase from context provider
-  String? _buildPhaseHint(ContextWindow context) {
-    // Get current phase (from user setting)
-    final currentPhaseNodes = context.nodes
-        .where((n) => n['type'] == 'phase' && n['meta']?['current'] == true)
-        .toList();
-
-    // Get phase history (from entry analysis)
-    final historyPhaseNodes = context.nodes
-        .where((n) => n['type'] == 'phase_history')
-        .toList();
-
-    if (currentPhaseNodes.isEmpty) return null;
-
-    final currentPhase = currentPhaseNodes.first['text'] as String?;
-    if (currentPhase == null) return null;
-
-    print('LUMARA Debug: Using current phase from context: $currentPhase');
-
-    // Build phase context with current phase prioritized
-    final phaseContext = <String, dynamic>{
-      'current_phase': currentPhase,
-      'current_phase_source': 'user_setting',
-      'confidence': 1.0,
-    };
-
-    // Add phase history for context
-    if (historyPhaseNodes.isNotEmpty) {
-      final history = historyPhaseNodes.map((node) => {
-        'phase': node['text'],
-        'days_ago': node['meta']?['days_ago'] ?? 0,
-        'confidence': node['meta']?['confidence'] ?? 0.5,
-      }).toList();
-      phaseContext['phase_history'] = history;
-    }
-
-    return jsonEncode(phaseContext);
   }
 
   /// Append phase information from attribution traces to response.

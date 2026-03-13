@@ -20,6 +20,8 @@ class DraftComposer {
   /// [timelineContext] supplies timeline summary, recent entries, themes, patterns, and phase for the prompt.
   /// [systemPromptPrefix] optional LUMARA Agent OS + user context (from settings).
   /// [draftsAndArchiveSnippet] optional reference from Agents Drafts and Archive (swap file for writing).
+  /// [researchSourceMaterial] when provided (e.g. from Research Agent report), included in public_context
+  ///   so the model can use it as allowed source material instead of asking for additional references.
   Future<Draft> composeDraft({
     required String prompt,
     required VoiceProfile voice,
@@ -30,6 +32,7 @@ class DraftComposer {
     String? systemPromptPrefix,
     String? draftsAndArchiveSnippet,
     String? customContentTypeDescription,
+    String? researchSourceMaterial,
   }) async {
     final systemPrompt = _buildSystemPromptFromTemplate(
       prompt: prompt,
@@ -39,6 +42,7 @@ class DraftComposer {
       timelineContext: timelineContext,
       systemPromptPrefix: systemPromptPrefix,
       customContentTypeDescription: customContentTypeDescription,
+      researchSourceMaterial: researchSourceMaterial,
     );
     int maxTokens = 800;
     switch (type) {
@@ -85,6 +89,7 @@ class DraftComposer {
     required WritingTimelineContext timelineContext,
     String? systemPromptPrefix,
     String? customContentTypeDescription,
+    String? researchSourceMaterial,
   }) {
     final voicePatterns = _formatVoicePatterns(voice);
     final syntaxPatterns = voice.sentenceLength.description;
@@ -111,9 +116,7 @@ class DraftComposer {
     final privateCalibration = 'Current phase for tone: ${timelineContext.currentPhase}. '
         '${timelineContext.phaseDescription}. '
         'Dominant themes (relevance only): ${timelineContext.dominantThemes}.';
-    const publicContextWriting = 'Product documentation: [None provided]. '
-        'Architecture specifications: [None]. Marketing positioning: [None]. '
-        'Approved public narratives: [None]. Use the user request and voice calibration above to generate public-facing content only.';
+    final publicContextWriting = _buildPublicContextWriting(researchSourceMaterial);
 
     final agentPrompt = kWritingAgentSystemPromptTemplate
         .replaceAll('{{PRIVATE_CONTEXT_CALIBRATION}}', privateCalibration)
@@ -138,6 +141,21 @@ class DraftComposer {
         .replaceAll('{{FIRST_PERSON_RATIO}}', firstPersonRatio);
     final prefix = systemPromptPrefix?.trim();
     return (prefix != null && prefix.isNotEmpty ? '$prefix\n' : '') + agentPrompt;
+  }
+
+  /// Build the public_context block. When [researchSourceMaterial] is provided (e.g. from
+  /// Research Agent), it is included so the model can use it as allowed source material.
+  String _buildPublicContextWriting(String? researchSourceMaterial) {
+    const stub = 'Product documentation: [None provided]. '
+        'Architecture specifications: [None]. Marketing positioning: [None]. '
+        'Approved public narratives: [None].';
+    final research = researchSourceMaterial?.trim();
+    if (research != null && research.isNotEmpty) {
+      return 'Research and user-provided sources (use as allowed source material):\n\n'
+          '$research\n\n'
+          '$stub Use the user request and the research/context above to generate public-facing content only.';
+    }
+    return '$stub Use the user request and voice calibration above to generate public-facing content only.';
   }
 
   String _formatVoicePatterns(VoiceProfile voice) {

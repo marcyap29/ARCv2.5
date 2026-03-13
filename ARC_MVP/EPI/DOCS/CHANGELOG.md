@@ -1,25 +1,28 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.70
+**Version:** 3.3.71
 **Last Updated:** March 10, 2026
 
 ---
 
-## [3.3.70] - March 10, 2026
+## [3.3.71] - March 10, 2026
 
-### Doc-config-git-backup run; RevenueCat/subscription docs and settings
+### Doc-config-git-backup run; Vision OCR (visionOcrInvoke); Cloud Vision setup; LUMARA agents/research/writing; message injection doc
 
-**Action:** Fourth Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main → test.
+**Action:** Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main → test.
 
 **New:**
-- **IN_APP_PURCHASES_SETUP.md:** In-app purchases setup guide.
-- **revenuecat/REVENUECAT_SETUP.md:** RevenueCat setup documentation.
-- **revenuecat/REVENUECAT_SETUP_CHECKLIST.md:** RevenueCat setup checklist.
+- **visionOcrInvoke** (Firebase): Cloud Vision OCR callable; functions/src/functions/visionOcrInvoke.ts.
+- **CLOUD_VISION_SETUP.md:** Cloud Vision API and visionOcrInvoke setup.
+- **LUMARA_MESSAGE_INJECTION.md:** LUMARA message injection doc.
+- **Agents:** agent_tips.dart, agent_tip_banner.dart, vision_ocr_screen.dart.
 
 **Updated (sync with repo):**
-- **Docs:** revenuecat/README.md, revenuecat/REVENUECAT_INTEGRATION.md.
-- **Services:** revenuecat_service.dart, subscription_service.dart.
-- **Settings & subscription UI:** settings_view.dart, simplified_settings_view.dart, lumara_subscription_status.dart, subscription_management_view.dart.
+- **LUMARA:** lumara_assistant_cubit, lumara_mode_definition, enhanced_lumara_api, lumara_reflection_settings_service, lumara_settings_screen.
+- **Agents/Research/Writing:** research_screen, writing_screen, research_models, research_agent, research_artifact_repository, synthesis_engine, agents_screen, plugin_catalog_screen, research_report_detail_screen, agents_chronicle_service, report_export_service, research_report_card, draft_composer, self_critic, theme_tracker, writing_agent.
+- **Services:** swarmspace_client; chronicle_management_view.
+- **Firebase:** swarmspaceRouter.ts, index.ts; package/package-lock.
+- **Docs:** claude.md.
 
 **Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 

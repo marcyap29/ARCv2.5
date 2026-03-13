@@ -63,6 +63,7 @@
 | **Bug prevention** | Avoid reintroducing known bugs (summary in claude.md) | [Bug prevention](#bug-prevention-avoid-reintroducing) |
 | **CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md** | Full-repo Code Simplifier plan: scan, divisible phases, agent roles | `DOCS/CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md` |
 | **Documentation, Config & Git Backup** | Universal prompt for docs, config, and backup sync | This file: section "Ultimate Documentation, Configuration Management and Git Backup Prompt" |
+| **CLOUD_VISION_SETUP.md** | Vision/OCR plugin: enable Vision API, IAM, deploy workaround | `DOCS/CLOUD_VISION_SETUP.md` |
 
 ---
 
@@ -127,6 +128,17 @@ Location: `DOCS/backend.md`
 ### Firebase Functions
 - Functions: repo root `functions/`
 - Config: `.firebaserc`; Settings: `firebase.json`
+
+### Vision/OCR (vision-ocr plugin) — workaround so you don’t hit this again
+The **vision-ocr** SwarmSpace plugin uses **Google Cloud Vision API**. Before it will work you must:
+
+1. **Enable Cloud Vision API** in project `arc-epi`: `gcloud services enable vision.googleapis.com` (or enable in Console).
+2. **Grant the function’s service account** access: App Engine default `arc-epi@appspot.gserviceaccount.com` needs **Service Usage Consumer** (`roles/serviceusage.serviceUsageConsumer`) so it can use Vision.  
+   `gcloud projects add-iam-policy-binding arc-epi --member="serviceAccount:arc-epi@appspot.gserviceaccount.com" --role="roles/serviceusage.serviceUsageConsumer"`
+3. **Deploy from repo root** (ARCv2.5), not from EPI: `cd <repo-root>/functions && npm run build && cd .. && firebase deploy --only functions:visionOcrInvoke`. If you see “No function matches: visionOcrInvoke”, you’re in the wrong dir — use repo root and `firebase use arc-epi`.
+4. **If deploy fails with “Unable to set the invoker for the IAM policy”:** The function is still created. Set invoker in Cloud Run (Permissions → Grant access): add `allUsers` as **Cloud Run Invoker**; the function still requires `Authorization: Bearer SWARMSPACE_INTERNAL_TOKEN` from the router.
+
+Full steps and verify checklist: **`DOCS/CLOUD_VISION_SETUP.md`**.
 
 ---
 

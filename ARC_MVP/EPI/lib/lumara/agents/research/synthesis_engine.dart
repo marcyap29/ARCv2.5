@@ -66,9 +66,11 @@ class SynthesisEngine {
 
     final citations = _citations.buildCitations(searchResults);
     final insights = _extractInsightsSimple(synthesis);
+    final abstractBullets = _buildAbstractBullets(_firstParagraph(synthesis), insights);
 
     return ResearchReport(
       query: originalQuery,
+      abstractBullets: abstractBullets,
       summary: _firstParagraph(synthesis),
       keyInsights: insights,
       detailedFindings: synthesis,
@@ -228,6 +230,24 @@ Generate the synthesis now.
     final end = text.indexOf('\n\n');
     if (end > 0) return text.substring(0, end).trim();
     return text.length > 300 ? '${text.substring(0, 300)}...' : text;
+  }
+
+  /// Build 4–7 bullet points for the top-of-report abstract from summary + key insights.
+  List<String> _buildAbstractBullets(String summary, List<Insight> insights) {
+    final bullets = <String>[];
+    if (summary.trim().isNotEmpty) {
+      final sentences = summary.split(RegExp(r'[.!?]\s+'));
+      for (final s in sentences.take(2)) {
+        final t = s.trim();
+        if (t.length > 15) bullets.add(t);
+      }
+      if (bullets.isEmpty) bullets.add(summary.trim());
+    }
+    for (final i in insights.take(5)) {
+      final t = i.statement.trim();
+      if (t.length > 10 && !bullets.contains(t)) bullets.add(t);
+    }
+    return bullets.take(7).toList();
   }
 
   String _fallbackSynthesis(String query, List<SearchResult> searchResults) {

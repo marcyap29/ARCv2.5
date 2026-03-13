@@ -4,6 +4,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../prompts/lumara_mode_definition.dart';
+import '../config/api_config.dart';
 import '../../../models/memory_focus_preset.dart';
 import 'package:my_app/lumara/agents/prompts/agent_operating_system_prompt.dart';
 
@@ -49,6 +50,11 @@ class LumaraReflectionSettingsService {
 
   /// Three-way mode for reflection/chat: personal | analytical | deepAnalytical
   static const String _keyLumaraChatMode = 'lumara_chat_mode';
+
+  /// Master on/off for Primary API selector (when off, default API is Groq; all toggles grayed out).
+  static const String _keyLumaraPrimaryApiMasterOn = 'lumara_primary_api_master_on';
+  /// Per-mode API: 'groq' | 'gemini' for Mode 1 (personal), Mode 2 (analytical), Mode 3 (deepAnalytical).
+  static const String _keyLumaraModeApiPrefix = 'lumara_mode_api_';
 
   // Memory Focus preset key
   static const String _keyMemoryFocusPreset = 'lumara_memory_focus_preset';
@@ -511,6 +517,33 @@ class LumaraReflectionSettingsService {
   Future<void> setLumaraChatMode(LumaraChatMode mode) async {
     await initialize();
     await _prefs!.setString(_keyLumaraChatMode, mode.name);
+  }
+
+  /// Master switch for Primary API (Default + Mode 1/2/3). When false, all use Groq and UI is grayed out.
+  Future<bool> getLumaraPrimaryApiMasterOn() async {
+    await initialize();
+    return _prefs!.getBool(_keyLumaraPrimaryApiMasterOn) ?? false;
+  }
+
+  Future<void> setLumaraPrimaryApiMasterOn(bool value) async {
+    await initialize();
+    await _prefs!.setBool(_keyLumaraPrimaryApiMasterOn, value);
+  }
+
+  /// Per-mode API (Mode 1 = personal, Mode 2 = analytical, Mode 3 = deepAnalytical). Default: Groq.
+  Future<LLMProvider> getLumaraModeApi(LumaraChatMode mode) async {
+    await initialize();
+    final name = _prefs!.getString('$_keyLumaraModeApiPrefix${mode.name}');
+    if (name == null) return LLMProvider.groq;
+    return LLMProvider.values.firstWhere(
+      (e) => e.name == name,
+      orElse: () => LLMProvider.groq,
+    );
+  }
+
+  Future<void> setLumaraModeApi(LumaraChatMode mode, LLMProvider provider) async {
+    await initialize();
+    await _prefs!.setString('$_keyLumaraModeApiPrefix${mode.name}', provider.name);
   }
 }
 

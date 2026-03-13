@@ -20,23 +20,6 @@ class ResearchReportCard extends StatelessWidget {
     this.onDelete,
   });
 
-  Color _getPhaseColor(AtlasPhase phase) {
-    switch (phase) {
-      case AtlasPhase.recovery:
-        return Colors.blue;
-      case AtlasPhase.transition:
-        return Colors.amber;
-      case AtlasPhase.discovery:
-        return Colors.purple;
-      case AtlasPhase.expansion:
-        return Colors.green;
-      case AtlasPhase.breakthrough:
-        return Colors.orange;
-      case AtlasPhase.consolidation:
-        return Colors.teal;
-    }
-  }
-
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final difference = now.difference(time);
@@ -53,24 +36,6 @@ class ResearchReportCard extends StatelessWidget {
   int _estimateReadTime(ResearchReport report) {
     final wordCount = report.detailedFindings.split(' ').length;
     return (wordCount / 200).ceil().clamp(1, 999);
-  }
-
-  Widget _buildPhaseChip(BuildContext context, AtlasPhase phase) {
-    final color = _getPhaseColor(phase);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        phase.name,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
-      ),
-    );
   }
 
   Widget _buildMetadataChip(
@@ -171,8 +136,6 @@ class ResearchReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final phaseColor = _getPhaseColor(report.phase);
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: kcSurfaceAltColor,
@@ -189,10 +152,10 @@ class ResearchReportCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: phaseColor.withValues(alpha: 0.2),
+                      color: kcPrimaryColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.search, size: 20, color: phaseColor),
+                    child: Icon(Icons.search, size: 20, color: kcPrimaryColor),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -222,8 +185,6 @@ class ResearchReportCard extends StatelessWidget {
                                   .bodySmall
                                   ?.copyWith(color: kcSecondaryColor),
                             ),
-                            const SizedBox(width: 12),
-                            _buildPhaseChip(context, report.phase),
                           ],
                         ),
                       ],

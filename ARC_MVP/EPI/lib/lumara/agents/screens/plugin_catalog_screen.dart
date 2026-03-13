@@ -4,6 +4,7 @@
 // Unavailable plugins are greyed out. Used for discovery and transparency.
 
 import 'package:flutter/material.dart';
+import 'package:my_app/lumara/agents/widgets/agent_tip_banner.dart';
 import 'package:my_app/services/swarmspace/swarmspace_client.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
@@ -18,6 +19,7 @@ String _pluginDisplayName(String pluginId) {
     'wikipedia': 'Wikipedia',
     'currency': 'Currency',
     'news': 'News',
+    'vision-ocr': 'Vision / OCR',
     'url-reader': 'URL Reader',
     'tavily-search': 'Tavily Search',
     'exa-search': 'Exa Search',
@@ -34,6 +36,7 @@ IconData _pluginIcon(String pluginId) {
   if (pluginId.contains('news')) return Icons.newspaper;
   if (pluginId.contains('wikipedia')) return Icons.menu_book;
   if (pluginId.contains('url')) return Icons.link;
+  if (pluginId.contains('vision') || pluginId.contains('ocr')) return Icons.document_scanner;
   if (pluginId.contains('gemini') || pluginId.contains('perplexity')) return Icons.auto_awesome;
   if (pluginId.contains('scholar')) return Icons.school;
   return Icons.extension;
@@ -144,9 +147,15 @@ class _PluginCatalogScreenState extends State<PluginCatalogScreen> {
       onRefresh: _loadCatalog,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: plugins.length,
+        itemCount: plugins.length + 1,
         itemBuilder: (context, index) {
-          final plugin = plugins[index];
+          if (index == 0) {
+            return const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: AgentTipBanner(),
+            );
+          }
+          final plugin = plugins[index - 1];
           return _PluginCatalogCard(
             entry: plugin,
             displayName: _pluginDisplayName(plugin.pluginId),

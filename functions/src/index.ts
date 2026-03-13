@@ -76,10 +76,12 @@ import {
   swarmspacePluginCatalog,
 } from "./functions/swarmspaceRouter";
 import { newsDataInvoke } from "./functions/newsDataInvoke";
+import { visionOcrInvoke } from "./functions/visionOcrInvoke";
 import { updateUserModelConfig } from "./functions/updateUserModelConfig";
 
 export { swarmspaceRouter };
 export { swarmspacePluginStatus };
 export { swarmspacePluginCatalog };
 export { newsDataInvoke };
+export { visionOcrInvoke };
 export { updateUserModelConfig };

@@ -186,6 +186,8 @@ class Insight {
 /// Full research report (phase-aware synthesis).
 class ResearchReport {
   final String query;
+  /// Short bullet-point abstract for quick scan at top of report.
+  final List<String> abstractBullets;
   final String summary;
   final List<Insight> keyInsights;
   final String detailedFindings;
@@ -201,6 +203,7 @@ class ResearchReport {
 
   const ResearchReport({
     required this.query,
+    this.abstractBullets = const [],
     required this.summary,
     this.keyInsights = const [],
     this.detailedFindings = '',

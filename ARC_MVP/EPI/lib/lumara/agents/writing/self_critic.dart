@@ -136,6 +136,23 @@ class SelfCritic {
     return tells;
   }
 
+  /// Drop dates, years, and ID-like tokens so we never suggest "reference 10/25, 2025, 4cc7efda".
+  static List<String> _filterSemanticThemes(List<String> themes) {
+    return themes.where((t) {
+      final w = t.trim();
+      if (w.length < 3) return false;
+      if (RegExp(r'^\d+$').hasMatch(w)) return false;
+      if (RegExp(r'^\d+[\/\-]\d+').hasMatch(w)) return false;
+      if (RegExp(r'^[0-9a-f]{3,12}$', caseSensitive: false).hasMatch(w)) return false;
+      if (w.length <= 12 && RegExp(r'^[0-9a-z]+$', caseSensitive: false).hasMatch(w)) {
+        final digits = w.replaceAll(RegExp(r'[^0-9]'), '').length;
+        final letters = w.replaceAll(RegExp(r'[^a-z]', caseSensitive: false), '').length;
+        if (digits >= 1 && letters >= 2) return false;
+      }
+      return true;
+    }).toList();
+  }
+
   List<String> _generateSuggestions({
     required double voiceScore,
     required double themeScore,
@@ -151,8 +168,9 @@ class SelfCritic {
       }
     }
     if (themeScore < themeThreshold) {
-      if (expectedThemes.primaryThemes.isNotEmpty) {
-        suggestions.add('Reference or reinforce these themes: ${expectedThemes.primaryThemes.take(5).join(", ")}.');
+      final semanticThemes = _filterSemanticThemes(expectedThemes.primaryThemes);
+      if (semanticThemes.isNotEmpty) {
+        suggestions.add('Reference or reinforce these themes: ${semanticThemes.take(5).join(", ")}.');
       }
       if (expectedThemes.recurrentMetaphors.isNotEmpty) {
         suggestions.add('Weave in a recurring metaphor if relevant: ${expectedThemes.recurrentMetaphors.first}.');

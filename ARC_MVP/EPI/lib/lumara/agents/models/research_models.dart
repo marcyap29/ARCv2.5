@@ -46,12 +46,16 @@ class KeyInsight {
 class ResearchReport {
   final String id;
   final String query;
+  /// Short bullet-point abstract for quick scan at top of report.
+  final List<String> abstractBullets;
   final String summary;
   final String detailedFindings;
   final String strategicImplications;
   final List<KeyInsight> keyInsights;
   final List<String> nextSteps;
   final List<ResearchCitation> citations;
+  /// Tags to help LUMARA add this research to CHRONICLE (e.g. topics, project names).
+  final List<String> tags;
   final AtlasPhase phase;
   final DateTime generatedAt;
   final bool archived;
@@ -60,12 +64,14 @@ class ResearchReport {
   const ResearchReport({
     required this.id,
     required this.query,
+    this.abstractBullets = const [],
     required this.summary,
     required this.detailedFindings,
     this.strategicImplications = '',
     this.keyInsights = const [],
     this.nextSteps = const [],
     this.citations = const [],
+    this.tags = const [],
     this.phase = AtlasPhase.discovery,
     required this.generatedAt,
     this.archived = false,

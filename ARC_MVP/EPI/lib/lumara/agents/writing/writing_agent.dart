@@ -44,6 +44,9 @@ class WritingAgent {
   /// when the caller has already resolved ATLAS state (e.g. from LUMARA control state).
   /// When not provided, phase is resolved via [UserPhaseService.getCurrentPhase] and readiness defaults to 50.
   ///
+  /// [researchSourceMaterial] when provided (e.g. Research Agent report content), is included in
+  /// public_context so the Writing Agent can use it as allowed source material and avoid
+  /// "I don't have source material for those themes" warnings.
   /// [maxCritiqueIterations] 0 = no self-critique; 1–2 = up to that many re-drafts after critique.
   /// [onProgress] optional; when provided (e.g. from chat), called with status for each step.
   Future<ComposedContent> composeContent({
@@ -53,6 +56,7 @@ class WritingAgent {
     String? customContentTypeDescription,
     String? phaseOverride,
     double? readinessOverride,
+    String? researchSourceMaterial,
     int maxCritiqueIterations = 0,
     void Function(String)? onProgress,
   }) async {
@@ -99,6 +103,7 @@ class WritingAgent {
       systemPromptPrefix: systemPromptPrefix,
       draftsAndArchiveSnippet: draftsSnippet,
       customContentTypeDescription: customContentTypeDescription,
+      researchSourceMaterial: researchSourceMaterial,
     );
 
     double? voiceScore;
@@ -127,6 +132,7 @@ class WritingAgent {
         systemPromptPrefix: systemPromptPrefix,
         draftsAndArchiveSnippet: draftsSnippet,
         customContentTypeDescription: customContentTypeDescription,
+        researchSourceMaterial: researchSourceMaterial,
       );
       iterations++;
     }

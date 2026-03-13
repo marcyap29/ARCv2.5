@@ -69,8 +69,29 @@ class ThemeTracker {
     }
     final sorted = freq.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     for (final e in sorted.take(20)) {
-      out.add(e.key);
+      final w = e.key;
+      // Skip ID-like or number-only tokens so we don't ask the Writing Agent to "reference theme 207492".
+      if (_isSemanticTheme(w)) out.add(w);
     }
+  }
+
+  /// Only treat as theme if it's a real concept, not a date, year, or ID.
+  static bool _isSemanticTheme(String word) {
+    if (word.length < 3) return false;
+    // Exclude pure numbers (including years) — don't suggest "reference 2025, 2026"
+    if (RegExp(r'^\d+$').hasMatch(word)) return false;
+    // Exclude date-like tokens (10/25, 10-25, etc.)
+    if (RegExp(r'^\d+[\/\-]\d+').hasMatch(word)) return false;
+    if (RegExp(r'^\d+[a-z]\d+$', caseSensitive: false).hasMatch(word)) return false;
+    // Exclude hex/UUID-like fragments (4cc7efda, 4ed3, etc.) so we don't suggest internal IDs
+    if (RegExp(r'^[0-9a-f]{3,12}$', caseSensitive: false).hasMatch(word)) return false;
+    // Exclude mixed alphanumeric that look like IDs (e.g. 4cc7efda has digits+letters only)
+    if (word.length >= 3 && word.length <= 12 && RegExp(r'^[0-9a-z]+$', caseSensitive: false).hasMatch(word)) {
+      final digitCount = word.replaceAll(RegExp(r'[^0-9]'), '').length;
+      final letterCount = word.replaceAll(RegExp(r'[^a-z]', caseSensitive: false), '').length;
+      if (digitCount >= 1 && letterCount >= 2) return false;
+    }
+    return true;
   }
 
   void _extractBiographicalMoments(

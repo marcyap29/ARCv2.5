@@ -10,8 +10,10 @@ import '../services/lumara_cloud_generate.dart';
 import 'package:my_app/lumara/agents/research/research_agent.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/lumara/agents/research/research_models.dart';
-import 'package:my_app/lumara/agents/research/web_search_tool.dart';
 import 'package:my_app/lumara/agents/screens/research_agent_tab.dart';
+import 'package:my_app/lumara/agents/screens/research_report_detail_screen.dart';
+import 'package:my_app/lumara/agents/widgets/agent_tip_banner.dart';
+import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 
 /// Screen for the LUMARA Research Agent: enter a question, get a synthesized report.
@@ -34,6 +36,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
   }
 
   ResearchReport? _report;
+  String? _reportSessionId;
   bool _loading = false;
   String? _error;
 
@@ -77,6 +80,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
         setState(() {
           _loading = false;
           _report = result.report;
+          _reportSessionId = result.sessionId;
         });
       }
     } catch (e) {
@@ -87,6 +91,19 @@ class _ResearchScreenState extends State<ResearchScreen> {
         });
       }
     }
+  }
+
+  Future<void> _openSaveShare(BuildContext context) async {
+    if (_reportSessionId == null) return;
+    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
+    final report = await AgentsChronicleService.instance.getResearchReportById(userId, _reportSessionId!);
+    if (!context.mounted || report == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => ResearchReportDetailScreen(report: report),
+      ),
+    );
   }
 
   void _copyReport() {
@@ -115,6 +132,15 @@ class _ResearchScreenState extends State<ResearchScreen> {
     );
   }
 
+  /// Less dense on mobile: larger line height and spacing.
+  TextStyle _bodyStyle(BuildContext context) {
+    final isNarrow = MediaQuery.sizeOf(context).width < 600;
+    final base = Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+    return isNarrow
+        ? base.copyWith(height: 1.65, fontSize: (base.fontSize ?? 14) * 1.05)
+        : base;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -141,11 +167,18 @@ class _ResearchScreenState extends State<ResearchScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 600;
+          final padding = EdgeInsets.all(isMobile ? 20 : 16);
+          final sectionGap = isMobile ? 20.0 : 12.0;
+          return SingleChildScrollView(
+        padding: padding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const AgentTipBanner(),
+            Gap(sectionGap),
             TextField(
               controller: _queryController,
               decoration: const InputDecoration(
@@ -174,7 +207,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],
-            const Gap(24),
+                Gap(sectionGap * 2),
             const Divider(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -184,10 +217,20 @@ class _ResearchScreenState extends State<ResearchScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 if (_report != null)
-                  TextButton.icon(
-                    onPressed: _copyReport,
-                    icon: const Icon(Icons.copy, size: 18),
-                    label: const Text('Copy'),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _copyReport,
+                        icon: const Icon(Icons.copy, size: 18),
+                        label: const Text('Copy'),
+                      ),
+                      TextButton.icon(
+                        onPressed: _reportSessionId != null ? () => _openSaveShare(context) : null,
+                        icon: const Icon(Icons.save_alt, size: 18),
+                        label: const Text('Save / Share'),
+                      ),
+                    ],
                   ),
               ],
             ),
@@ -215,12 +258,44 @@ class _ResearchScreenState extends State<ResearchScreen> {
                     ),
               ),
               const Gap(12),
+              if (_report!.abstractBullets.isNotEmpty) ...[
+                _Section(
+                  title: 'Abstract',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _report!.abstractBullets
+                        .map((b) => Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '• ',
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                  Expanded(
+                                    child: SelectableText(
+                                      b,
+                                      style: _bodyStyle(context),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ))
+                        .toList(),
+                  ),
+              ),
+              Gap(sectionGap),
+              ],
               _Section(
                 title: 'Summary',
-                child: SelectableText(_report!.summary),
+                child: SelectableText(
+                  _report!.summary,
+                  style: _bodyStyle(context),
+                ),
               ),
               if (_report!.keyInsights.isNotEmpty) ...[
-                const Gap(16),
+                Gap(sectionGap),
                 _Section(
                   title: 'Key insights',
                   child: Column(
@@ -236,7 +311,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
                                   Expanded(
                                     child: SelectableText(
                                       i.statement,
-                                      style: Theme.of(context).textTheme.bodyMedium,
+                                      style: _bodyStyle(context),
                                     ),
                                   ),
                                 ],
@@ -246,13 +321,16 @@ class _ResearchScreenState extends State<ResearchScreen> {
                   ),
                 ),
               ],
-              const Gap(16),
+              Gap(sectionGap),
               _Section(
                 title: 'Detailed findings',
-                child: SelectableText(_report!.detailedFindings),
+                child: SelectableText(
+                  _report!.detailedFindings,
+                  style: _bodyStyle(context),
+                ),
               ),
               if (_report!.citations.isNotEmpty) ...[
-                const Gap(16),
+                Gap(sectionGap),
                 _Section(
                   title: 'Sources',
                   child: Column(
@@ -272,6 +350,8 @@ class _ResearchScreenState extends State<ResearchScreen> {
             ],
           ],
         ),
+      );
+        },
       ),
     );
   }

@@ -16,7 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
-| 2026-03-10 | Doc sync v3.3.70: Fourth doc-config-git-backup run; RevenueCat/subscription docs; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.70 |
+| 2026-03-10 | Doc sync v3.3.71: Doc-config-git-backup run; Vision OCR, Cloud Vision setup, agents; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.71 |
 | 2026-03-10 | Doc sync v3.3.69: Third doc-config-git-backup run; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.69 |
 | 2026-03-10 | Doc sync v3.3.68: Second doc-config-git-backup run; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.68 |
 | 2026-03-10 | Doc sync v3.3.67: Documentation & Git Backup run; prompt audit — OpenAI provider and openai_adapter removed from codebase; no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.67 |

@@ -55,6 +55,8 @@ interface PluginConfig {
   exampleQuery: string;
   /** Optional: for future cost-aware routing */
   costTier?: Tier;
+  /** PRISM: when true, intercept expects consent or sensitive-payload handling */
+  privacy_data_required?: boolean;
 }
 
 const PLUGIN_REGISTRY: Record<string, PluginConfig> = {
@@ -109,12 +111,21 @@ const PLUGIN_REGISTRY: Record<string, PluginConfig> = {
     exampleQuery: "Top tech news today",
   },
   // ── Standard tier ($30/mo) ─────────────────────────────────────────────────
+  "vision-ocr": {
+    workerUrl: "https://us-central1-arc-epi.cloudfunctions.net/visionOcrInvoke",
+    requiredTier: "standard",
+    capabilities: ["vision", "ocr", "image_understanding"],
+    description: "Extract text (OCR) or understand images with Vision API + Gemini",
+    exampleQuery: "Extract text from this screenshot / Describe this image",
+    privacy_data_required: true,
+  },
   "url-reader": {
     workerUrl: "https://swarmspace-plugin-url-reader.orbitalai.workers.dev",
     requiredTier: "standard",
     capabilities: ["url_fetch", "content_extraction", "reading"],
     description: "Fetch and extract content from URLs",
     exampleQuery: "Read and summarize this article: https://...",
+    privacy_data_required: true,
   },
   "tavily-search": {
     workerUrl: "https://swarmspace-plugin-tavily-search.orbitalai.workers.dev",
@@ -218,6 +229,40 @@ export const swarmspaceRouter = onCall(
       }
     }
 
+    // Step 4c: PRISM middleware — intercept before worker
+    const privacyRequired = plugin.privacy_data_required === true;
+    const hasSensitivePayload =
+      typeof paramsToSend === "object" &&
+      (paramsToSend.image_b64 != null || paramsToSend.image_url != null || paramsToSend.url != null);
+    const consentGiven = paramsToSend._prism_consent === true || paramsToSend._prism_consent === "true";
+    const paramsForWorker = { ...paramsToSend };
+    delete (paramsForWorker as Record<string, unknown>)._prism_consent;
+    if (privacyRequired && hasSensitivePayload && !consentGiven) {
+      logger.info("prism_transaction", {
+        phase: "pre_invoke",
+        plugin_id,
+        user_id: userId,
+        user_tier: userTier,
+        privacy_data_required: true,
+        has_sensitive_payload: true,
+        consent_given: false,
+        ts: new Date().toISOString(),
+      });
+      // Allow through for now; client can send _prism_consent: true when user approved.
+      // Future: throw HttpsError("permission-denied", "Privacy consent required for this plugin") to block.
+    } else {
+      logger.info("prism_transaction", {
+        phase: "pre_invoke",
+        plugin_id,
+        user_id: userId,
+        user_tier: userTier,
+        privacy_data_required: privacyRequired,
+        has_sensitive_payload: hasSensitivePayload,
+        consent_given: consentGiven,
+        ts: new Date().toISOString(),
+      });
+    }
+
     // Step 5: Forward the request to the Cloudflare worker.
     // We stamp it with three headers the worker requires:
     //   - Authorization        → proves this came from our router (not from the internet)
@@ -236,7 +281,7 @@ export const swarmspaceRouter = onCall(
           "X-SwarmSpace-User-Id": userId,
           "X-SwarmSpace-User-Tier": userTier,
         },
-        body: JSON.stringify(paramsToSend),
+        body: JSON.stringify(paramsForWorker),
         // 25 second timeout — Firebase functions time out at 60s,
         // this leaves headroom for our own error handling
         signal: AbortSignal.timeout(25_000),
@@ -339,6 +384,7 @@ export const swarmspacePluginCatalog = onCall(
       example_query: config.exampleQuery,
       available: canAccessPlugin(userTier, config.requiredTier),
       cost_tier: config.costTier ?? config.requiredTier,
+      privacy_data_required: config.privacy_data_required === true,
     }));
 
     return {

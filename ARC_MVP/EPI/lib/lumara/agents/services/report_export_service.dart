@@ -18,7 +18,7 @@ import 'package:my_app/lumara/agents/services/docx_export_helper.dart';
 import 'package:my_app/services/google_drive_service.dart';
 
 /// Format for export.
-enum ReportExportFormat { markdown, pdf, docx }
+enum ReportExportFormat { markdown, pdf, docx, plainText }
 
 /// Destination for export.
 enum ReportExportDestination { device, share, googleDrive }
@@ -32,8 +32,16 @@ class ReportExportService {
     final buf = StringBuffer();
     buf.writeln('# ${report.query}');
     buf.writeln();
-    buf.writeln('*${_formatDate(report.generatedAt)} · ${report.phase.name} Phase*');
+    buf.writeln('*${_formatDate(report.generatedAt)}*');
     buf.writeln();
+    if (report.abstractBullets.isNotEmpty) {
+      buf.writeln('## Abstract');
+      buf.writeln();
+      for (final b in report.abstractBullets) {
+        buf.writeln('- $b');
+      }
+      buf.writeln();
+    }
     buf.writeln('## Summary');
     buf.writeln();
     buf.writeln(report.summary);
@@ -130,10 +138,18 @@ class ReportExportService {
       ),
     ));
     widgets.add(pw.Paragraph(
-      text: '${_formatDate(report.generatedAt)} · ${report.phase.name} Phase',
+      text: _formatDate(report.generatedAt),
       style: const pw.TextStyle(fontSize: 10),
     ));
     widgets.add(pw.SizedBox(height: 12));
+
+    if (report.abstractBullets.isNotEmpty) {
+      widgets.add(pw.Header(level: 1, child: pw.Text('Abstract', style: pw.TextStyle(fontSize: 14))));
+      for (final b in report.abstractBullets) {
+        widgets.add(pw.Paragraph(text: '• $b'));
+      }
+      widgets.add(pw.SizedBox(height: 8));
+    }
 
     widgets.add(pw.Header(level: 1, child: pw.Text('Summary', style: pw.TextStyle(fontSize: 14))));
     widgets.add(pw.Paragraph(text: report.summary));
@@ -174,7 +190,28 @@ class ReportExportService {
     return widgets;
   }
 
-  /// Export report to a file. Returns the file path, or null on failure.
+  /// Parent folder for LUMARA backups (same as .arcx and .zip backups).
+  static const String lumaraBackupsFolderName = 'LUMARA_Backups';
+  /// Subfolder for research and writing outputs under LUMARA_Backups.
+  static const String lumaraOutputsFolderName = 'LUMARA_Outputs';
+
+  /// Returns the LUMARA Backups directory (same folder as .arcx/.zip), creating it if needed.
+  Future<Directory> getLumaraBackupsDirectory() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final dir = Directory(path.join(appDir.path, lumaraBackupsFolderName));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
+  }
+
+  /// Returns the LUMARA Outputs directory (research and writing) under LUMARA_Backups.
+  Future<Directory> getLumaraOutputsDirectory() async {
+    final backupsDir = await getLumaraBackupsDirectory();
+    final dir = Directory(path.join(backupsDir.path, lumaraOutputsFolderName));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    return dir;
+  }
+
+  /// Export report to a file in LUMARA_Outputs (or temp for share). Returns the file path, or null on failure.
   Future<String?> exportToFile(
     ResearchReport report, {
     required ReportExportFormat format,
@@ -183,28 +220,32 @@ class ReportExportService {
     try {
       final base = suggestedName ?? _safeFileName(report.query);
       final baseName = base.length > 60 ? base.substring(0, 57) : base;
+      final lumaraDir = await getLumaraOutputsDirectory();
 
       if (format == ReportExportFormat.markdown) {
         final md = toMarkdown(report);
-        final file = await _writeToTempFile(md, 'md');
-        final destDir = await getApplicationDocumentsDirectory();
-        final dest = File(path.join(destDir.path, '$baseName.md'));
-        await file.copy(dest.path);
+        final dest = File(path.join(lumaraDir.path, '$baseName.md'));
+        await dest.writeAsString(md, encoding: utf8);
+        return dest.path;
+      }
+
+      if (format == ReportExportFormat.plainText) {
+        final text = toPlainText(report);
+        final dest = File(path.join(lumaraDir.path, '$baseName.txt'));
+        await dest.writeAsString(text, encoding: utf8);
         return dest.path;
       }
 
       if (format == ReportExportFormat.pdf) {
         final bytes = await toPdfBytes(report);
-        final dir = await getApplicationDocumentsDirectory();
-        final dest = File(path.join(dir.path, '$baseName.pdf'));
+        final dest = File(path.join(lumaraDir.path, '$baseName.pdf'));
         await dest.writeAsBytes(bytes);
         return dest.path;
       }
 
       if (format == ReportExportFormat.docx) {
         final bytes = buildDocxBytes(report);
-        final dir = await getApplicationDocumentsDirectory();
-        final dest = File(path.join(dir.path, '$baseName.docx'));
+        final dest = File(path.join(lumaraDir.path, '$baseName.docx'));
         await dest.writeAsBytes(bytes);
         return dest.path;
       }
@@ -214,59 +255,116 @@ class ReportExportService {
     return null;
   }
 
-  /// Export and share via system share sheet (email, Dropbox, etc.).
+  /// Plain text version (no markdown); used for .txt export.
+  String toPlainText(ResearchReport report) {
+    final buf = StringBuffer();
+    buf.writeln(report.query);
+    buf.writeln();
+    buf.writeln(_formatDate(report.generatedAt));
+    buf.writeln();
+    if (report.abstractBullets.isNotEmpty) {
+      buf.writeln('Abstract');
+      buf.writeln();
+      for (final b in report.abstractBullets) {
+        buf.writeln('• $b');
+      }
+      buf.writeln();
+    }
+    buf.writeln('Summary');
+    buf.writeln(report.summary);
+    if (report.detailedFindings.trim().isNotEmpty) {
+      buf.writeln();
+      buf.writeln('Detailed Findings');
+      buf.writeln(report.detailedFindings);
+    }
+    if (report.keyInsights.isNotEmpty) {
+      buf.writeln();
+      buf.writeln('Key Insights');
+      for (var i = 0; i < report.keyInsights.length; i++) {
+        buf.writeln('${i + 1}. ${report.keyInsights[i].statement}');
+        buf.writeln(report.keyInsights[i].evidence);
+      }
+    }
+    if (report.nextSteps.isNotEmpty) {
+      buf.writeln();
+      buf.writeln('Recommended Next Steps');
+      for (final s in report.nextSteps) {
+        buf.writeln('- $s');
+      }
+    }
+    if (report.citations.isNotEmpty) {
+      buf.writeln();
+      buf.writeln('Sources');
+      for (final c in report.citations) {
+        buf.writeln('[${c.id}] ${c.title} — ${c.source}');
+        if (c.url.isNotEmpty) buf.writeln(c.url);
+      }
+    }
+    return buf.toString();
+  }
+
+  /// Export and share via system share sheet (user picks app: Email, Dropbox, Google Drive, etc.).
+  /// If [alsoSaveToLumaraOutputs] is true, also writes a copy to the LUMARA_Outputs folder.
   Future<bool> exportAndShare(
     ResearchReport report, {
     required ReportExportFormat format,
     String? suggestedName,
+    bool alsoSaveToLumaraOutputs = true,
   }) async {
     try {
       final base = suggestedName ?? _safeFileName(report.query);
       final baseName = base.length > 60 ? base.substring(0, 57) : base;
+      final tmpDir = await getTemporaryDirectory();
+      final ext = format == ReportExportFormat.markdown
+          ? 'md'
+          : format == ReportExportFormat.plainText
+              ? 'txt'
+              : format == ReportExportFormat.pdf
+                  ? 'pdf'
+                  : 'docx';
+      final fileName = '$baseName.$ext';
+      File file;
 
       if (format == ReportExportFormat.markdown) {
         final md = toMarkdown(report);
-        final file = await _writeToTempFile(md, 'md');
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: report.query,
-          subject: 'Research Report: ${report.query}',
-        );
-        return true;
-      }
-
-      if (format == ReportExportFormat.pdf) {
+        file = File(path.join(tmpDir.path, fileName));
+        await file.writeAsString(md, encoding: utf8);
+      } else if (format == ReportExportFormat.plainText) {
+        final text = toPlainText(report);
+        file = File(path.join(tmpDir.path, fileName));
+        await file.writeAsString(text, encoding: utf8);
+      } else if (format == ReportExportFormat.pdf) {
         final bytes = await toPdfBytes(report);
-        final dir = await getTemporaryDirectory();
-        final file = File(path.join(dir.path, '$baseName.pdf'));
+        file = File(path.join(tmpDir.path, fileName));
         await file.writeAsBytes(bytes);
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: report.query,
-          subject: 'Research Report: ${report.query}',
-        );
-        return true;
+      } else if (format == ReportExportFormat.docx) {
+        final bytes = buildDocxBytes(report);
+        file = File(path.join(tmpDir.path, fileName));
+        await file.writeAsBytes(bytes);
+      } else {
+        return false;
       }
 
-      if (format == ReportExportFormat.docx) {
-        final bytes = buildDocxBytes(report);
-        final dir = await getTemporaryDirectory();
-        final file = File(path.join(dir.path, '$baseName.docx'));
-        await file.writeAsBytes(bytes);
-        await Share.shareXFiles(
-          [XFile(file.path)],
-          text: report.query,
-          subject: 'Research Report: ${report.query}',
-        );
-        return true;
+      if (!await file.exists()) return false;
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: report.query,
+        subject: 'Research Report: ${report.query}',
+      );
+
+      if (alsoSaveToLumaraOutputs) {
+        final lumaraDir = await getLumaraOutputsDirectory();
+        final dest = File(path.join(lumaraDir.path, fileName));
+        await file.copy(dest.path);
       }
+      return true;
     } catch (e) {
       return false;
     }
-    return false;
   }
 
-  /// Export and upload to Google Drive. Returns Drive file ID or null.
+  /// Export and upload to Google Drive. Returns Drive file ID or null on failure.
   Future<String?> exportToGoogleDrive(
     ResearchReport report, {
     required ReportExportFormat format,
@@ -275,52 +373,52 @@ class ReportExportService {
     try {
       final gd = GoogleDriveService.instance;
       if (!gd.isSignedIn) {
-        final _ = await gd.signIn();
-        if (!gd.isSignedIn) return null;
+        final email = await gd.signIn();
+        if (email == null || !gd.isSignedIn) return null;
       }
 
       final base = suggestedName ?? _safeFileName(report.query);
       final baseName = base.length > 60 ? base.substring(0, 57) : base;
+      final ext = format == ReportExportFormat.markdown
+          ? 'md'
+          : format == ReportExportFormat.plainText
+              ? 'txt'
+              : format == ReportExportFormat.pdf
+                  ? 'pdf'
+                  : 'docx';
+      final nameOverride = '$baseName.$ext';
+      File file;
 
       if (format == ReportExportFormat.markdown) {
         final md = toMarkdown(report);
-        final file = await _writeToTempFile(md, 'md');
-        final fileId = await gd.uploadFile(
-          localFile: file,
-          nameOverride: '$baseName.md',
-          folderId: await gd.getOrCreateAppFolder(),
-        );
-        return fileId;
-      }
-
-      if (format == ReportExportFormat.pdf) {
+        file = await _writeToTempFile(md, 'md');
+      } else if (format == ReportExportFormat.plainText) {
+        final text = toPlainText(report);
+        file = await _writeToTempFile(text, 'txt');
+      } else if (format == ReportExportFormat.pdf) {
         final bytes = await toPdfBytes(report);
-        final dir = await getTemporaryDirectory();
-        final file = File(path.join(dir.path, '$baseName.pdf'));
+        final tmpDir = await getTemporaryDirectory();
+        file = File(path.join(tmpDir.path, nameOverride));
         await file.writeAsBytes(bytes);
-        final fileId = await gd.uploadFile(
-          localFile: file,
-          nameOverride: '$baseName.pdf',
-          folderId: await gd.getOrCreateAppFolder(),
-        );
-        return fileId;
+      } else if (format == ReportExportFormat.docx) {
+        final bytes = buildDocxBytes(report);
+        final tmpDir = await getTemporaryDirectory();
+        file = File(path.join(tmpDir.path, nameOverride));
+        await file.writeAsBytes(bytes);
+      } else {
+        return null;
       }
 
-      if (format == ReportExportFormat.docx) {
-        final bytes = buildDocxBytes(report);
-        final dir = await getTemporaryDirectory();
-        final file = File(path.join(dir.path, '$baseName.docx'));
-        await file.writeAsBytes(bytes);
-        final fileId = await gd.uploadFile(
-          localFile: file,
-          nameOverride: '$baseName.docx',
-          folderId: await gd.getOrCreateAppFolder(),
-        );
-        return fileId;
-      }
+      if (!await file.exists()) return null;
+      final folderId = await gd.getOrCreateAppFolder();
+      final fileId = await gd.uploadFile(
+        localFile: file,
+        nameOverride: nameOverride,
+        folderId: folderId,
+      );
+      return fileId;
     } catch (e) {
       return null;
     }
-    return null;
   }
 }

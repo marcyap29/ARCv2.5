@@ -6,6 +6,7 @@ import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart
 import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
 import 'package:my_app/lumara/agents/writing/writing_agent.dart';
 import 'package:my_app/lumara/agents/writing/writing_draft_repository.dart';
+import 'package:my_app/lumara/agents/widgets/agent_tip_banner.dart';
 import 'package:my_app/lumara/agents/writing/writing_models.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/ui/widgets/reflection_draft_text_field.dart';
@@ -41,6 +42,8 @@ class _WritingScreenState extends State<WritingScreen> {
   String? _error;
   /// When set, we're viewing/editing an existing draft (e.g. from Outputs).
   String? _editingDraftId;
+  /// When user opened Writing from a research report, this is the report content for public_context.
+  String? _researchSourceMaterial;
 
   @override
   void initState() {
@@ -82,6 +85,8 @@ class _WritingScreenState extends State<WritingScreen> {
           buf.writeln();
           buf.writeln(report.detailedFindings);
           prompt = buf.toString();
+          // Pass same content as research source material so the Writing Agent can use it in public_context.
+          _researchSourceMaterial = buf.toString();
         }
       }
     }
@@ -189,6 +194,7 @@ class _WritingScreenState extends State<WritingScreen> {
         prompt: prompt,
         type: _contentType,
         customContentTypeDescription: customDesc?.isEmpty == true ? null : customDesc,
+        researchSourceMaterial: _researchSourceMaterial,
         maxCritiqueIterations: 2,
       );
       if (mounted) {
@@ -246,6 +252,8 @@ class _WritingScreenState extends State<WritingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const AgentTipBanner(),
+            const Gap(12),
             TextField(
               controller: _promptController,
               decoration: const InputDecoration(

@@ -1321,16 +1321,18 @@ class EnhancedLumaraApi {
             print('🚨 LUMARA V23: SAFETY OVERRIDE ACTIVE - Therapist mode forced');
           }
 
-          // Three-way mode: tag every request; Deep Analytical uses Gemini.
+          // Session start (single request for reflection): inject full three-mode block. Every message: mode tag only.
           final mode = request.options.lumaraChatMode;
           userPromptForApi = '${lumaraModeTag(mode)}\n\n$userPromptForApi';
 
           onProgress?.call('Calling cloud API...');
 
-          // Gemini primary (2 tries), then Groq backup — via lumaraSend for all modes
+          // Reflection = one request per session → always inject full three-mode definition block (session start).
           final effectiveSystemPrompt = mode == LumaraChatMode.deepAnalytical
               ? lumaraModeDefinitionBlock
-              : systemPrompt;
+              : (systemPrompt.isNotEmpty
+                  ? '$lumaraModeDefinitionBlock\n\n$systemPrompt'
+                  : lumaraModeDefinitionBlock);
           String llmResponse = await lumaraSend(
             system: effectiveSystemPrompt,
             user: userPromptForApi,

@@ -27,6 +27,7 @@ import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
+import 'package:my_app/lumara/agents/services/report_export_service.dart';
 
 /// CHRONICLE Management Settings View
 /// 
@@ -497,22 +498,14 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
     try {
       final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
 
-      // Pick directory; ZIP will be created there
-      final String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-      if (selectedDirectory == null) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _statusMessage = 'Export cancelled';
-            _statusIsError = false;
-          });
-        }
-        return;
-      }
+      // Export to LUMARA_Backups folder (same as .arcx and LUMARA_Outputs)
+      final backupsDir = await ReportExportService.instance.getLumaraBackupsDirectory();
+      final chronicleExportsDir = Directory(path.join(backupsDir.path, 'Chronicle_Exports'));
+      if (!await chronicleExportsDir.exists()) await chronicleExportsDir.create(recursive: true);
 
       final now = DateTime.now();
       final stamp = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}';
-      final zipPath = path.join(selectedDirectory, 'chronicle_export_$stamp.zip');
+      final zipPath = path.join(chronicleExportsDir.path, 'chronicle_export_$stamp.zip');
       final outputZip = File(zipPath);
 
       final aggregationRepo = ChronicleRepos.aggregation;

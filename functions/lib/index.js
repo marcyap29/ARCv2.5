@@ -1,7 +1,7 @@
 "use strict";
 // index.ts - Main entry point for Cloud Functions
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateUserModelConfig = exports.newsDataInvoke = exports.swarmspacePluginCatalog = exports.swarmspacePluginStatus = exports.swarmspaceRouter = exports.getWisprApiKey = exports.getAssemblyAIToken = exports.proxyGemini = exports.createCheckoutSession = exports.getUserSubscription = exports.generateJournalReflection = exports.generateJournalPrompts = exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = exports.stripeWebhook = exports.sendChatMessage = exports.analyzeJournalEntry = void 0;
+exports.updateUserModelConfig = exports.visionOcrInvoke = exports.newsDataInvoke = exports.swarmspacePluginCatalog = exports.swarmspacePluginStatus = exports.swarmspaceRouter = exports.getWisprApiKey = exports.getAssemblyAIToken = exports.proxyGemini = exports.createCheckoutSession = exports.getUserSubscription = exports.generateJournalReflection = exports.generateJournalPrompts = exports.checkThrottleStatus = exports.lockThrottle = exports.unlockThrottle = exports.stripeWebhook = exports.sendChatMessage = exports.analyzeJournalEntry = void 0;
 /**
  * Firebase Cloud Functions - ARC Backend
  *
@@ -75,6 +75,8 @@ Object.defineProperty(exports, "swarmspacePluginStatus", { enumerable: true, get
 Object.defineProperty(exports, "swarmspacePluginCatalog", { enumerable: true, get: function () { return swarmspaceRouter_1.swarmspacePluginCatalog; } });
 const newsDataInvoke_1 = require("./functions/newsDataInvoke");
 Object.defineProperty(exports, "newsDataInvoke", { enumerable: true, get: function () { return newsDataInvoke_1.newsDataInvoke; } });
+const visionOcrInvoke_1 = require("./functions/visionOcrInvoke");
+Object.defineProperty(exports, "visionOcrInvoke", { enumerable: true, get: function () { return visionOcrInvoke_1.visionOcrInvoke; } });
 const updateUserModelConfig_1 = require("./functions/updateUserModelConfig");
 Object.defineProperty(exports, "updateUserModelConfig", { enumerable: true, get: function () { return updateUserModelConfig_1.updateUserModelConfig; } });
 //# sourceMappingURL=index.js.map

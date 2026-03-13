@@ -12,12 +12,16 @@ import 'research_models.dart';
 
 /// Stored entry: summary + embedding for similarity search.
 /// [detailedFindings] optional full report body for edit/save.
+/// [abstractBullets] short bullets shown at top of report.
+/// [tags] help LUMARA add this research to CHRONICLE.
 class StoredResearchArtifact {
   final String sessionId;
   final String userId;
   final String query;
   final String summary;
   final String detailedFindings;
+  final List<String> abstractBullets;
+  final List<String> tags;
   final DateTime timestamp;
   final String phaseName;
   final List<double> embedding;
@@ -30,6 +34,8 @@ class StoredResearchArtifact {
     required this.query,
     required this.summary,
     this.detailedFindings = '',
+    this.abstractBullets = const [],
+    this.tags = const [],
     required this.timestamp,
     required this.phaseName,
     required this.embedding,
@@ -41,6 +47,8 @@ class StoredResearchArtifact {
     String? query,
     String? summary,
     String? detailedFindings,
+    List<String>? abstractBullets,
+    List<String>? tags,
     List<double>? embedding,
     bool? archived,
     DateTime? archivedAt,
@@ -51,6 +59,8 @@ class StoredResearchArtifact {
       query: query ?? this.query,
       summary: summary ?? this.summary,
       detailedFindings: detailedFindings ?? this.detailedFindings,
+      abstractBullets: abstractBullets ?? this.abstractBullets,
+      tags: tags ?? this.tags,
       timestamp: timestamp,
       phaseName: phaseName,
       embedding: embedding ?? this.embedding,
@@ -65,6 +75,8 @@ class StoredResearchArtifact {
         'query': query,
         'summary': summary,
         'detailedFindings': detailedFindings,
+        'abstractBullets': abstractBullets,
+        'tags': tags,
         'timestamp': timestamp.toIso8601String(),
         'phaseName': phaseName,
         'embedding': embedding,
@@ -73,12 +85,24 @@ class StoredResearchArtifact {
       };
 
   static StoredResearchArtifact fromJson(Map<String, dynamic> json) {
+    final bulletsRaw = json['abstractBullets'];
+    List<String> bullets = const [];
+    if (bulletsRaw is List<dynamic>) {
+      bullets = bulletsRaw.map((e) => e.toString()).toList();
+    }
+    final tagsRaw = json['tags'];
+    List<String> tagList = const [];
+    if (tagsRaw is List<dynamic>) {
+      tagList = tagsRaw.map((e) => e.toString()).toList();
+    }
     return StoredResearchArtifact(
       sessionId: json['sessionId'] as String,
       userId: json['userId'] as String,
       query: json['query'] as String,
       summary: json['summary'] as String,
       detailedFindings: json['detailedFindings'] as String? ?? '',
+      abstractBullets: bullets,
+      tags: tagList,
       timestamp: DateTime.parse(json['timestamp'] as String),
       phaseName: json['phaseName'] as String,
       embedding: (json['embedding'] as List<dynamic>).map((e) => (e as num).toDouble()).toList(),
@@ -211,6 +235,7 @@ class ResearchArtifactRepository {
       query: artifact.query,
       summary: artifact.report.summary,
       detailedFindings: artifact.report.detailedFindings,
+      abstractBullets: artifact.report.abstractBullets,
       timestamp: artifact.timestamp,
       phaseName: artifact.phase.name,
       embedding: embedding,
@@ -219,13 +244,14 @@ class ResearchArtifactRepository {
     await _save();
   }
 
-  /// Update artifact content (query, summary, detailedFindings). Re-embeds for similarity search.
+  /// Update artifact content (query, summary, detailedFindings, tags). Re-embeds for similarity search.
   Future<void> updateArtifactContent({
     required String userId,
     required String sessionId,
     String? query,
     String? summary,
     String? detailedFindings,
+    List<String>? tags,
   }) async {
     await _ensureLoaded();
     final i = _store.indexWhere((a) => a.userId == userId && a.sessionId == sessionId);
@@ -234,6 +260,7 @@ class ResearchArtifactRepository {
     final newQuery = query ?? existing.query;
     final newSummary = summary ?? existing.summary;
     final newDetailed = detailedFindings ?? existing.detailedFindings;
+    final newTags = tags ?? existing.tags;
 
     final embedder = await _getEmbedder();
     final textToEmbed = '$newQuery\n$newSummary';
@@ -243,6 +270,7 @@ class ResearchArtifactRepository {
       query: newQuery,
       summary: newSummary,
       detailedFindings: newDetailed,
+      tags: newTags,
       embedding: embedding,
     );
     await _save();

@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 10, 2026 (doc sync 2026-03-10, v3.3.70)  
+**Last Updated:** March 10, 2026 (doc sync 2026-03-10, v3.3.71)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -46,9 +46,9 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-10 | ✅ Synced | v3.3.67 - HealthKit removal, OpenAI provider removal |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-10 | ✅ Synced | v3.3.70 - Fourth doc-config run; RevenueCat/subscription docs and settings |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-10 | ✅ Synced | v3.3.71 - Vision OCR, Cloud Vision setup, LUMARA agents/research/writing, message injection doc |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-10 | ✅ Synced | v2.9.0 - no new prompts this run |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-10 | ✅ Synced | v1.20.0 - Doc sync 2026-03-10 (v3.3.70) row |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-10 | ✅ Synced | v1.20.0 - Doc sync 2026-03-10 (v3.3.71) row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-10 | ✅ Synced | v3.5.0 - 40 records; Last Updated 2026-03-10 |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-10 | ✅ Synced | v3.3.67 - doc sync |
 | README.md | `/DOCS/README.md` | 2026-03-10 | ✅ Synced | Key docs table; CHANGELOG version ref updated |
@@ -97,11 +97,8 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | PRIVACY_COMPLETE.md | DOCS/ | Privacy feature spec |
 | PHASE_RATING_COMPLETE.md | DOCS/ | Phase rating feature spec |
 | HEALTH_INTEGRATION_COMPLETE.md | DOCS/ | Health integration feature spec |
-| revenuecat/README.md | DOCS/revenuecat/ | RevenueCat (in-app) doc index — v3.3.70 |
-| revenuecat/REVENUECAT_INTEGRATION.md | DOCS/revenuecat/ | RevenueCat integration guide — v3.3.70 |
-| revenuecat/REVENUECAT_SETUP.md | DOCS/revenuecat/ | RevenueCat setup — v3.3.70 |
-| revenuecat/REVENUECAT_SETUP_CHECKLIST.md | DOCS/revenuecat/ | RevenueCat setup checklist — v3.3.70 |
-| IN_APP_PURCHASES_SETUP.md | DOCS/ | In-app purchases setup — v3.3.70 |
+| revenuecat/README.md | DOCS/revenuecat/ | RevenueCat (in-app) doc index |
+| revenuecat/REVENUECAT_INTEGRATION.md | DOCS/revenuecat/ | RevenueCat integration guide |
 | stripe/README.md | DOCS/stripe/ | Stripe doc index (3 active docs) |
 | Export and Import Architecture/ | DOCS/ | BACKUP_SYSTEM.md + IMPORT_EXPORT_UI_SPEC.md |
 | BUGTRACKER_MASTER_INDEX.md | DOCS/bugtracker/ | Bug tracker master index — v3.3.47 |
@@ -110,21 +107,23 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | LUMARA_Vision_Reposition.md | DOCS/ | LUMARA vision reposition rationale and current state — v3.3.59 |
 | SIMULATOR_CORESIMULATOR_FIX.md | DOCS/ | Simulator/CoreSimulator fix notes — v3.3.67 |
 | APP_STORE_LUMARA_DESCRIPTION.md | DOCS/ | App Store LUMARA description — v3.3.67 |
+| CLOUD_VISION_SETUP.md | DOCS/ | Cloud Vision API and visionOcrInvoke setup — v3.3.71 |
+| LUMARA_MESSAGE_INJECTION.md | DOCS/ | LUMARA message injection — v3.3.71 |
 | MASTER_PROMPT_SHORTENING.md | DOCS/ | Dual-mode master prompt architecture (conversation vs detailed analysis) — v3.3.59 |
 
 ---
 
 ## Change Tracking Log
 
-### 2026-03-10 - Documentation & Git Backup run (v3.3.70; fourth run; doc sync 2026-03-10)
+### 2026-03-10 - Documentation & Git Backup run (v3.3.71; doc sync 2026-03-10)
 
-**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §284–501) a fourth time. Trigger: user request. Then commit, push, merge main → test.
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §284–501). Trigger: user request. Then commit, push, merge main → test.
 
 **PROMPT REFERENCES AUDIT:** No new LLM prompt definition files. PROMPT_REFERENCES.md unchanged (v2.9.0).
 
-**Git Backup — Identify what changed (since v3.3.69 commit e5e611c92):** Uncommitted: revenuecat/README.md, revenuecat/REVENUECAT_INTEGRATION.md; revenuecat_service.dart, subscription_service.dart; settings_view.dart, simplified_settings_view.dart; lumara_subscription_status.dart, subscription_management_view.dart. New: IN_APP_PURCHASES_SETUP.md, revenuecat/REVENUECAT_SETUP.md, revenuecat/REVENUECAT_SETUP_CHECKLIST.md.
+**Git Backup — Identify what changed (since v3.3.70):** Uncommitted: Vision OCR (visionOcrInvoke Cloud Function), CLOUD_VISION_SETUP.md, LUMARA_MESSAGE_INJECTION.md; agent_tips, agent_tip_banner, vision_ocr_screen; lumara_assistant_cubit, lumara_mode_definition, enhanced_lumara_api, lumara_reflection_settings_service, lumara_settings_screen; research/writing agents (screens, models, synthesis_engine, report_export, etc.); swarmspace_client, swarmspaceRouter; chronicle_management_view; claude.md.
 
-**Updates:** CHANGELOG.md v3.3.70; CONFIGURATION_MANAGEMENT.md this entry + inventory (new docs); PROMPT_TRACKER.md v1.20.0; bug_tracker.md Recent code changes row + Last Updated.
+**Updates:** CHANGELOG.md v3.3.71; CONFIGURATION_MANAGEMENT.md this entry + inventory; PROMPT_TRACKER.md v1.20.0; bug_tracker.md Recent code changes row + Last Updated. New docs to inventory: CLOUD_VISION_SETUP.md, LUMARA_MESSAGE_INJECTION.md.
 
 **Status:** ✅ Doc updates applied; commit (docs + code) and push, then merge main into test.
 

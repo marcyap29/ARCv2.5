@@ -3,15 +3,13 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../services/enhanced_lumara_api.dart';
 import '../services/download_state_service.dart';
 import 'package:my_app/telemetry/analytics.dart';
-import '../bloc/lumara_assistant_cubit.dart';
-import '../data/context_scope.dart';
 import '../services/lumara_reflection_settings_service.dart';
+import '../prompts/lumara_mode_definition.dart';
 import 'package:my_app/services/subscription_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/voice/config/wispr_config_service.dart';
@@ -65,9 +63,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
   // Subscription status
   SubscriptionTier _subscriptionTier = SubscriptionTier.free;
 
-  // Primary API toggle (only for _lumaraExperimentEmail): Groq vs Google
+  // Primary API (only for _lumaraExperimentEmail): master on/off and per-mode rockers
   bool _showPrimaryApiToggle = false;
-  LLMProvider _primaryApiSelection = LLMProvider.gemini;
+  bool _primaryApiMasterOn = false;
+  LLMProvider _mode1Api = LLMProvider.groq;
+  LLMProvider _mode2Api = LLMProvider.groq;
+  LLMProvider _mode3Api = LLMProvider.groq;
 
   // Agent Operating System (user context for Writing/Research agents)
   final TextEditingController _agentOsUserContextController = TextEditingController();
@@ -276,10 +277,15 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
 
     final email = FirebaseAuthService.instance.currentUser?.email?.trim().toLowerCase();
     final showToggle = email == _lumaraExperimentEmail;
-    final manual = _apiConfig.getManualProvider();
-    final primaryApi = (manual == LLMProvider.groq || manual == LLMProvider.gemini)
-        ? manual!
-        : LLMProvider.gemini;
+
+    bool masterOn = false;
+    LLMProvider mode1 = LLMProvider.groq, mode2 = LLMProvider.groq, mode3 = LLMProvider.groq;
+    if (showToggle) {
+      masterOn = await LumaraReflectionSettingsService.instance.getLumaraPrimaryApiMasterOn();
+      mode1 = await LumaraReflectionSettingsService.instance.getLumaraModeApi(LumaraChatMode.personal);
+      mode2 = await LumaraReflectionSettingsService.instance.getLumaraModeApi(LumaraChatMode.analytical);
+      mode3 = await LumaraReflectionSettingsService.instance.getLumaraModeApi(LumaraChatMode.deepAnalytical);
+    }
 
     // Load existing API keys
     for (final provider in LLMProvider.values) {
@@ -296,7 +302,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
       setState(() {
         _wisprApiKeyConfigured = wisprKey.isNotEmpty;
         _showPrimaryApiToggle = showToggle;
-        _primaryApiSelection = primaryApi;
+        _primaryApiMasterOn = masterOn;
+        _mode1Api = mode1;
+        _mode2Api = mode2;
+        _mode3Api = mode3;
       });
     }
   }
@@ -352,10 +361,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               _buildPrimaryApiCard(theme),
               const SizedBox(height: 24),
             ],
-            // Context Scope Section
-            _buildContextScopeCard(theme),
-            const SizedBox(height: 24),
-
             // Reflection Settings Section
             _buildReflectionSettingsCard(theme),
             const SizedBox(height: 24),
@@ -558,7 +563,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  /// Primary API selector (Groq vs Google) — only shown for experiment email.
+  /// Primary API selector: master on/off, then Default + Mode 1/2/3 (all grayed when master off).
   Widget _buildPrimaryApiCard(ThemeData theme) {
     return Card(
       elevation: 2,
@@ -567,32 +572,65 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Master On/Off — when Off, everything below is grayed out and default API is Groq
             Row(
               children: [
                 Icon(Icons.api, color: theme.colorScheme.primary, size: 24),
                 const SizedBox(width: 8),
-                Text(
-                  'Primary API',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Primary API',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Off = Groq for all. On = choose API per mode (1, 2, 3).',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                Switch(
+                  value: _primaryApiMasterOn,
+                  onChanged: (value) async {
+                    await LumaraReflectionSettingsService.instance.setLumaraPrimaryApiMasterOn(value);
+                    if (mounted) setState(() => _primaryApiMasterOn = value);
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Choose which API to use first (fallback to the other if needed).',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(height: 16),
+            // Mode 1/2/3 rockers — grayed out and non-interactive when master is Off
+            Opacity(
+              opacity: _primaryApiMasterOn ? 1.0 : 0.5,
+              child: IgnorePointer(
+                ignoring: !_primaryApiMasterOn,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildModeRockerRow(theme, 'Mode 1 (Personal)', _mode1Api, (p) async {
+                      await LumaraReflectionSettingsService.instance.setLumaraModeApi(LumaraChatMode.personal, p);
+                      if (mounted) setState(() => _mode1Api = p);
+                    }),
+                    const SizedBox(height: 10),
+                    _buildModeRockerRow(theme, 'Mode 2 (Analytical)', _mode2Api, (p) async {
+                      await LumaraReflectionSettingsService.instance.setLumaraModeApi(LumaraChatMode.analytical, p);
+                      if (mounted) setState(() => _mode2Api = p);
+                    }),
+                    const SizedBox(height: 10),
+                    _buildModeRockerRow(theme, 'Mode 3 (Deep Analytical)', _mode3Api, (p) async {
+                      await LumaraReflectionSettingsService.instance.setLumaraModeApi(LumaraChatMode.deepAnalytical, p);
+                      if (mounted) setState(() => _mode3Api = p);
+                    }),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _buildPrimaryApiChip(theme, LLMProvider.groq, 'Groq'),
-                const SizedBox(width: 8),
-                _buildPrimaryApiChip(theme, LLMProvider.gemini, 'Google'),
-              ],
             ),
           ],
         ),
@@ -600,182 +638,53 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  Widget _buildPrimaryApiChip(ThemeData theme, LLMProvider provider, String label) {
-    final isSelected = _primaryApiSelection == provider;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) async {
-        if (!selected) return;
-        await _apiConfig.setManualProvider(provider);
-        if (mounted) setState(() => _primaryApiSelection = provider);
-      },
-    );
-  }
-
-  Widget _buildContextScopeCard(ThemeData theme) {
-    return BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
-      builder: (context, state) {
-        debugPrint('BlocBuilder rebuild - state: ${state.runtimeType}');
-        
-        // Get scope from state
-        LumaraScope scope;
-        if (state is LumaraAssistantLoaded) {
-          scope = state.scope;
-          debugPrint('Current scope: journal=${scope.journal}, phase=${scope.phase}, arcforms=${scope.arcforms}, voice=${scope.voice}, media=${scope.media}, drafts=${scope.drafts}, chats=${scope.chats}');
-        } else {
-          debugPrint('State is not LumaraAssistantLoaded, using default scope');
-          scope = LumaraScope.defaultScope;
-        }
-        
-        // Get cubit for toggle actions
-        final cubit = context.read<LumaraAssistantCubit>();
-        
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.search,
-                      color: theme.colorScheme.primary,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Context Sources',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Control what data LUMARA can access when answering your questions',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildScopeChip(theme, 'Journal', scope.journal, () {
-                      debugPrint('=== TOGGLE JOURNAL CALLED ===');
-                      debugPrint('Current scope.journal: ${scope.journal}');
-                      cubit.toggleScope('journal');
-                    }),
-                    _buildScopeChip(theme, 'ARCForms', scope.arcforms, () {
-                      cubit.toggleScope('arcforms');
-                    }),
-                    _buildScopeChip(theme, 'Voice', scope.voice, () {
-                      cubit.toggleScope('voice');
-                    }),
-                    _buildScopeChip(theme, 'Media', scope.media, () {
-                      cubit.toggleScope('media');
-                    }),
-                    _buildScopeChip(theme, 'Drafts', scope.drafts, () {
-                      cubit.toggleScope('drafts');
-                    }),
-                    _buildScopeChip(theme, 'Chats', scope.chats, () {
-                      cubit.toggleScope('chats');
-                    }),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: theme.colorScheme.primary,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Enable the data sources you want LUMARA to consider. More sources provide richer context but may take longer to process.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+  /// One row: label + rocker (Groq | Gemini) for a mode.
+  Widget _buildModeRockerRow(ThemeData theme, String label, LLMProvider current, ValueChanged<LLMProvider> onChanged) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 160,
+          child: Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildScopeChip(ThemeData theme, String label, bool isActive, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: () {
-        debugPrint('Scope chip tapped: $label, current state: $isActive');
-        onTap();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive 
-              ? theme.colorScheme.primary.withOpacity(0.2)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isActive 
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withOpacity(0.3),
-            width: isActive ? 1.5 : 1,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isActive)
-              Icon(
-                Icons.check_circle,
-                size: 16,
-                color: theme.colorScheme.primary,
-              )
-            else
-              Icon(
-                Icons.circle_outlined,
-                size: 16,
-                color: theme.colorScheme.outline.withOpacity(0.5),
-              ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                color: isActive 
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
+        Expanded(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildModeRockerSegment(theme, 'Groq', current == LLMProvider.groq, () => onChanged(LLMProvider.groq)),
+              const SizedBox(width: 4),
+              _buildModeRockerSegment(theme, 'Google', current == LLMProvider.gemini, () => onChanged(LLMProvider.gemini)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModeRockerSegment(ThemeData theme, String label, bool isSelected, VoidCallback onTap) {
+    return Expanded(
+      child: Material(
+        color: isSelected ? theme.colorScheme.primaryContainer : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Center(
+              child: Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: isSelected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
