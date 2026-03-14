@@ -14,6 +14,10 @@ import 'package:my_app/arc/outputs/outputs_chronicle_service.dart';
 import 'package:my_app/arc/outputs/outputs_models.dart';
 import 'package:my_app/arc/outputs/outputs_repository.dart';
 import 'package:my_app/lumara/agents/writing/pipeline_draft.dart';
+import 'package:my_app/lumara/social/late_profile_service.dart';
+import 'package:my_app/lumara/social/publish_sheet.dart';
+import 'package:my_app/lumara/social/social_accounts_screen.dart';
+import 'package:my_app/services/swarmspace/prism_service.dart';
 
 class DraftEditorScreen extends StatefulWidget {
   const DraftEditorScreen({
@@ -35,6 +39,7 @@ class _DraftEditorScreenState extends State<DraftEditorScreen> {
   late PipelineDraft _draft;
   bool _saving = false;
   bool _regenerating = false;
+  bool _publishing = false;
 
   static const int _blueskyLimit = 300;
   static const int _threadsLimit = 500;
@@ -71,6 +76,152 @@ class _DraftEditorScreenState extends State<DraftEditorScreen> {
         const SnackBar(content: Text('Copied')),
       );
     }
+  }
+
+  void _showNoAccountsSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Connect a social account first',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Open Settings to connect LinkedIn, Bluesky, Threads, Twitter/X and more.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const SocialAccountsScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.settings, size: 18),
+                label: const Text('Go to Settings'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addPublishedTagBestEffort() async {
+    try {
+      final items = await OutputsRepository.instance.getItems();
+      final draft = _draft.copyWith(body: _bodyController.text);
+      final matches = items
+          .where((i) =>
+              i.agentKey == 'writing' &&
+              i.folderKey == draft.folderKey &&
+              i.title == draft.topic)
+          .toList();
+      if (matches.isEmpty) return;
+      matches.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final item = matches.first;
+      final tags = List<String>.from(item.userTags);
+      if (tags.contains('published')) return;
+      tags.add('published');
+      await OutputsRepository.instance.updateUserTags(item.id, tags);
+    } catch (_) {
+      // best-effort: do not surface
+    }
+  }
+
+  Future<void> _publish() async {
+    List<SocialAccount> accounts;
+    try {
+      accounts = await LateProfileService.instance.getConnectedAccounts();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load connected accounts')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (accounts.isEmpty) {
+      _showNoAccountsSheet();
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => PublishSheet(
+        draftBody: _bodyController.text,
+        format: _draft.format,
+        accounts: accounts,
+        onPublish: (result) async {
+          if (!mounted) return;
+          setState(() => _publishing = true);
+          try {
+            final params = <String, dynamic>{
+              '_action': 'publish',
+              'content': _bodyController.text,
+              'platforms': result.accounts
+                  .map((a) => {'platform': a.platform, 'accountId': a.id})
+                  .toList(),
+            };
+            if (result.scheduledFor != null) {
+              params['scheduledFor'] = result.scheduledFor!.toUtc().toIso8601String();
+            }
+            final prismResult = await PrismService.instance.authoriseAndCall(
+              pluginId: 'social-publisher',
+              params: params,
+              context: context,
+            );
+            if (!mounted) return;
+            if (prismResult.isDenied) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Publish cancelled')),
+              );
+              return;
+            }
+            final res = prismResult.result;
+            if (res == null || !res.success) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(res?.error ?? 'Publish failed'),
+                ),
+              );
+              return;
+            }
+            final status = res.data?['status'] as String?;
+            if (status == 'scheduled') {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Scheduled!')),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Published!')),
+              );
+            }
+            _addPublishedTagBestEffort();
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Publish failed: $e')),
+              );
+            }
+          } finally {
+            if (mounted) setState(() => _publishing = false);
+          }
+        },
+      ),
+    );
   }
 
   Future<void> _saveToOutputs() async {
@@ -271,6 +422,22 @@ class _DraftEditorScreenState extends State<DraftEditorScreen> {
                     onPressed: _copy,
                     icon: const Icon(Icons.copy, size: 16),
                     label: Text('Copy', style: Theme.of(context).textTheme.labelSmall),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _publishing ? null : _publish,
+                    icon: _publishing
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.publish, size: 16),
+                    label: Text('Publish', style: Theme.of(context).textTheme.labelSmall),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       minimumSize: Size.zero,

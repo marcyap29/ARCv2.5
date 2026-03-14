@@ -162,6 +162,14 @@ const PLUGIN_REGISTRY: Record<string, PluginConfig> = {
     description: "Real-time answer synthesis from the web",
     exampleQuery: "Explain the current state of fusion energy",
   },
+  "social-publisher": {
+    workerUrl: "https://swarmspace-social-publisher.orbitalai.workers.dev",
+    requiredTier: "standard",
+    capabilities: ["social_publish", "social_schedule", "social_accounts"],
+    description: "Publish drafts to LinkedIn, Bluesky, Threads, and more via Late.com",
+    exampleQuery: "Publish this draft to my connected accounts",
+    privacy_data_required: true,
+  },
 };
 
 // ── Tier resolution ────────────────────────────────────────────────────────────

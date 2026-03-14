@@ -15,18 +15,20 @@ class SearchOrchestrator {
 
   SearchOrchestrator({required WebSearchTool searchTool}) : _searchTool = searchTool;
 
+  /// [onProgress] optional; called with status messages for UI (e.g. "Running search 1 of 6...").
   Future<List<SearchResult>> executeSearches({
     required List<SubQuery> queries,
     required ExecutionStrategy strategy,
     required PriorResearchContext priorContext,
+    void Function(String status)? onProgress,
   }) async {
     final queriesNeeded = _filterWithPriorKnowledge(queries, priorContext);
     if (queriesNeeded.isEmpty) return [];
 
     if (strategy == ExecutionStrategy.parallel) {
-      return await _parallelSearch(queriesNeeded);
+      return await _parallelSearch(queriesNeeded, onProgress);
     }
-    return await _sequentialSearch(queriesNeeded);
+    return await _sequentialSearch(queriesNeeded, onProgress);
   }
 
   List<SubQuery> _filterWithPriorKnowledge(
@@ -37,7 +39,10 @@ class SearchOrchestrator {
     return queries;
   }
 
-  Future<List<SearchResult>> _parallelSearch(List<SubQuery> queries) async {
+  Future<List<SearchResult>> _parallelSearch(
+    List<SubQuery> queries,
+    void Function(String status)? onProgress,
+  ) async {
     final batches = <List<SubQuery>>[];
     for (var i = 0; i < queries.length; i += _batchSize) {
       batches.add(queries.sublist(i, i + _batchSize > queries.length ? queries.length : i + _batchSize));
@@ -45,6 +50,9 @@ class SearchOrchestrator {
     final allResults = <SearchResult>[];
     for (var i = 0; i < batches.length; i++) {
       final batch = batches[i];
+      final start = i * _batchSize;
+      final end = (start + batch.length).clamp(0, queries.length);
+      onProgress?.call('Running searches ${start + 1}–$end of ${queries.length}...');
       final futures = batch.map((q) => _executeSearch(q.query));
       final results = await Future.wait(futures);
       allResults.addAll(results);
@@ -52,15 +60,21 @@ class SearchOrchestrator {
         await Future<void>.delayed(const Duration(milliseconds: _delayBetweenBatchesMs));
       }
     }
+    onProgress?.call('Searches complete. Gathering results...');
     return allResults;
   }
 
-  Future<List<SearchResult>> _sequentialSearch(List<SubQuery> queries) async {
+  Future<List<SearchResult>> _sequentialSearch(
+    List<SubQuery> queries,
+    void Function(String status)? onProgress,
+  ) async {
     final results = <SearchResult>[];
-    for (final q in queries) {
-      results.add(await _executeSearch(q.query));
+    for (var i = 0; i < queries.length; i++) {
+      onProgress?.call('Running search ${i + 1} of ${queries.length}...');
+      results.add(await _executeSearch(queries[i].query));
       await Future<void>.delayed(const Duration(milliseconds: 200));
     }
+    onProgress?.call('Searches complete. Gathering results...');
     return results;
   }
 

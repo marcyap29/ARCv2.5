@@ -13,6 +13,7 @@ import '../prompts/lumara_mode_definition.dart';
 import 'package:my_app/services/subscription_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/voice/config/wispr_config_service.dart';
+import 'package:my_app/lumara/social/social_accounts_screen.dart';
 
 /// Email that gets premium (no limits) and Primary API (Groq/Google) toggle in Settings → LUMARA.
 const String _lumaraExperimentEmail = 'marcyap@orbitalai.net';
@@ -369,6 +370,10 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             _buildAgentOperatingSystemCard(theme),
             const SizedBox(height: 24),
 
+            // Social Accounts (Late.com — connect accounts for publishing)
+            _buildSocialAccountsCard(theme),
+            const SizedBox(height: 24),
+
             // API — provider selection, API keys, voice (Wispr) in one card
             if (_subscriptionTier == SubscriptionTier.premium) ...[
               _buildApiCard(theme),
@@ -489,6 +494,55 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialAccountsCard(ThemeData theme) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.share, color: theme.colorScheme.primary, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  'Social Accounts',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Connect LinkedIn, Bluesky, Threads, Twitter/X and more to publish drafts directly from LUMARA.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const SocialAccountsScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.link, size: 18),
+                label: const Text('Manage connected accounts'),
+              ),
+            ),
           ],
         ),
       ),

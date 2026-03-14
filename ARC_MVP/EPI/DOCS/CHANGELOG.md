@@ -1,7 +1,26 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.74
+**Version:** 3.3.75
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.75] - March 10, 2026
+
+### Doc-config-git-backup run; LUMARA settings; social/ (new); research (search_orchestrator); draft_editor; swarmspaceRouter
+
+**Action:** Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main → test.
+
+**New:**
+- **LUMARA:** lib/lumara/social/; test/lumara/social/.
+
+**Updated (sync with repo):**
+- **LUMARA:** lumara_settings_screen; agent_tips.
+- **Research:** research_agent, research_pipeline, search_orchestrator.
+- **Writing:** draft_editor_screen.
+- **Firebase:** swarmspaceRouter.ts.
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

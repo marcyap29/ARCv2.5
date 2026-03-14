@@ -146,7 +146,7 @@ Future<ContentBrief?> runResearchPipeline({
   // Fallback to Groq when Gemini Flash is unavailable (same path as LUMARA chat research).
   if (rawText == null || rawText.trim().isEmpty) {
     onStage?.call(
-      'Gemini Flash isn\'t available right now. Synthesising with other sources...',
+      'Synthesising with other sources...',
     );
     try {
       rawText = await generateForAgents(

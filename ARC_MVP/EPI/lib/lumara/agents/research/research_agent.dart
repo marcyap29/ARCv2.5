@@ -122,9 +122,20 @@ class ResearchAgent {
       queries: plan.subQueries,
       strategy: plan.executionStrategy,
       priorContext: priorContext,
+      onProgress: (status) => onProgress?.call(ResearchProgress(
+        status: status,
+        currentStep: 2,
+        totalSteps: _totalSteps,
+      )),
     );
 
     session.searchResults.addAll(searchResults);
+
+    onProgress?.call(ResearchProgress(
+      status: 'Preparing synthesis...',
+      currentStep: 3,
+      totalSteps: _totalSteps,
+    ));
 
     onProgress?.call(ResearchProgress(
       status: 'Synthesizing findings...',
