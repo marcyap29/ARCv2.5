@@ -115,7 +115,9 @@ class PrismService {
 
     switch (tier) {
       case PrismTier.anonymous:
-        final res = await _client.invoke(pluginId, params);
+        // No consent UI needed; pass _prism_consent so client skips approval check (avoids "Plugin skipped by user").
+        final anonymousParams = Map<String, dynamic>.from(params)..['_prism_consent'] = true;
+        final res = await _client.invoke(pluginId, anonymousParams);
         await PluginActivityLogService.instance.logActivity(pluginId);
         return PrismSuccessResult(res);
 

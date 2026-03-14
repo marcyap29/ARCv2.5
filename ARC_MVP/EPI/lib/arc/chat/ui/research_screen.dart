@@ -10,17 +10,21 @@ import 'package:gap/gap.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
 import 'package:my_app/arc/outputs/output_tagging.dart';
 import 'package:my_app/arc/outputs/outputs_chronicle_service.dart';
 import 'package:my_app/arc/outputs/outputs_models.dart';
 import 'package:my_app/arc/outputs/outputs_repository.dart';
 import 'package:my_app/arc/chat/ui/writing_screen.dart';
 import 'package:my_app/lumara/agents/research/content_brief.dart';
-import 'package:my_app/lumara/agents/research/research_pipeline.dart';
+import 'package:my_app/lumara/agents/research/research_agent.dart';
+import 'package:my_app/lumara/agents/research/swarmspace_web_search_tool.dart';
 import 'package:my_app/lumara/agents/screens/research_agent_tab.dart';
 import 'package:my_app/lumara/agents/vision/document_parser.dart';
 import 'package:my_app/lumara/agents/vision/parsed_document.dart';
 import 'package:my_app/lumara/agents/widgets/agent_tip_banner.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 
 /// Screen for the LUMARA Research Agent: enter a question, get a synthesized report.
 class ResearchScreen extends StatefulWidget {
@@ -39,12 +43,27 @@ class _ResearchScreenState extends State<ResearchScreen> {
 
   ContentBrief? _brief;
   bool _loading = false;
-  String? _stage;
+  /// Streaming status messages (like chat research): each stage appends here.
+  final List<String> _statusMessages = [];
   String? _error;
-  final List<String> _pipelineError = [];
-  /// Context from scanned document (Phase 4); injected into pipeline when running research.
+  /// Context from scanned document (Phase 4); injected into research when running.
   String? _documentContext;
   static final ImagePicker _imagePicker = ImagePicker();
+
+  /// Research agent (same as chat): generateForAgents + SwarmSpaceWebSearchTool with context for PRISM.
+  ResearchAgent _createResearchAgent() {
+    return ResearchAgent(
+      getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
+      generate: ({required systemPrompt, required userPrompt, maxTokens}) async {
+        return generateForAgents(
+          systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
+          maxTokens: maxTokens ?? 1200,
+        );
+      },
+      searchTool: SwarmSpaceWebSearchTool(context: context),
+    );
+  }
 
   @override
   void initState() {
@@ -70,31 +89,34 @@ class _ResearchScreenState extends State<ResearchScreen> {
     setState(() {
       _loading = true;
       _error = null;
-      _stage = null;
+      _statusMessages.clear();
       _brief = null;
-      _pipelineError.clear();
     });
-    final brief = await runResearchPipeline(
-      query: query,
-      context: context,
-      onStage: (stage) {
-        if (mounted) setState(() => _stage = stage);
-      },
-      errorOut: _pipelineError,
-      documentContext: _documentContext,
-    );
-    if (!mounted) return;
-    setState(() {
-      _loading = false;
-      _stage = null;
-      _brief = brief;
-      if (brief == null && _pipelineError.isNotEmpty) {
-        _error = _pipelineError.first;
-      }
-    });
-    // Phase 5a: Auto-save research brief to Outputs
-    if (brief != null) {
+    final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'anonymous';
+    try {
+      final agent = _createResearchAgent();
+      final result = await agent.conductResearch(
+        userId: userId,
+        query: query,
+        onProgress: (p) {
+          if (mounted) setState(() => _statusMessages.add(p.status));
+        },
+        documentContext: _documentContext,
+      );
+      if (!mounted) return;
+      final brief = ContentBrief.fromResearchReport(result.report);
+      setState(() {
+        _loading = false;
+        _statusMessages.add('Done.');
+        _brief = brief;
+      });
       _saveBriefToOutputs(brief);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString().trim().isNotEmpty ? e.toString() : 'Research failed. Try again.';
+      });
     }
   }
 
@@ -183,7 +205,8 @@ class _ResearchScreenState extends State<ResearchScreen> {
     if (xFile == null || !mounted) return;
     setState(() {
       _loading = true;
-      _stage = 'Scanning document...';
+      _statusMessages.clear();
+      _statusMessages.add('Scanning document...');
       _error = null;
     });
     final parseError = <String>[];
@@ -195,7 +218,6 @@ class _ResearchScreenState extends State<ResearchScreen> {
     if (!mounted) return;
     setState(() {
       _loading = false;
-      _stage = null;
       if (parsed.rawText.isEmpty && parsed.keyFields.isEmpty) {
         _error = parseError.isNotEmpty ? parseError.first : 'No text could be read from the image.';
       } else {
@@ -323,11 +345,11 @@ class _ResearchScreenState extends State<ResearchScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               ),
-                              if (_stage != null) ...[
+                              if (_statusMessages.isNotEmpty) ...[
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    _stage!,
+                                    _statusMessages.last,
                                     overflow: TextOverflow.ellipsis,
                                     style: Theme.of(context).textTheme.bodyMedium,
                                   ),
@@ -346,6 +368,44 @@ class _ResearchScreenState extends State<ResearchScreen> {
                 ),
               ],
             ),
+            if (_statusMessages.isNotEmpty) ...[
+              const Gap(12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: _statusMessages.map((msg) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '• ',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            msg,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )).toList(),
+                ),
+              ),
+            ],
             if (_error != null) ...[
               const Gap(16),
               Text(

@@ -201,7 +201,7 @@ class _ProfileFieldsScreenState extends State<ProfileFieldsScreen> {
         border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
       ),
       child: Text(
-        'Your profile is stored only on this device. It is never shared with anyone and is only used when you ask LUMARA to pre-fill a form. You can edit or delete it anytime in Settings → LUMARA → My Profile.',
+        'Your profile is stored only on this device. It is never shared with anyone and is only used when you ask LUMARA to pre-fill a form. You can edit or delete it anytime in Settings → Subscription and Account → My Profile.',
         style: bodyStyle(context).copyWith(
           fontSize: 13,
           color: Theme.of(context).colorScheme.onSurface,

@@ -79,6 +79,8 @@ class ResearchAgent {
     double? readinessOverride,
     ResearchDepth? researchDepth,
     void Function(ResearchProgress)? onProgress,
+    /// Optional context from a scanned document (e.g. Research screen).
+    String? documentContext,
   }) async {
     final phase = phaseOverride ?? _phaseFromString(await UserPhaseService.getCurrentPhase());
     final readiness = readinessOverride ?? 50.0;
@@ -143,6 +145,7 @@ class ResearchAgent {
       timelineContext: null,
       researchDepthLabel: depthLabel,
       systemPromptPrefix: systemPromptPrefix,
+      documentContext: documentContext,
     );
 
     onProgress?.call(ResearchProgress(

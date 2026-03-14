@@ -318,14 +318,14 @@ class _LumaraCapabilitiesScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => cubit.startPersonalitySetup(),
+                    onPressed: () => cubit.nextScreen(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kcPrimaryColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Set how we\'ll work together'),
+                    child: const Text('Continue'),
                   ),
                 ),
                 const SizedBox(height: 12),

@@ -2,11 +2,13 @@
 //
 // Phase 3 Research Pipeline: brave-search → semantic-scholar → gemini-flash synthesis.
 // All plugin calls via PrismService.authoriseAndCall(). Returns ContentBrief.
+// When Gemini Flash is unavailable, falls back to Groq (generateForAgents) for synthesis.
 // Graceful degradation when search plugins fail.
 
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
 import 'package:my_app/services/swarmspace/prism_service.dart';
 import 'package:my_app/services/swarmspace/swarmspace_client.dart';
 
@@ -61,6 +63,11 @@ Future<ContentBrief?> runResearchPipeline({
   onStage?.call('Searching web...');
   final braveResult = await callPlugin('brave-search', {'query': query, 'count': 8});
   if (!braveResult.isDenied && braveResult.result != null && braveResult.result!.success) {
+    onStage?.call('Web search complete.');
+  } else if (braveResult.result?.error != null && braveResult.result!.error!.trim().isNotEmpty) {
+    onStage?.call(braveResult.result!.error!);
+  }
+  if (!braveResult.isDenied && braveResult.result != null && braveResult.result!.success) {
     final data = braveResult.result!.data;
     if (data != null) {
       final webResults = data['web']?['results'] as List<dynamic>? ??
@@ -81,6 +88,11 @@ Future<ContentBrief?> runResearchPipeline({
   // ── Step 2: Semantic Scholar ─────────────────────────────────────────────
   onStage?.call('Checking academic sources...');
   final scholarResult = await callPlugin('semantic-scholar', {'query': query, 'limit': 5});
+  if (!scholarResult.isDenied && scholarResult.result != null && scholarResult.result!.success) {
+    onStage?.call('Academic sources complete.');
+  } else if (scholarResult.result?.error != null && scholarResult.result!.error!.trim().isNotEmpty) {
+    onStage?.call(scholarResult.result!.error!);
+  }
   if (!scholarResult.isDenied && scholarResult.result != null && scholarResult.result!.success) {
     final data = scholarResult.result!.data;
     if (data != null) {
@@ -106,7 +118,7 @@ Future<ContentBrief?> runResearchPipeline({
     }
   }
 
-  // ── Step 3: Gemini Flash synthesis ───────────────────────────────────────
+  // ── Step 3: Synthesis (Gemini Flash, then Groq fallback) ───────────────────
   onStage?.call('Synthesising...');
   final contextForSynthesis = _buildSynthesisContext(
     query: query,
@@ -115,6 +127,7 @@ Future<ContentBrief?> runResearchPipeline({
     documentContext: documentContext,
   );
 
+  String? rawText;
   final geminiResult = await callPlugin('gemini-flash', {
     'system': _synthesisSystemPrompt,
     'user': contextForSynthesis,
@@ -122,21 +135,35 @@ Future<ContentBrief?> runResearchPipeline({
     'temperature': 0.4,
   });
 
-  if (geminiResult.isDenied || geminiResult.result == null || !geminiResult.result!.success) {
-    final specificError = geminiResult.result?.error;
-    setError(
-      (specificError != null && specificError.trim().isNotEmpty)
-          ? specificError
-          : kPipelineFailureMessage,
-    );
-    return null;
+  if (!geminiResult.isDenied && geminiResult.result != null && geminiResult.result!.success) {
+    final geminiData = geminiResult.result!.data;
+    rawText = geminiData?['text'] as String? ??
+        geminiData?['content'] as String? ??
+        _extractTextFromCandidates(geminiData) ??
+        '';
   }
 
-  final geminiData = geminiResult.result!.data;
-  final rawText = geminiData?['text'] as String? ??
-      geminiData?['content'] as String? ??
-      _extractTextFromCandidates(geminiData) ??
-      '';
+  // Fallback to Groq when Gemini Flash is unavailable (same path as LUMARA chat research).
+  if (rawText == null || rawText.trim().isEmpty) {
+    onStage?.call(
+      'Gemini Flash isn\'t available right now. Synthesising with other sources...',
+    );
+    try {
+      rawText = await generateForAgents(
+        systemPrompt: _synthesisSystemPrompt,
+        userPrompt: contextForSynthesis,
+        maxTokens: 1500,
+      );
+    } catch (e) {
+      setError(kPipelineFailureMessage);
+      return null;
+    }
+  }
+
+  if (rawText == null || rawText.trim().isEmpty) {
+    setError(kPipelineFailureMessage);
+    return null;
+  }
 
   final brief = _parseSynthesisToBrief(
     query: query,

@@ -1,7 +1,28 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.73
+**Version:** 3.3.74
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.74] - March 10, 2026
+
+### Doc-config-git-backup run; LUMARA settings; outputs (completed_form_export); research/vision/forms/profile; onboarding (phase_reveal); settings_view
+
+**Action:** Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main → test.
+
+**New:**
+- **Outputs:** completed_form_export_service.dart.
+
+**Updated (sync with repo):**
+- **LUMARA & settings:** lumara_settings_screen; settings_view.
+- **Outputs:** output_detail_screen, scan_action_sheet.
+- **Research/Vision/Forms:** research_screen, content_brief, research_agent, research_pipeline, synthesis_engine; vision_ocr_screen, parsed_document; form_matcher.
+- **Profile:** profile_fields_screen.
+- **Onboarding:** arc_onboarding_cubit, arc_onboarding_sequence, phase_reveal_screen.
+- **Services:** prism_service.
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

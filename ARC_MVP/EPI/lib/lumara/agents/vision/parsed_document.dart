@@ -57,4 +57,26 @@ class ParsedDocument {
           : DateTime.now(),
     );
   }
+
+  /// Parses lines like "Label: value" or "Label:" from [rawText] into keyFields.
+  /// Use when OCR returns plain text (e.g. form scan) so "Use to fill form" can work.
+  static List<DocumentField> parseKeyFieldsFromRawText(String rawText) {
+    final fields = <DocumentField>[];
+    final linePattern = RegExp(r'^\s*(.+?)\s*:\s*(.*)\s*$');
+    for (final line in rawText.split(RegExp(r'\r?\n'))) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      final match = linePattern.firstMatch(trimmed);
+      if (match != null) {
+        final label = match.group(1)?.trim() ?? '';
+        if (label.isNotEmpty) {
+          fields.add(DocumentField(
+            label: label,
+            value: match.group(2)?.trim() ?? '',
+          ));
+        }
+      }
+    }
+    return fields;
+  }
 }

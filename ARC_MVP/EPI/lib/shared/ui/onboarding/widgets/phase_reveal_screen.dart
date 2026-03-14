@@ -244,7 +244,7 @@ class _PhaseRevealScreenState extends State<PhaseRevealScreen>
                                       if (widget.onContinue != null) {
                                         widget.onContinue!();
                                       } else {
-                                        context.read<ArcOnboardingCubit>().startPersonalitySetup();
+                                        context.read<ArcOnboardingCubit>().goToLumaraPreferences();
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(

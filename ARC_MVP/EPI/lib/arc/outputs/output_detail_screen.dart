@@ -2,12 +2,14 @@
 //
 // Phase 5a: Full content view for an OutputItem.
 // For scanner/scans: shows photo gallery (reflection-style) + extracted text.
+// For completed forms: shows form layout (label/value) and export to PDF/DOCX.
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:my_app/arc/outputs/completed_form_export_service.dart';
 import 'package:my_app/arc/outputs/outputs_models.dart';
 import 'package:my_app/arc/outputs/widgets/tag_chip_row.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -17,6 +19,32 @@ class OutputDetailScreen extends StatelessWidget {
   final OutputItem item;
 
   const OutputDetailScreen({super.key, required this.item});
+
+  /// Whether this item is a completed form (Outputs → Completed Forms).
+  static bool isCompletedFormItem(OutputItem item) {
+    return item.agentKey == 'forms' && item.folderKey == 'completed_forms';
+  }
+
+  /// Parse completed form content: list of {label, value}. Returns null if not valid.
+  static List<FormFieldExport>? parseCompletedFormContent(String? contentJson) {
+    if (contentJson == null || contentJson.isEmpty) return null;
+    try {
+      final map = jsonDecode(contentJson) as Map<String, dynamic>?;
+      if (map == null) return null;
+      final list = map['fields'] as List<dynamic>?;
+      if (list == null) return null;
+      final out = <FormFieldExport>[];
+      for (final e in list) {
+        if (e is! Map<String, dynamic>) continue;
+        final label = (e['label'] as String?) ?? '';
+        final value = (e['value'] as String?) ?? '';
+        out.add(FormFieldExport(label: label, value: value));
+      }
+      return out.isEmpty ? null : out;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Parse scan content: returns (rawText, list of image paths) if scan format.
   static ({String? rawText, List<String> imagePaths}) parseScanContent(String? contentJson) {
@@ -45,6 +73,11 @@ class OutputDetailScreen extends StatelessWidget {
     final isScan = item.agentKey == 'scanner' && item.folderKey == 'scans';
     final scanData = isScan ? parseScanContent(item.contentJson) : (rawText: null, imagePaths: <String>[]);
     final hasScanImages = scanData.imagePaths.isNotEmpty;
+    final isCompletedForm = isCompletedFormItem(item);
+    final formFields = isCompletedForm ? parseCompletedFormContent(item.contentJson) : null;
+    final showGenericContent = item.contentJson != null &&
+        item.contentJson!.isNotEmpty &&
+        (!isCompletedForm || formFields == null || formFields.isEmpty);
 
     return Scaffold(
       backgroundColor: kcBackgroundColor,
@@ -61,6 +94,14 @@ class OutputDetailScreen extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
+        actions: [
+          if (isCompletedForm && formFields != null && formFields.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.upload_file),
+              tooltip: 'Export form',
+              onPressed: () => _showExportFormSheet(context, item, formFields),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -120,8 +161,13 @@ class OutputDetailScreen extends StatelessWidget {
                 ),
               ),
             ],
-            // Extracted text (scans) or generic content
-            if (item.contentJson != null && item.contentJson!.isNotEmpty) ...[
+            // Completed form: organized label/value layout
+            if (isCompletedForm && formFields != null && formFields.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _CompletedFormContent(fields: formFields),
+            ],
+            // Extracted text (scans) or generic content (or fallback when form parse fails)
+            if (showGenericContent) ...[
               if (!isScan || (scanData.rawText != null && scanData.rawText!.isNotEmpty)) ...[
                 const SizedBox(height: 20),
                 Text(
@@ -151,6 +197,124 @@ class OutputDetailScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  static void _showExportFormSheet(BuildContext context, OutputItem item, List<FormFieldExport> fields) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: kcSurfaceAltColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Export form',
+                style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                      color: kcPrimaryTextColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf, color: kcPrimaryTextColor),
+                title: const Text('PDF'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final ok = await CompletedFormExportService.instance.exportAndShare(
+                    title: item.title,
+                    createdAt: item.createdAt,
+                    fields: fields,
+                    format: CompletedFormExportFormat.pdf,
+                  );
+                  if (ctx.mounted && !ok) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(content: Text('Export failed')),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.description, color: kcPrimaryTextColor),
+                title: const Text('Word (.docx)'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final ok = await CompletedFormExportService.instance.exportAndShare(
+                    title: item.title,
+                    createdAt: item.createdAt,
+                    fields: fields,
+                    format: CompletedFormExportFormat.docx,
+                  );
+                  if (ctx.mounted && !ok) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(content: Text('Export failed')),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Form-style layout for completed form fields (label + value rows).
+class _CompletedFormContent extends StatelessWidget {
+  final List<FormFieldExport> fields;
+
+  const _CompletedFormContent({required this.fields});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Form',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: kcPrimaryTextColor,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+        const SizedBox(height: 12),
+        ...fields.map((f) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    f.label,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: kcSecondaryTextColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: kcSurfaceAltColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: kcSecondaryTextColor.withValues(alpha: 0.2)),
+                    ),
+                    child: SelectableText(
+                      f.value.isEmpty ? '—' : f.value,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: kcPrimaryTextColor,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+      ],
     );
   }
 }

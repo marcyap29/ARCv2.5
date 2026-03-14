@@ -15,7 +15,10 @@ import 'package:my_app/arc/outputs/outputs_chronicle_service.dart';
 import 'package:my_app/arc/outputs/outputs_models.dart';
 import 'package:my_app/arc/outputs/outputs_repository.dart';
 import 'package:my_app/arc/outputs/scan_action_sheet.dart';
+import 'package:my_app/lumara/agents/forms/form_matcher.dart';
+import 'package:my_app/lumara/agents/forms/form_review_screen.dart';
 import 'package:my_app/lumara/agents/vision/parsed_document.dart';
+import 'package:my_app/lumara/profile/user_profile_service.dart';
 import 'package:my_app/services/swarmspace/prism_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 
@@ -218,6 +221,40 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
     });
   }
 
+  /// Use scanned result to fill a form: parse "Label: value" from rawText if needed, then open FormReviewScreen.
+  Future<void> _onFillForm(ParsedDocument document) async {
+    ParsedDocument doc = document;
+    if (doc.keyFields.isEmpty && doc.rawText.trim().isNotEmpty) {
+      final keyFields = ParsedDocument.parseKeyFieldsFromRawText(doc.rawText);
+      doc = ParsedDocument(
+        title: doc.title,
+        date: doc.date,
+        keyFields: keyFields,
+        rawText: doc.rawText,
+        createdAt: doc.createdAt,
+      );
+    }
+    if (doc.keyFields.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No form fields detected. Try scanning a form with lines like "Name: ___" or "Email: ___".'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    final profile = await UserProfileService.instance.getProfile();
+    if (!mounted) return;
+    final matches = FormMatcher.match(doc, profile);
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => FormReviewScreen(document: doc, matches: matches),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -344,6 +381,7 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
                       document: _lastParsedDocument!,
                       onSaveToOutputs: _onSaveScanToOutputs,
                       onAddToResearch: _onAddScanToResearch,
+                      onFillForm: _onFillForm,
                       onDismiss: _onDismissResult,
                     ),
                 ],

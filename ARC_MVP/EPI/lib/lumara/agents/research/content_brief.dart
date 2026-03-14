@@ -2,6 +2,9 @@
 //
 // Phase 3 Research: handoff object from research pipeline to (future) writing pipeline.
 // ContentBrief = title, summary, keyPoints, sources; serialisable for CHRONICLE.
+// Can be built from ResearchAgent's ResearchReport via [ContentBrief.fromResearchReport].
+
+import 'package:my_app/lumara/agents/research/research_models.dart';
 
 /// A single source reference in a ContentBrief.
 class SourceRef {
@@ -74,6 +77,32 @@ class ContentBrief {
           ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
           : DateTime.now(),
       query: json['query'] as String? ?? '',
+    );
+  }
+
+  /// Build a ContentBrief from ResearchAgent's [ResearchReport] so the Research screen
+  /// and Outputs can use the same format whether research is run from chat or the Research screen.
+  factory ContentBrief.fromResearchReport(ResearchReport report) {
+    final keyPoints = report.abstractBullets.isNotEmpty
+        ? report.abstractBullets
+        : report.keyInsights.map((i) => i.statement).toList();
+    final sources = report.citations
+        .map((c) => SourceRef(
+              title: c.title,
+              url: c.url,
+              domain: c.source,
+            ))
+        .toList();
+    final title = report.query.length > 60
+        ? '${report.query.substring(0, 60)}...'
+        : report.query;
+    return ContentBrief(
+      title: title,
+      summary: report.summary,
+      keyPoints: keyPoints,
+      sources: sources,
+      createdAt: report.generatedAt,
+      query: report.query,
     );
   }
 }

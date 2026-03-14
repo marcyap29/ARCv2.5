@@ -329,18 +329,20 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-/// Inline result actions (Save to Outputs, Add to Research, Dismiss) shown below scan result.
+/// Inline result actions (Save to Outputs, Add to Research, Use to fill form, Dismiss) shown below scan result.
 /// Use this instead of the modal when the result must stay visible and actions persistent.
 class ScanResultActionsInline extends StatelessWidget {
   final ParsedDocument document;
   final void Function(OutputSaveRequest) onSaveToOutputs;
   final void Function(String rawText) onAddToResearch;
+  final void Function(ParsedDocument document)? onFillForm;
   final VoidCallback onDismiss;
 
   const ScanResultActionsInline({
     required this.document,
     required this.onSaveToOutputs,
     required this.onAddToResearch,
+    this.onFillForm,
     required this.onDismiss,
   });
 
@@ -387,6 +389,12 @@ class ScanResultActionsInline extends StatelessWidget {
         const SizedBox(height: 12),
         _ActionTile(icon: Icons.save_outlined, label: 'Save to Outputs', onTap: save),
         _ActionTile(icon: Icons.search, label: 'Add to Research', onTap: () => onAddToResearch(document.rawText)),
+        if (onFillForm != null)
+          _ActionTile(
+            icon: Icons.edit_note,
+            label: 'Use to fill form',
+            onTap: () => onFillForm!(document),
+          ),
         _ActionTile(icon: Icons.close, label: 'Dismiss', onTap: onDismiss),
       ],
     );

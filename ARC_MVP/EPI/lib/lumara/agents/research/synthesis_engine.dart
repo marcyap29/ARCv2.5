@@ -31,6 +31,8 @@ class SynthesisEngine {
     ResearchTimelineContext? timelineContext,
     String? researchDepthLabel,
     String? systemPromptPrefix,
+    /// Optional context from a scanned document (e.g. Research screen "Scan document").
+    String? documentContext,
   }) async {
     final depth = _calculateSynthesisDepth(currentPhase, readinessScore);
     final depthLabel = researchDepthLabel ?? _synthesisDepthToLabel(depth);
@@ -49,7 +51,7 @@ class SynthesisEngine {
             ? '${systemPromptPrefix.trim()}\n'
             : '') +
         agentPrompt;
-    final context = _prepareContext(searchResults, priorContext);
+    final context = _prepareContext(searchResults, priorContext, documentContext: documentContext);
 
     // Allow sufficient room for Timeline Connections (including project relevance) to complete
     int maxTokens = depth == SynthesisDepth.brief ? 1000 : (depth == SynthesisDepth.deep ? 4000 : 2400);
@@ -186,8 +188,17 @@ Generate the synthesis now.
     }
   }
 
-  String _prepareContext(List<SearchResult> searchResults, PriorResearchContext priorContext) {
+  String _prepareContext(
+    List<SearchResult> searchResults,
+    PriorResearchContext priorContext, {
+    String? documentContext,
+  }) {
     final buf = StringBuffer();
+    if (documentContext != null && documentContext.trim().isNotEmpty) {
+      buf.writeln('## Additional context from user\'s scanned document\n');
+      buf.writeln(documentContext.trim());
+      buf.writeln();
+    }
     buf.writeln('## Search results to synthesize\n');
     for (final sr in searchResults) {
       buf.writeln('### Query: ${sr.query}');

@@ -43,8 +43,8 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
         next = OnboardingScreen.narrativeIntelligence;
         break;
       case OnboardingScreen.narrativeIntelligence:
-        // Onboarding is personality-only; phases are for internal model use only. Go to personality setup.
-        next = OnboardingScreen.personalitySetup;
+        // Skip "How we'll work together"; go straight to "How should LUMARA work with you".
+        next = OnboardingScreen.lumaraPreferences;
         break;
       case OnboardingScreen.sentinelIntro:
         // Screen removed; skip to phase explanation
@@ -53,6 +53,12 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
       case OnboardingScreen.phaseExplanation:
         // Phase explanation screen doesn't use nextScreen - uses startPhaseQuiz or skipToMainPage
         return;
+      case OnboardingScreen.lumaraPreferences:
+        next = OnboardingScreen.profileFields;
+        break;
+      case OnboardingScreen.profileFields:
+        next = OnboardingScreen.complete;
+        break;
       case OnboardingScreen.phaseQuiz:
       case OnboardingScreen.phaseAnalysis:
       case OnboardingScreen.phaseReveal:
@@ -199,6 +205,11 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
   /// Navigate from phase reveal to personality setup (7 questions).
   void startPersonalitySetup() {
     emit(state.copyWith(currentScreen: OnboardingScreen.personalitySetup));
+  }
+
+  /// Navigate to LUMARA Preferences ("How should LUMARA work with you") without showing personality setup.
+  void goToLumaraPreferences() {
+    emit(state.copyWith(currentScreen: OnboardingScreen.lumaraPreferences));
   }
 
   /// Persist personality answers, generate config, set default phase, then go to LUMARA Preferences (Phase 6).

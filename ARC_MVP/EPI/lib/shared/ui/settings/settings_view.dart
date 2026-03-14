@@ -15,6 +15,8 @@ import 'package:my_app/arc/core/journal_repository.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
+import 'package:my_app/lumara/profile/lumara_preferences_screen.dart';
+import 'package:my_app/lumara/profile/profile_fields_screen.dart';
 import 'package:my_app/models/memory_focus_preset.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
@@ -431,6 +433,24 @@ class SubscriptionAccountFolderView extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const SubscriptionManagementView(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            _SettingsTile(
+              title: 'My Profile',
+              subtitle: 'Form pre-fill data (stored on this device only)',
+              icon: Icons.badge_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (context) => ProfileFieldsScreen(
+                      standaloneMode: true,
+                      onSaveAndComplete: () => Navigator.pop(context),
+                      onSkip: () => Navigator.pop(context),
+                    ),
                   ),
                 );
               },
@@ -1428,6 +1448,24 @@ class _LumaraFolderViewState extends State<LumaraFolderView> {
                 ),
               ),
             ),
+            _SettingsTile(
+              title: 'LUMARA Preferences',
+              subtitle: 'How LUMARA works with you',
+              icon: Icons.person_outline,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (context) => LumaraPreferencesScreen(
+                      standaloneMode: true,
+                      onSaveAndComplete: () => Navigator.pop(context),
+                      onSkip: () => Navigator.pop(context),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
             _SettingsTile(
               title: 'LUMARA Favorites',
               subtitle: _favoritesCountLoaded

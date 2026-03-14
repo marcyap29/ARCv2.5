@@ -118,6 +118,8 @@ class FormMatcher {
         proposedValue = profile[profileKey];
       }
     }
+    // When no profile match, use the scanned value so "Use to fill form" shows extracted data.
+    proposedValue = proposedValue ?? field.value;
 
     final isSensitive = profileKey != null && service.isSensitive(profileKey);
 
