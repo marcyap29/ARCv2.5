@@ -20,6 +20,7 @@ import { generateJournalReflection } from "./functions/generateJournalReflection
 import { getUserSubscription } from "./functions/getUserSubscription";
 import { createCheckoutSession } from "./functions/createCheckoutSession";
 import { proxyGemini } from "./functions/proxyGemini";
+import { proxyOllama } from "./functions/proxyOllama";
 import { getAssemblyAIToken } from "./functions/getAssemblyAIToken";
 import { getWisprApiKey } from "./functions/getWisprApiKey";
 
@@ -33,6 +34,7 @@ export { generateJournalReflection };
 export { getUserSubscription };
 export { createCheckoutSession };
 export { proxyGemini };
+export { proxyOllama };
 export { getAssemblyAIToken };
 export { getWisprApiKey };
 

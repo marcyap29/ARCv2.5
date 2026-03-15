@@ -107,6 +107,14 @@ const PLUGIN_REGISTRY = {
         exampleQuery: "Read and summarize this article: https://...",
         privacy_data_required: true,
     },
+    "media-upload": {
+        workerUrl: "https://swarmspace-media-upload.orbitalai.workers.dev",
+        requiredTier: "standard",
+        capabilities: ["media_host", "image_upload"],
+        description: "Upload image and get a public URL (24h TTL)",
+        exampleQuery: "Upload image for sharing",
+        privacy_data_required: true,
+    },
     "tavily-search": {
         workerUrl: "https://swarmspace-plugin-tavily-search.orbitalai.workers.dev",
         requiredTier: "standard",
@@ -128,6 +136,14 @@ const PLUGIN_REGISTRY = {
         capabilities: ["web_search", "answer_synthesis", "research"],
         description: "Real-time answer synthesis from the web",
         exampleQuery: "Explain the current state of fusion energy",
+    },
+    "social-publisher": {
+        workerUrl: "https://swarmspace-social-publisher.orbitalai.workers.dev",
+        requiredTier: "standard",
+        capabilities: ["social_publish", "social_schedule", "social_accounts"],
+        description: "Publish drafts to LinkedIn, Bluesky, Threads, and more via Late.com",
+        exampleQuery: "Publish this draft to my connected accounts",
+        privacy_data_required: true,
     },
 };
 // ── Tier resolution ────────────────────────────────────────────────────────────
@@ -237,13 +253,12 @@ exports.swarmspaceRouter = (0, https_1.onCall)({
             ts: new Date().toISOString(),
         });
     }
-    // Step 5: Forward the request to the Cloudflare worker.
-    // We stamp it with three headers the worker requires:
-    //   - Authorization        → proves this came from our router (not from the internet)
-    //   - X-SwarmSpace-User-Id → so the worker knows whose quota to check
-    //   - X-SwarmSpace-User-Tier → so the worker knows what limits to apply
+    // Step 5: Forward the request to the worker.
+    // Cloudflare workers expect POST to <base>/invoke; our own HTTP functions (vision-ocr, news)
+    // are deployed at the base URL only, so we must not append /invoke for them.
     const internalToken = SWARMSPACE_INTERNAL_TOKEN.value();
-    const workerUrl = `${plugin.workerUrl}/invoke`;
+    const isOurCloudFunction = plugin.workerUrl.includes("cloudfunctions.net");
+    const workerUrl = isOurCloudFunction ? plugin.workerUrl : `${plugin.workerUrl}/invoke`;
     let workerResponse;
     try {
         workerResponse = await fetch(workerUrl, {

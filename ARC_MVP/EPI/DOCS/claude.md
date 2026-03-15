@@ -68,6 +68,7 @@
 | **CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md** | Full-repo Code Simplifier plan: scan, divisible phases, agent roles | `DOCS/CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md` |
 | **Documentation, Config & Git Backup** | Universal prompt for docs, config, and backup sync | This file: section "Ultimate Documentation, Configuration Management and Git Backup Prompt" |
 | **CLOUD_VISION_SETUP.md** | Vision/OCR plugin: enable Vision API, IAM, deploy workaround | `DOCS/CLOUD_VISION_SETUP.md` |
+| **Firebase 2nd gen invoker error** | "Unable to set the invoker" at deploy — fix in Cloud Run (Security → Allow public access) or gcloud `--no-invoker-iam-check` | This file: [Backend § Firebase 2nd gen](#firebase-2nd-gen-functions--unable-to-set-the-invoker-recurring-use-this-fix-every-time); `DOCS/FIREBASE_OLLAMA_DEPLOY.md` |
 
 ---
 
@@ -144,6 +145,36 @@ The **vision-ocr** SwarmSpace plugin uses **Google Cloud Vision API**. Before it
 
 Full steps and verify checklist: **`DOCS/CLOUD_VISION_SETUP.md`**.
 
+### Firebase 2nd gen functions — "Unable to set the invoker" (recurring; use this fix every time)
+
+**Error (at deploy):**
+```text
+Unable to set the invoker for the IAM policy on the following functions:
+  <functionName>(us-central1)
+```
+Sometimes also: **"One or more users named in the policy do not belong to a permitted customer"** when trying to add `allUsers` via gcloud.
+
+**Cause:** Firebase 2nd gen functions run as **Cloud Run** services. The CLI tries to set who can invoke them (e.g. `allUsers`). Either (1) your account lacks permission to set IAM on the service, or (2) an **organization policy** (e.g. Domain Restricted Sharing) blocks adding `allUsers`, so the deploy step fails even though the function is created.
+
+**Fix (pick one; this has fixed the issue every time):**
+
+1. **Google Cloud Console (recommended)**  
+   - Open [Cloud Run](https://console.cloud.google.com/run), project **arc-epi**.  
+   - Click the **service name** (e.g. `proxyollama` — lowercase).  
+   - Open the **Security** tab.  
+   - Select **Allow public access** (disables the invoker IAM check; no need to add `allUsers`).  
+   - Click **Save**.  
+   Auth is still enforced inside the function (e.g. `enforceAuth()`); this only lets the request reach the function.
+
+2. **gcloud (when org policy blocks `allUsers`)**  
+   ```bash
+   gcloud config set project arc-epi
+   gcloud run services update <service-name-lowercase> --region=us-central1 --no-invoker-iam-check
+   ```  
+   Example for proxyOllama: service name is `proxyollama`.
+
+**When adding new 2nd gen callable functions:** Expect this deploy error and apply the same fix (Console → Security → Allow public access, or `gcloud run services update ... --no-invoker-iam-check`). Full details: **`DOCS/FIREBASE_OLLAMA_DEPLOY.md`** (same procedure for any 2nd gen function).
+
 ---
 
 ## Bug Tracking
@@ -195,6 +226,7 @@ When generating or modifying code, **do not reintroduce** the following. Full de
 - **Singletons**: If a service is cleared on sign-out or used cross-service, expose a static `instance` getter (e.g. `AssemblyAIService.instance`).
 
 **Build & platform**
+- **Firebase 2nd gen deploy:** If deploy fails with "Unable to set the invoker for the IAM policy", the function is still created. Fix in Cloud Run (Console → service → Security → **Allow public access**) or `gcloud run services update <service-lowercase> --region=us-central1 --no-invoker-iam-check`. See [Firebase 2nd gen functions — "Unable to set the invoker"](#firebase-2nd-gen-functions--unable-to-set-the-invoker-recurring-use-this-fix-every-time) in this file.
 - **Imports**: `AppLifecycleState` from `dart:ui` (not from elsewhere). Add required imports when using FirebaseAuth, etc.
 - **FeedRepository / chat**: Use correct types for `createdAt`, `metadata ?? {}`, and `msg.id`; avoid duplicate or out-of-order widget build (e.g. `_buildRunAnalysisCard` before `_buildArcformContent`).
 - **Generated code**: For `rivet_models.g.dart` (or similar) when a field is `Set<String>` but source is List, use `.toSet()` in read.

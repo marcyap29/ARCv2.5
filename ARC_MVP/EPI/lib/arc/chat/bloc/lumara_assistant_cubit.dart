@@ -1342,6 +1342,7 @@ Continue naturally.''';
         system: effectiveSystemPrompt,
         user: userWithModeTag,
         chatId: currentChatSessionId,
+        chatMode: currentMode,
       );
 
       // Update the UI with the full response

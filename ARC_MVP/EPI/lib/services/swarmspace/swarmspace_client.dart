@@ -254,7 +254,10 @@ class SwarmSpaceClient {
           final errData = jsonDecode(body) as Map<String, dynamic>;
           final errObj = errData['error'] as Map<String, dynamic>?;
           final details = errObj?['details'] as Map<String, dynamic>?;
-
+          final serverMessage = errObj?['message'] as String?;
+          if (serverMessage != null && serverMessage.trim().isNotEmpty) {
+            userMsg = serverMessage.trim();
+          }
           if (details != null && details['quota'] != null) {
             final quota = SwarmSpaceQuota.fromJson(
               Map<String, dynamic>.from(details['quota'] as Map),

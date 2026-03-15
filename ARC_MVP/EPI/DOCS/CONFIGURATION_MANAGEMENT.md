@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 10, 2026 (doc sync 2026-03-10, v3.3.75)  
+**Last Updated:** March 10, 2026 (doc sync 2026-03-10, v3.3.76)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -46,9 +46,9 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-10 | ✅ Synced | v3.3.67 - HealthKit removal, OpenAI provider removal |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-10 | ✅ Synced | v3.3.75 - LUMARA settings; social/; research (search_orchestrator); draft_editor; swarmspaceRouter |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-10 | ✅ Synced | v3.3.76 - proxyOllama; ollama_send; FIREBASE_OLLAMA_DEPLOY; config; LUMARA/social/settings |
 | PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-10 | ✅ Synced | v2.9.0 - no new prompts this run |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-10 | ✅ Synced | v1.24.0 - Doc sync 2026-03-10 (v3.3.75) row |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-10 | ✅ Synced | v1.25.0 - Doc sync 2026-03-10 (v3.3.76) row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-10 | ✅ Synced | v3.5.0 - 40 records; Last Updated 2026-03-10 |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-10 | ✅ Synced | v3.3.67 - doc sync |
 | README.md | `/DOCS/README.md` | 2026-03-10 | ✅ Synced | Key docs table; CHANGELOG version ref updated |
@@ -110,6 +110,7 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | CLOUD_VISION_SETUP.md | DOCS/ | Cloud Vision API and visionOcrInvoke setup — v3.3.71 |
 | LUMARA_MESSAGE_INJECTION.md | DOCS/ | LUMARA message injection — v3.3.71 |
 | FIREBASE_GEMINI_SECRET_SETUP.md | DOCS/ | Firebase Gemini secret setup — v3.3.72 |
+| FIREBASE_OLLAMA_DEPLOY.md | DOCS/ | Firebase Ollama proxy deploy — v3.3.76 |
 | FIRESTORE_ACTIVITY_INDEX_AND_RULES.md | DOCS/ | Firestore activity index and rules — v3.3.72 |
 | Key Commands to Remember.md | DOCS/ | Key commands quick reference — v3.3.72 |
 | LUMARA_SWARMSPACE_BUILD_STATUS.md | DOCS/ | LUMARA SwarmSpace build status — v3.3.72 |
@@ -119,6 +120,20 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-10 - Documentation & Git Backup run (v3.3.76; doc sync 2026-03-10)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md §284–501). Trigger: user request. Then commit, push, merge main → test.
+
+**PROMPT REFERENCES AUDIT:** No new LLM prompt definition files. PROMPT_REFERENCES.md unchanged (v2.9.0).
+
+**Git Backup — Identify what changed (since v3.3.75):** Uncommitted: proxyOllama Cloud Function (new); ollama_send.dart (new); FIREBASE_OLLAMA_DEPLOY.md (new); functions config.ts; lumara_assistant_cubit, api_config, lumara_cloud_generate, lumara_settings_screen, draft_editor_screen, late_profile_service, social_accounts_screen; gemini_send, swarmspace_client; settings_view; swarmspaceRouter, index; claude.md.
+
+**Updates:** CHANGELOG.md v3.3.76; CONFIGURATION_MANAGEMENT.md this entry + inventory; PROMPT_TRACKER.md v1.25.0; bug_tracker.md Recent code changes row + Last Updated. New doc to inventory: FIREBASE_OLLAMA_DEPLOY.md.
+
+**Status:** ✅ Doc updates applied; commit (docs + code) and push, then merge main into test.
+
+---
 
 ### 2026-03-10 - Documentation & Git Backup run (v3.3.75; doc sync 2026-03-10)
 

@@ -144,7 +144,7 @@ class _DraftEditorScreenState extends State<DraftEditorScreen> {
   Future<void> _publish() async {
     List<SocialAccount> accounts;
     try {
-      accounts = await LateProfileService.instance.getConnectedAccounts();
+      accounts = await LateProfileService.instance.getConnectedAccounts(context);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,7 +1,9 @@
 // lib/lumara/social/late_profile_service.dart
 // Phase 7: Late.com profile and accounts via social-publisher worker.
 
+import 'package:flutter/material.dart';
 import 'package:my_app/lumara/profile/user_profile_service.dart';
+import 'package:my_app/services/swarmspace/prism_service.dart';
 import 'package:my_app/services/swarmspace/swarmspace_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -48,7 +50,8 @@ class LateProfileService {
     return SwarmSpaceClient.instance.invoke(pluginId, params);
   }
 
-  Future<String> getOrCreateProfileId() async {
+  /// When [context] is provided, uses PrismService so the user sees consent once; required for social-publisher (privacy_data_required).
+  Future<String> getOrCreateProfileId([BuildContext? context]) async {
     final prefs = await SharedPreferences.getInstance();
     String? profileId = prefs.getString(_keyProfileId);
     if (profileId != null && profileId.isNotEmpty) return profileId;
@@ -58,11 +61,29 @@ class LateProfileService {
         ? 'LUMARA — $preferredName'
         : 'LUMARA';
 
-    final result = await _invoke('social-publisher', {
-      '_action': 'createProfile',
-      'name': name,
-      'description': 'LUMARA social publishing',
-    });
+    SwarmSpaceResult result;
+    if (context != null && context.mounted) {
+      final prism = await PrismService.instance.authoriseAndCall(
+        pluginId: 'social-publisher',
+        params: {
+          '_action': 'createProfile',
+          'name': name,
+          'description': 'LUMARA social publishing',
+        },
+        context: context,
+      );
+      if (prism.isDenied) throw Exception('Plugin skipped by user');
+      if (prism.result == null || !prism.result!.success) {
+        throw Exception(prism.result?.error ?? 'Failed to create Late profile');
+      }
+      result = prism.result!;
+    } else {
+      result = await _invoke('social-publisher', {
+        '_action': 'createProfile',
+        'name': name,
+        'description': 'LUMARA social publishing',
+      });
+    }
 
     if (!result.success || result.data == null) {
       throw Exception(result.error ?? 'Failed to create Late profile');
@@ -79,16 +100,27 @@ class LateProfileService {
     return id;
   }
 
-  Future<List<SocialAccount>> getConnectedAccounts() async {
-    final profileId = await getOrCreateProfileId();
-    final result = await _invoke('social-publisher', {
-      '_action': 'accounts',
-      'profileId': profileId,
-    });
-
-    if (!result.success || result.data == null) {
-      return [];
+  /// When [context] is provided, uses PrismService so the user sees consent once (required for social-publisher).
+  Future<List<SocialAccount>> getConnectedAccounts([BuildContext? context]) async {
+    final profileId = await getOrCreateProfileId(context);
+    SwarmSpaceResult result;
+    if (context != null && context.mounted) {
+      final prism = await PrismService.instance.authoriseAndCall(
+        pluginId: 'social-publisher',
+        params: {'_action': 'accounts', 'profileId': profileId},
+        context: context,
+      );
+      if (prism.isDenied) return [];
+      if (prism.result == null || !prism.result!.success) return [];
+      result = prism.result!;
+    } else {
+      result = await _invoke('social-publisher', {
+        '_action': 'accounts',
+        'profileId': profileId,
+      });
     }
+
+    if (!result.success || result.data == null) return [];
 
     final data = result.data!;
     final list = data['accounts'] as List<dynamic>? ?? data as List<dynamic>? ?? [];
@@ -97,13 +129,28 @@ class LateProfileService {
         .toList();
   }
 
-  Future<String> getConnectUrl(String platform) async {
-    final profileId = await getOrCreateProfileId();
-    final result = await _invoke('social-publisher', {
-      '_action': 'connectUrl',
-      'platform': platform,
-      'profileId': profileId,
-    });
+  /// When [context] is provided, uses PrismService so the user sees consent once (required for social-publisher).
+  Future<String> getConnectUrl(String platform, [BuildContext? context]) async {
+    final profileId = await getOrCreateProfileId(context);
+    SwarmSpaceResult result;
+    if (context != null && context.mounted) {
+      final prism = await PrismService.instance.authoriseAndCall(
+        pluginId: 'social-publisher',
+        params: {'_action': 'connectUrl', 'platform': platform, 'profileId': profileId},
+        context: context,
+      );
+      if (prism.isDenied) throw Exception('Plugin skipped by user');
+      if (prism.result == null || !prism.result!.success) {
+        throw Exception(prism.result?.error ?? 'Failed to get connect URL');
+      }
+      result = prism.result!;
+    } else {
+      result = await _invoke('social-publisher', {
+        '_action': 'connectUrl',
+        'platform': platform,
+        'profileId': profileId,
+      });
+    }
 
     if (!result.success || result.data == null) {
       throw Exception(result.error ?? 'Failed to get connect URL');

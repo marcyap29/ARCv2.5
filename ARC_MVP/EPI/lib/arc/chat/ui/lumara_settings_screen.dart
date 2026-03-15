@@ -13,9 +13,8 @@ import '../prompts/lumara_mode_definition.dart';
 import 'package:my_app/services/subscription_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/voice/config/wispr_config_service.dart';
-import 'package:my_app/lumara/social/social_accounts_screen.dart';
 
-/// Email that gets premium (no limits) and Primary API (Groq/Google) toggle in Settings → LUMARA.
+/// Email that gets Primary API card (Groq | Google | Ollama per mode) in Settings → LUMARA. Only this user sees the card.
 const String _lumaraExperimentEmail = 'marcyap@orbitalai.net';
 
 /// LUMARA settings screen for API key management and provider selection
@@ -370,10 +369,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
             _buildAgentOperatingSystemCard(theme),
             const SizedBox(height: 24),
 
-            // Social Accounts (Late.com — connect accounts for publishing)
-            _buildSocialAccountsCard(theme),
-            const SizedBox(height: 24),
-
             // API — provider selection, API keys, voice (Wispr) in one card
             if (_subscriptionTier == SubscriptionTier.premium) ...[
               _buildApiCard(theme),
@@ -500,55 +495,6 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  Widget _buildSocialAccountsCard(ThemeData theme) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.share, color: theme.colorScheme.primary, size: 24),
-                const SizedBox(width: 12),
-                Text(
-                  'Social Accounts',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Connect LinkedIn, Bluesky, Threads, Twitter/X and more to publish drafts directly from LUMARA.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SocialAccountsScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.link, size: 18),
-                label: const Text('Manage connected accounts'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildApiCard(ThemeData theme) {
     return Card(
       elevation: 2,
@@ -642,7 +588,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                         ),
                       ),
                       Text(
-                        'Off = Groq for all. On = choose API per mode (1, 2, 3).',
+                        'Off = Groq for all. On = choose Groq, Google, or Ollama per mode (1, 2, 3).',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -692,7 +638,7 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     );
   }
 
-  /// One row: label + rocker (Groq | Gemini) for a mode.
+  /// One row: label + rocker (Groq | Google | Ollama) for a mode.
   Widget _buildModeRockerRow(ThemeData theme, String label, LLMProvider current, ValueChanged<LLMProvider> onChanged) {
     return Row(
       children: [
@@ -712,6 +658,8 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
               _buildModeRockerSegment(theme, 'Groq', current == LLMProvider.groq, () => onChanged(LLMProvider.groq)),
               const SizedBox(width: 4),
               _buildModeRockerSegment(theme, 'Google', current == LLMProvider.gemini, () => onChanged(LLMProvider.gemini)),
+              const SizedBox(width: 4),
+              _buildModeRockerSegment(theme, 'Ollama', current == LLMProvider.ollama, () => onChanged(LLMProvider.ollama)),
             ],
           ),
         ),
@@ -749,11 +697,14 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
     final config = _apiConfig.getConfig(provider);
     final isConfigured = config?.apiKey?.isNotEmpty == true;
     
-    // Custom display names for API key fields (only Groq in use)
+    // Custom display names for API key fields
     String displayName;
     switch (provider) {
       case LLMProvider.groq:
         displayName = 'Groq';
+        break;
+      case LLMProvider.ollama:
+        displayName = 'Ollama (Cloud)';
         break;
       default:
         displayName = config?.name ?? provider.name;
@@ -863,12 +814,15 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
         await _lumaraApi.initialize();
       }
 
-      // Get display name for success message (only Groq in use)
+      // Get display name for success message
       final config = _apiConfig.getConfig(provider);
       String displayName;
       switch (provider) {
         case LLMProvider.groq:
           displayName = 'Groq';
+          break;
+        case LLMProvider.ollama:
+          displayName = 'Ollama (Cloud)';
           break;
         default:
           displayName = config?.name ?? provider.name;

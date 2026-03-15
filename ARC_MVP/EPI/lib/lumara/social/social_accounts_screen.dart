@@ -57,7 +57,7 @@ class _SocialAccountsScreenState extends State<SocialAccountsScreen> {
       _error = null;
     });
     try {
-      final accounts = await LateProfileService.instance.getConnectedAccounts();
+      final accounts = await LateProfileService.instance.getConnectedAccounts(context);
       if (mounted) {
         setState(() {
           _accounts = accounts;
@@ -83,7 +83,7 @@ class _SocialAccountsScreenState extends State<SocialAccountsScreen> {
 
   Future<void> _connectPlatform(String platform) async {
     try {
-      final url = await LateProfileService.instance.getConnectUrl(platform);
+      final url = await LateProfileService.instance.getConnectUrl(platform, context);
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);

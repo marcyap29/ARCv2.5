@@ -17,6 +17,7 @@ import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart
 import 'package:my_app/arc/chat/ui/lumara_settings_screen.dart';
 import 'package:my_app/lumara/profile/lumara_preferences_screen.dart';
 import 'package:my_app/lumara/profile/profile_fields_screen.dart';
+import 'package:my_app/lumara/social/social_accounts_screen.dart';
 import 'package:my_app/models/memory_focus_preset.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/ui/subscription/subscription_management_view.dart';
@@ -451,6 +452,20 @@ class SubscriptionAccountFolderView extends StatelessWidget {
                       onSaveAndComplete: () => Navigator.pop(context),
                       onSkip: () => Navigator.pop(context),
                     ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            _SettingsTile(
+              title: 'Social Accounts',
+              subtitle: 'Connect LinkedIn, Bluesky, Threads, Twitter/X and more to publish drafts from LUMARA',
+              icon: Icons.share,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (context) => const SocialAccountsScreen(),
                   ),
                 );
               },

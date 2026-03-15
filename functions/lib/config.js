@@ -1,7 +1,7 @@
 "use strict";
 // config.ts - Environment configuration and model settings
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GEMINI_BASE_URL = exports.FREE_MAX_CHAT_TURNS_PER_THREAD = exports.FREE_MAX_ANALYSES_PER_ENTRY = exports.FREE_MAX_REQUESTS_PER_MINUTE = exports.FREE_MAX_REQUESTS_PER_DAY = exports.GEMINI_PRO_MODEL_ID = exports.GEMINI_FLASH_MODEL_ID = exports.LLM_SETTINGS_ENCRYPTION_KEY = exports.THROTTLE_UNLOCK_PASSWORD = exports.ASSEMBLYAI_API_KEY = exports.GROQ_API_KEY = exports.GEMINI_API_KEY = void 0;
+exports.GEMINI_BASE_URL = exports.FREE_MAX_CHAT_TURNS_PER_THREAD = exports.FREE_MAX_ANALYSES_PER_ENTRY = exports.FREE_MAX_REQUESTS_PER_MINUTE = exports.FREE_MAX_REQUESTS_PER_DAY = exports.GEMINI_PRO_MODEL_ID = exports.GEMINI_FLASH_MODEL_ID = exports.LLM_SETTINGS_ENCRYPTION_KEY = exports.THROTTLE_UNLOCK_PASSWORD = exports.ASSEMBLYAI_API_KEY = exports.OLLAMA_API_KEY = exports.GROQ_API_KEY = exports.GEMINI_API_KEY = void 0;
 exports.getModelConfig = getModelConfig;
 const params_1 = require("firebase-functions/params");
 /**
@@ -10,6 +10,8 @@ const params_1 = require("firebase-functions/params");
  */
 exports.GEMINI_API_KEY = (0, params_1.defineSecret)("GEMINI_API_KEY");
 exports.GROQ_API_KEY = (0, params_1.defineSecret)("GROQ_API_KEY");
+// Ollama Cloud API key (https://ollama.com/settings/keys) for 3rd fallback: Gemini → Groq → Ollama
+exports.OLLAMA_API_KEY = (0, params_1.defineSecret)("OLLAMA_API_KEY");
 // AssemblyAI API key for cloud transcription
 exports.ASSEMBLYAI_API_KEY = (0, params_1.defineSecret)("ASSEMBLYAI_API_KEY");
 // Throttle unlock password (stored as secret for security)

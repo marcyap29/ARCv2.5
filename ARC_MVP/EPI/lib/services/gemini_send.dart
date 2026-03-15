@@ -9,7 +9,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:my_app/services/llm_bridge_adapter.dart';
 import 'package:my_app/services/groq_send.dart';
+import 'package:my_app/services/ollama_send.dart';
 import 'package:my_app/arc/chat/config/api_config.dart';
+import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/arc/chat/prompts/lumara_mode_definition.dart';
 import 'package:my_app/services/lumara/pii_scrub.dart';
 import 'package:my_app/services/firebase_service.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
@@ -130,8 +133,8 @@ Future<String> _lumaraCallGeminiRaw({
   throw Exception('Gemini unavailable: sign in for cloud AI or add a Gemini API key in Settings.');
 }
 
-/// Unified LUMARA send: PRISM scrub, optional transformation, then Gemini (primary, 2 tries) → Groq (backup), PII restore.
-/// Use this for all chat/reflection flows that may contain user PII.
+/// Unified LUMARA send: PRISM scrub, optional transformation, then primary (Groq/Gemini/Ollama) → fallbacks, PII restore.
+/// Default order: Groq → Gemini → Ollama. When [chatMode] is set and Primary API master is on, uses that mode's API as primary.
 Future<String> lumaraSend({
   required String system,
   required String user,
@@ -142,8 +145,9 @@ Future<String> lumaraSend({
   bool skipTransformation = false,
   double temperature = 0.7,
   int? maxTokens,
+  LumaraChatMode? chatMode,
 }) async {
-  if (kDebugMode) print('LUMARA Send: PRISM scrub → Gemini (primary, 2 tries) → Groq (backup) → PII restore');
+  if (kDebugMode) print('LUMARA Send: PRISM scrub → primary (Groq/Gemini/Ollama) → fallbacks → PII restore');
 
   // Bible questions: preserve names, skip transformation
   final isBibleQuestion = user.contains('[BIBLE_CONTEXT]') || user.contains('[BIBLE_VERSE_CONTEXT]');
@@ -207,10 +211,20 @@ Future<String> lumaraSend({
     }
   }
 
-  // Step 3: Order of tries from manual provider (Settings → LUMARA → Primary API for experiment user)
+  // Step 3: Primary provider — default Groq → Gemini → Ollama. With chatMode + Primary API master on, use that mode's API.
   await LumaraAPIConfig.instance.initialize();
-  final manual = LumaraAPIConfig.instance.getManualProvider();
-  final tryGroqFirst = manual == LLMProvider.groq;
+  LLMProvider primary = LLMProvider.groq;
+  if (chatMode != null) {
+    final masterOn = await LumaraReflectionSettingsService.instance.getLumaraPrimaryApiMasterOn();
+    primary = masterOn
+        ? await LumaraReflectionSettingsService.instance.getLumaraModeApi(chatMode)
+        : LLMProvider.groq;
+  } else {
+    final manual = LumaraAPIConfig.instance.getManualProvider();
+    primary = manual ?? LLMProvider.groq;
+  }
+  final tryGroqFirst = primary == LLMProvider.groq;
+  final tryOllamaFirst = primary == LLMProvider.ollama;
 
   const maxTries = 2;
   Object? lastError;
@@ -259,13 +273,40 @@ Future<String> lumaraSend({
     return null;
   }
 
+  Future<String?> tryOllama2x() async {
+    for (var attempt = 1; attempt <= maxTries; attempt++) {
+      try {
+        final raw = await ollamaSend(
+          user: transformedUserText,
+          system: transformedSystem.isNotEmpty ? transformedSystem : null,
+          temperature: temperature,
+          maxTokens: maxTokens,
+        );
+        if (raw.isNotEmpty) {
+          if (kDebugMode) print('LUMARA Send: Ollama Cloud succeeded (attempt $attempt)');
+          return raw;
+        }
+      } catch (e) {
+        lastError = e;
+        if (kDebugMode) print('LUMARA Send: Ollama attempt $attempt failed: $e');
+      }
+    }
+    return null;
+  }
+
   String? rawResponse;
-  if (tryGroqFirst) {
+  if (tryOllamaFirst) {
+    rawResponse = await tryOllama2x();
+    rawResponse ??= await tryGroq2x();
+    rawResponse ??= await tryGemini2x();
+  } else if (tryGroqFirst) {
     rawResponse = await tryGroq2x();
     rawResponse ??= await tryGemini2x();
+    rawResponse ??= await tryOllama2x();
   } else {
     rawResponse = await tryGemini2x();
     rawResponse ??= await tryGroq2x();
+    rawResponse ??= await tryOllama2x();
   }
 
   if (rawResponse != null && rawResponse.isNotEmpty) {
@@ -280,7 +321,7 @@ Future<String> lumaraSend({
       ? lastError as Exception
       : Exception(
           lastError != null
-              ? 'LUMARA: All API attempts failed. Last error: $lastError'
+              ? 'LUMARA: Gemini, Groq, and Ollama failed. Last error: $lastError'
               : 'LUMARA: All API attempts failed (empty responses).',
         );
 }

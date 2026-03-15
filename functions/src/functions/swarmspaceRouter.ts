@@ -23,7 +23,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { getFirestore } from "firebase-admin/firestore";
-import { enforceAuth } from "../authGuard";
+import { enforceAuth, isAdminEmail } from "../authGuard";
 import { loadUserLlmSettings } from "../userLlmSettings";
 import { LLM_SETTINGS_ENCRYPTION_KEY } from "../config";
 
@@ -190,6 +190,20 @@ function canAccessPlugin(userTier: Tier, requiredTier: Tier): boolean {
   return TIER_RANK[userTier] >= TIER_RANK[requiredTier];
 }
 
+/** Effective SwarmSpace tier for plugin access. Admin emails (e.g. marcyap@orbitalai.net) get at least standard. */
+function effectiveUserTier(
+  request: { auth?: { token?: { email?: string } } },
+  user: { plan?: string },
+  isPremium: boolean
+): Tier {
+  const resolved = resolveSwarmSpaceTier(user.plan ?? "free", isPremium);
+  const email = request.auth?.token?.email as string | undefined;
+  if (isAdminEmail(email) && TIER_RANK[resolved] < TIER_RANK.standard) {
+    return "standard";
+  }
+  return resolved;
+}
+
 // ── Activity log (PRISM Phase 1) ───────────────────────────────────────────────
 // Fire-and-forget write to Firestore so every plugin call is recorded for Activity tab.
 function writePluginActivityLog(entry: {
@@ -240,8 +254,7 @@ export const swarmspaceRouter = onCall(
     }
 
     // Step 4: Check if the user's plan allows this plugin.
-    // e.g. a free user asking for "tavily-search" (standard) gets a clean error.
-    const userTier = resolveSwarmSpaceTier(user.plan ?? "free", isPremium);
+    const userTier = effectiveUserTier(request, user, isPremium);
     if (!canAccessPlugin(userTier, plugin.requiredTier)) {
       throw new HttpsError(
         "permission-denied",
@@ -428,7 +441,7 @@ export const swarmspacePluginStatus = onCall(
       return { available: false, reason: "unknown_plugin" };
     }
 
-    const userTier = resolveSwarmSpaceTier(user.plan ?? "free", isPremium);
+    const userTier = effectiveUserTier(request, user, isPremium);
     const available = canAccessPlugin(userTier, plugin.requiredTier);
 
     return {
@@ -449,7 +462,7 @@ export const swarmspacePluginCatalog = onCall(
   {},
   async (request) => {
     const { isPremium, user } = await enforceAuth(request);
-    const userTier = resolveSwarmSpaceTier(user.plan ?? "free", isPremium);
+    const userTier = effectiveUserTier(request, user, isPremium);
 
     const plugins = Object.entries(PLUGIN_REGISTRY).map(([pluginId, config]) => ({
       plugin_id: pluginId,

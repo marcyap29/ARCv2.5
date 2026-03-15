@@ -9,6 +9,8 @@ import { ModelFamily, ModelConfig } from "./types";
  */
 export const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 export const GROQ_API_KEY = defineSecret("GROQ_API_KEY");
+// Ollama Cloud API key (https://ollama.com/settings/keys) for 3rd fallback: Gemini → Groq → Ollama
+export const OLLAMA_API_KEY = defineSecret("OLLAMA_API_KEY");
 
 // AssemblyAI API key for cloud transcription
 export const ASSEMBLYAI_API_KEY = defineSecret("ASSEMBLYAI_API_KEY");

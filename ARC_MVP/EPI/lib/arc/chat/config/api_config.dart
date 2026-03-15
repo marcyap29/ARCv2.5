@@ -7,10 +7,11 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Supported LLM providers.
-/// Only Groq is registered and used; others are commented out in _loadConfigs.
+/// Groq (GPT OSS 120B), Gemini, and Ollama (Cloud) are used for LUMARA inference chain.
 enum LLMProvider {
-  groq,       // Groq: Llama 3.3 70B — only API in use
+  groq,       // Groq: GPT OSS 120B — default first in chain
   gemini,
+  ollama,     // Ollama Cloud (e.g. nemotron-3-super) — via proxyOllama
   openai,
   anthropic,
   venice,
@@ -159,7 +160,7 @@ class LumaraAPIConfig {
 
     _configs[LLMProvider.groq] = const LLMProviderConfig(
       provider: LLMProvider.groq,
-      name: 'Groq (Llama 3.3 70B)',
+      name: 'Groq (GPT OSS 120B)',
       apiKey: groqApiKey,
       baseUrl: 'https://api.groq.com/openai/v1',
       isInternal: false,
@@ -175,7 +176,15 @@ class LumaraAPIConfig {
       baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
       isInternal: false,
     );
-    // _configs[LLMProvider.gemini] = const LLMProviderConfig(...);
+
+    // Ollama Cloud (nemotron-3-super etc.) — no client API key; uses Firebase proxyOllama
+    _configs[LLMProvider.ollama] = const LLMProviderConfig(
+      provider: LLMProvider.ollama,
+      name: 'Ollama (Cloud)',
+      apiKey: null,
+      baseUrl: null,
+      isInternal: false,
+    );
     // _configs[LLMProvider.openai] = ... (ChatGPT/OpenAI removed)
     // _configs[LLMProvider.anthropic] = ...
     // _configs[LLMProvider.venice] = ...

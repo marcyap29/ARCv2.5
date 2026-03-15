@@ -1,7 +1,28 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.75
+**Version:** 3.3.76
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.76] - March 10, 2026
+
+### Doc-config-git-backup run; proxyOllama (Firebase); ollama_send; FIREBASE_OLLAMA_DEPLOY; config; LUMARA/social/settings
+
+**Action:** Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main → test.
+
+**New:**
+- **Firebase:** proxyOllama Cloud Function (functions/src/functions/proxyOllama.ts).
+- **Client:** ollama_send.dart; FIREBASE_OLLAMA_DEPLOY.md.
+
+**Updated (sync with repo):**
+- **LUMARA:** lumara_assistant_cubit, api_config, lumara_cloud_generate, lumara_settings_screen; draft_editor_screen; late_profile_service, social_accounts_screen.
+- **Services:** gemini_send, swarmspace_client.
+- **UI:** settings_view.
+- **Firebase:** config.ts, swarmspaceRouter.ts, index.ts.
+- **Docs:** claude.md.
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

@@ -1,6 +1,6 @@
 // lib/arc/chat/services/lumara_cloud_generate.dart
 // Single entry point for agent (and other) cloud inference using the same API as LUMARA chat:
-// SwarmSpace gemini-flash when available (Writing/Research agents), else proxyGroq or Groq API key.
+// SwarmSpace gemini-flash when available (Writing/Research agents), then lumaraSend (Gemini → Groq → Ollama Cloud) or direct Groq key.
 // SECURITY: All paths scrub PII before send (lumaraSend or PrismAdapter + GroqService).
 
 import 'package:flutter/foundation.dart';
