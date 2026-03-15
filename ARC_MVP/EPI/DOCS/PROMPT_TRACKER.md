@@ -1,6 +1,6 @@
 # Prompt Tracker
 
-**Version:** 1.25.0  
+**Version:** 1.26.0  
 **Last Updated:** March 10, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-03-10 | Doc sync v3.3.77: Doc-config-git-backup run; ARCX CHRONICLE + pattern index; timeline refresh after restore; Chronicle export/import themes; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.77 |
 | 2026-03-10 | Doc sync v3.3.76: Doc-config-git-backup run; proxyOllama; ollama_send; FIREBASE_OLLAMA_DEPLOY; config; LUMARA/social/settings; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.76 |
 | 2026-03-10 | Doc sync v3.3.75: Doc-config-git-backup run; LUMARA settings; social/; research (search_orchestrator); draft_editor; swarmspaceRouter; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.75 |
 | 2026-03-10 | Doc sync v3.3.74: Doc-config-git-backup run; LUMARA settings; outputs (completed_form_export); research/vision/forms/profile; onboarding; settings_view; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.74 |

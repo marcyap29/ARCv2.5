@@ -4,6 +4,7 @@ import 'package:path/path.dart' as path;
 import 'package:archive/archive_io.dart';
 import '../storage/aggregation_repository.dart';
 import '../storage/changelog_repository.dart';
+import '../storage/chronicle_index_storage.dart';
 import '../models/chronicle_layer.dart';
 import '../models/chronicle_aggregation.dart';
 import '../../crossroads/models/decision_capture.dart';
@@ -16,12 +17,15 @@ import '../../crossroads/storage/decision_capture_repository.dart';
 class ChronicleExportService {
   final AggregationRepository _aggregationRepo;
   final ChangelogRepository _changelogRepo;
+  final ChronicleIndexStorage _indexStorage;
 
   ChronicleExportService({
     required AggregationRepository aggregationRepo,
     required ChangelogRepository changelogRepo,
+    ChronicleIndexStorage? indexStorage,
   })  : _aggregationRepo = aggregationRepo,
-        _changelogRepo = changelogRepo;
+        _changelogRepo = changelogRepo,
+        _indexStorage = indexStorage ?? ChronicleIndexStorage();
 
   /// Export all data to a ZIP file (recommended). User picks a directory; the ZIP is created there.
   ///
@@ -139,10 +143,24 @@ class ChronicleExportService {
           .join('\n');
       await changelogFile.writeAsString(changelogLines);
       result.changelogEntries = changelogEntries.length;
-      
+
+      // Export pattern index (theme clusters with embeddings / vectorization)
+      final indexJson = await _indexStorage.read(userId);
+      if (indexJson.isNotEmpty && indexJson.containsKey('theme_clusters')) {
+        final patternIndexDir = Directory(path.join(exportDir.path, 'pattern_index'));
+        await patternIndexDir.create(recursive: true);
+        final indexFile = File(path.join(patternIndexDir.path, 'chronicle_index.json'));
+        await indexFile.writeAsString(
+          const JsonEncoder.withIndent('  ').convert(indexJson),
+          flush: true,
+        );
+        result.patternIndexIncluded = true;
+        result.patternIndexClusters = (indexJson['theme_clusters'] as Map<String, dynamic>).length;
+      }
+
       result.success = true;
-      print('✅ ChronicleExportService: Exported ${result.monthlyCount} monthly, ${result.yearlyCount} yearly, ${result.multiyearCount} multi-year, ${result.decisionsCount} decisions');
-      
+      print('✅ ChronicleExportService: Exported ${result.monthlyCount} monthly, ${result.yearlyCount} yearly, ${result.multiyearCount} multi-year, ${result.decisionsCount} decisions${result.patternIndexIncluded ? ', pattern index (${result.patternIndexClusters} theme clusters)' : ''}');
+
       return result;
     } catch (e) {
       print('❌ ChronicleExportService: Export failed: $e');
@@ -268,16 +286,24 @@ class ChronicleExportResult {
   int multiyearCount = 0;
   int decisionsCount = 0;
   int changelogEntries = 0;
+  /// True if pattern index (theme embeddings / vectorization) was exported.
+  bool patternIndexIncluded = false;
+  /// Number of theme clusters in the exported pattern index when [patternIndexIncluded] is true.
+  int patternIndexClusters = 0;
   bool success = false;
   String? error;
-  
+
   int get totalCount => monthlyCount + yearlyCount + multiyearCount + decisionsCount;
-  
+
   @override
   String toString() {
     if (!success) {
       return 'Export failed: $error';
     }
-    return 'Exported $monthlyCount monthly, $yearlyCount yearly, $multiyearCount multi-year, $decisionsCount decisions, $changelogEntries changelog entries';
+    final parts = 'Exported $monthlyCount monthly, $yearlyCount yearly, $multiyearCount multi-year, $decisionsCount decisions, $changelogEntries changelog entries';
+    if (patternIndexIncluded) {
+      return '$parts, pattern index ($patternIndexClusters theme clusters)';
+    }
+    return parts;
   }
 }

@@ -212,7 +212,7 @@ class ResearchArtifactRepository {
     await _save();
   }
 
-  /// Permanently delete an artifact.
+  /// Permanently delete all artifacts for this report (removes every duplicate with same userId + sessionId).
   Future<void> deleteArtifact(String userId, String sessionId) async {
     await _ensureLoaded();
     _store.removeWhere((a) => a.userId == userId && a.sessionId == sessionId);
@@ -220,11 +220,15 @@ class ResearchArtifactRepository {
   }
 
   /// Store a research artifact and index it for similarity search.
+  /// Replaces any existing artifact with the same [userId] and [artifact.sessionId]
+  /// so the same research run never appears twice in the timeline.
   Future<void> storeArtifact({
     required String userId,
     required ResearchArtifact artifact,
   }) async {
     await _ensureLoaded();
+    _store.removeWhere((a) => a.userId == userId && a.sessionId == artifact.sessionId);
+
     final embedder = await _getEmbedder();
     final textToEmbed = '${artifact.query}\n${artifact.report.summary}';
     final embedding = await embedder.embed(textToEmbed);

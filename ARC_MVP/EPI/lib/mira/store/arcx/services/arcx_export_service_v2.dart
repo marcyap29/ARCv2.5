@@ -35,6 +35,7 @@ import 'package:flutter/foundation.dart';
 import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
+import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/voice_notes/models/voice_note.dart';
@@ -2068,13 +2069,33 @@ class ARCXExportServiceV2 {
       final changelogLines = changelogEntries.map((e) => jsonEncode(e.toJson())).join('\n');
       await changelogFile.writeAsString(changelogLines);
       
-      print('ARCX Export V2: Exported CHRONICLE: $monthlyCount monthly, $yearlyCount yearly, $multiyearCount multiyear, ${changelogEntries.length} changelog entries');
+      // Export pattern index (theme clusters with embeddings / vectorization)
+      int patternIndexClusters = 0;
+      try {
+        final indexStorage = ChronicleIndexStorage();
+        final indexJson = await indexStorage.read(userId);
+        if (indexJson.isNotEmpty && indexJson.containsKey('theme_clusters')) {
+          final patternIndexDir = Directory(path.join(chronicleDir.path, 'pattern_index'));
+          await patternIndexDir.create(recursive: true);
+          final indexFile = File(path.join(patternIndexDir.path, 'chronicle_index.json'));
+          await indexFile.writeAsString(
+            const JsonEncoder.withIndent('  ').convert(indexJson),
+            flush: true,
+          );
+          patternIndexClusters = (indexJson['theme_clusters'] as Map<String, dynamic>).length;
+        }
+      } catch (e) {
+        print('ARCX Export V2: ⚠️ Error exporting CHRONICLE pattern index: $e');
+      }
+      
+      print('ARCX Export V2: Exported CHRONICLE: $monthlyCount monthly, $yearlyCount yearly, $multiyearCount multiyear, ${changelogEntries.length} changelog entries${patternIndexClusters > 0 ? ', $patternIndexClusters theme clusters (embeddings)' : ''}');
       
       return {
         'monthly': monthlyCount,
         'yearly': yearlyCount,
         'multiyear': multiyearCount,
         'changelog_entries': changelogEntries.length,
+        'pattern_index_clusters': patternIndexClusters,
       };
     } catch (e) {
       print('ARCX Export V2: Error exporting CHRONICLE: $e');
@@ -2083,6 +2104,7 @@ class ARCXExportServiceV2 {
         'yearly': 0,
         'multiyear': 0,
         'changelog_entries': 0,
+        'pattern_index_clusters': 0,
       };
     }
   }

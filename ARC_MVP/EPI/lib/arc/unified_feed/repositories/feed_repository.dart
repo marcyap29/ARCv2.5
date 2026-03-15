@@ -183,9 +183,12 @@ class FeedRepository {
         final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
         final reports = await AgentsChronicleService.instance.getResearchReports(userId, includeArchived: false);
         debugPrint('FeedRepository: Loaded ${reports.length} research reports');
+        final seenReportIds = <String>{};
         for (final report in reports) {
-          _researchReportCache[report.id] = report;
-          entries.add(_researchReportToFeedEntry(report));
+          if (seenReportIds.add(report.id)) {
+            _researchReportCache[report.id] = report;
+            entries.add(_researchReportToFeedEntry(report));
+          }
         }
       } catch (e) {
         debugPrint('FeedRepository: Error loading research reports: $e');

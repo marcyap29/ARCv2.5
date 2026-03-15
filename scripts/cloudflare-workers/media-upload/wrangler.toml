@@ -1,0 +1,19 @@
+# SwarmSpace R2 media upload worker
+# Deploy: npx wrangler deploy
+# Name: swarmspace-media-upload (route: swarmspace-media-upload.orbitalai.workers.dev)
+
+name = "swarmspace-media-upload"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# R2 bucket for uploaded media (24h TTL via bucket lifecycle in dashboard)
+r2_buckets = [
+  { binding = "MEDIA_BUCKET", bucket_name = "swarmspace-media" }
+]
+
+# Token checked in worker; set via wrangler secret
+# wrangler secret put SWARMSPACE_INTERNAL_TOKEN
+[vars]
+# Public base URL for returned links (e.g. https://pub-xxx.r2.dev or custom domain)
+# Set in dashboard or via wrangler secret PUBLIC_MEDIA_BASE_URL
+# PUBLIC_MEDIA_BASE_URL = "https://media.orbitalai.workers.dev"

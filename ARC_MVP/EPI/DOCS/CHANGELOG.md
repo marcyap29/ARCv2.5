@@ -1,7 +1,28 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.76
+**Version:** 3.3.77
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.77] - March 10, 2026
+
+### Doc-config-git-backup run; ARCX CHRONICLE + pattern index; timeline refresh after restore; Chronicle export/import themes
+
+**Action:** Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main.
+
+**New:**
+- **ARCX:** CHRONICLE pattern index (theme clusters / embeddings) in .arcx export and import: `Chronicle/pattern_index/chronicle_index.json`; `ChronicleIndexStorage` in arcx_export_service_v2 and arcx_import_service_v2.
+- **Chronicle:** Standalone Chronicle export/import include pattern index (chronicle_export_service, chronicle_import_service).
+
+**Updated (sync with repo):**
+- **ARCX:** arcx_export_service_v2 (pattern index write after changelog); arcx_import_service_v2 (pattern index restore; ChronicleIndexStorage import).
+- **Chronicle:** chronicle_export_service, chronicle_import_service (pattern_index/chronicle_index.json).
+- **Unified feed:** unified_feed_screen (150ms delay before _feedRepo.refresh() on import complete so timeline/chats show after restore); feed_repository.
+- **Research:** research_artifact_repository (upsert by userId+sessionId; FeedRepository dedupe by report.id).
+- **LUMARA:** lumara_assistant_cubit (switchToSession return bool; feed only navigates when session loaded); llm_provider_factory (Ollama provider registration).
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

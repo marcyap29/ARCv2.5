@@ -8,6 +8,7 @@ import 'providers/gemini_provider.dart';
 import 'providers/groq_provider.dart';
 import 'providers/anthropic_provider.dart';
 import 'providers/llama_provider.dart';
+import 'providers/ollama_provider.dart';
 import 'providers/qwen_provider.dart';
 
 /// Factory for creating LLM providers
@@ -28,6 +29,8 @@ class LLMProviderFactory {
           return null; // OpenAI/ChatGPT removed; only Groq is used
         case LLMProviderType.anthropic:
           return AnthropicProvider(_apiConfig);
+        case LLMProviderType.ollama:
+          return OllamaProvider(_apiConfig);
         case LLMProviderType.qwen4b:
           return QwenProvider(_apiConfig);
         case LLMProviderType.llama3b:
@@ -73,6 +76,7 @@ class LLMProviderFactory {
       LLMProvider.anthropic => LLMProviderType.anthropic,
       LLMProvider.venice => LLMProviderType.openai, // Venice AI uses OpenAI-compatible API
       LLMProvider.openrouter => LLMProviderType.openai, // OpenRouter uses OpenAI-compatible API
+      LLMProvider.ollama => LLMProviderType.ollama,
       LLMProvider.qwen4b => LLMProviderType.qwen4b,
       LLMProvider.llama3b => LLMProviderType.llama3b,
     };
@@ -85,6 +89,7 @@ enum LLMProviderType {
   gemini,
   openai,
   anthropic,
+  ollama,
   qwen4b,
   llama3b,
 }

@@ -3450,13 +3450,14 @@ Available: $yearsAgo more year${yearsAgo > 1 ? 's' : ''} of history''';
 
   /// Load an existing chat session and switch to it (for continuing a saved conversation).
   /// Used when opening chat from timeline/feed edit pen — same UX as main Chat button.
-  Future<void> switchToSession(String sessionId) async {
+  /// Returns true if the session was loaded and state was emitted; false if session not found or error.
+  Future<bool> switchToSession(String sessionId) async {
     try {
       await _chatRepo.initialize();
       final session = await _chatRepo.getSession(sessionId);
       if (session == null) {
         print('LUMARA Chat: Session $sessionId not found');
-        return;
+        return false;
       }
       final chatMessages = await _chatRepo.getMessages(sessionId, lazy: false);
       final lumaraMessages = chatMessages.map((m) => LumaraMessage.fromChatMessage(m)).toList();
@@ -3468,8 +3469,10 @@ Available: $yearsAgo more year${yearsAgo > 1 ? 's' : ''} of history''';
         currentSessionId: sessionId,
       ));
       print('LUMARA Chat: Loaded session $sessionId (${lumaraMessages.length} messages)');
+      return true;
     } catch (e) {
       print('LUMARA Chat: Error switching to session $sessionId: $e');
+      return false;
     }
   }
 

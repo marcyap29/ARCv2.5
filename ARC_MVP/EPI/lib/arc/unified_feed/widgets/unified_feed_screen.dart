@@ -63,6 +63,7 @@ import 'package:my_app/prism/atlas/rivet/rivet_provider.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/arc/chat/services/favorites_service.dart';
 import 'package:my_app/arc/chat/data/models/lumara_favorite.dart';
+import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
 
 /// The main unified feed screen that merges LUMARA chat and Conversations.
 class UnifiedFeedScreen extends StatefulWidget {
@@ -387,7 +388,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
     _feedRepo.refresh();
   }
 
-  void _onEntryTap(FeedEntry entry) {
+  Future<void> _onEntryTap(FeedEntry entry) async {
     // Research reports open in the research detail (timeline editor) screen
     if (entry.type == FeedEntryType.researchReport) {
       final reportId = entry.metadata['researchReportId'] as String?;
@@ -410,7 +411,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
             entry.type == FeedEntryType.voiceMemo) &&
         entry.chatSessionId != null &&
         entry.chatSessionId!.isNotEmpty) {
-      _openChatSession(entry.chatSessionId!, isVoiceSession: entry.type == FeedEntryType.voiceMemo);
+      await _openChatSession(entry.chatSessionId!, isVoiceSession: entry.type == FeedEntryType.voiceMemo);
       return;
     }
     // All other entries: navigate to expanded entry view
@@ -431,14 +432,26 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
 
   /// Open a saved/active chat session directly in the chat screen.
   /// When [isVoiceSession] is true, the chat screen shows "Started as voice" so user knows it began in voice mode.
+  /// Only navigates if the session was actually loaded (fixes blank chat after restore when feed was stale).
   Future<void> _openChatSession(String sessionId, {bool isVoiceSession = false}) async {
+    bool loaded = false;
     try {
       final cubit = context.read<LumaraAssistantCubit>();
-      await cubit.switchToSession(sessionId);
+      loaded = await cubit.switchToSession(sessionId);
     } catch (_) {
-      // Cubit may not be in tree; screen will handle
+      // Cubit may not be in tree; do not navigate
     }
     if (!mounted) return;
+    if (!loaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Couldn’t load that conversation. The timeline will refresh.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      await _feedRepo.refresh();
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute<void>(
@@ -475,11 +488,21 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: kcBackgroundColor,
-        body: Column(
+    return BlocListener<ImportProgressCubit, ImportProgressState>(
+      listenWhen: (prev, curr) => !prev.completed && curr.completed,
+      listener: (context, state) {
+        // Delay so Hive/import writes are committed; then refresh timeline so
+        // opening a chat or research item after restore shows content.
+        Future.delayed(const Duration(milliseconds: 150), () {
+          if (!mounted) return;
+          _feedRepo.refresh();
+        });
+      },
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: kcBackgroundColor,
+          body: Column(
         children: [
           // Feed content with scroll-to-top/bottom overlay
           Expanded(
@@ -553,7 +576,7 @@ class _UnifiedFeedScreenState extends State<UnifiedFeedScreen>
         ],
       ),
       ),
-    );
+    ));
   }
 
   Widget _buildLoadingState() {

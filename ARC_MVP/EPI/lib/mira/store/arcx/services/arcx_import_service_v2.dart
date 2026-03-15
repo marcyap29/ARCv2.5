@@ -36,6 +36,7 @@ import 'arcx_checkpoint_service.dart';
 import 'arcx_import_set_index_service.dart';
 import 'package:my_app/chronicle/core/chronicle_repos.dart';
 import 'package:my_app/chronicle/storage/changelog_repository.dart';
+import 'package:my_app/chronicle/storage/chronicle_index_storage.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
 import 'package:my_app/chronicle/models/chronicle_aggregation.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
@@ -1441,6 +1442,22 @@ class ARCXImportServiceV2 {
           } catch (e) {
             print('ARCX Import V2: ⚠️ Failed to import changelog entry: $e');
           }
+        }
+      }
+      
+      // Import pattern index (theme clusters with embeddings)
+      final patternIndexFile = File(path.join(chronicleDir.path, 'pattern_index', 'chronicle_index.json'));
+      if (await patternIndexFile.exists()) {
+        try {
+          final content = await patternIndexFile.readAsString();
+          final indexJson = jsonDecode(content) as Map<String, dynamic>;
+          if (indexJson.containsKey('theme_clusters')) {
+            final importUserId = FirebaseAuthService.instance.currentUser?.uid ?? userId;
+            await ChronicleIndexStorage().write(importUserId, indexJson);
+            print('ARCX Import V2: ✓ Restored CHRONICLE pattern index (theme clusters)');
+          }
+        } catch (e) {
+          print('ARCX Import V2: ⚠️ Failed to import CHRONICLE pattern index: $e');
         }
       }
       

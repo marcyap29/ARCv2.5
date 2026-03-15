@@ -4,23 +4,26 @@ import 'package:path/path.dart' as path;
 import 'package:archive/archive_io.dart';
 import '../storage/aggregation_repository.dart';
 import '../storage/changelog_repository.dart';
+import '../storage/chronicle_index_storage.dart';
 import '../models/chronicle_layer.dart';
 import '../../crossroads/models/decision_capture.dart';
 import '../../crossroads/storage/decision_capture_repository.dart';
 import '../../models/phase_models.dart';
 import '../../prism/atlas/rivet/rivet_models.dart';
 
-/// Result of CHRONICLE import (aggregations, decisions, changelog).
+/// Result of CHRONICLE import (aggregations, decisions, changelog, pattern index).
 class ChronicleImportResult {
   int monthlyCount = 0;
   int yearlyCount = 0;
   int multiyearCount = 0;
   int decisionsCount = 0;
   int changelogEntries = 0;
+  /// True if pattern index (theme embeddings / vectorization) was imported.
+  bool patternIndexIncluded = false;
   bool success = false;
   String? error;
 
-  int get totalCount => monthlyCount + yearlyCount + multiyearCount + decisionsCount + changelogEntries;
+  int get totalCount => monthlyCount + yearlyCount + multiyearCount + decisionsCount + changelogEntries + (patternIndexIncluded ? 1 : 0);
 
   @override
   String toString() {
@@ -32,6 +35,7 @@ class ChronicleImportResult {
     }
     if (decisionsCount > 0) parts.add('$decisionsCount decisions');
     if (changelogEntries > 0) parts.add('$changelogEntries changelog entries');
+    if (patternIndexIncluded) parts.add('pattern index (theme embeddings)');
     return 'Imported ${parts.join(', ')}';
   }
 }
@@ -207,11 +211,27 @@ class ChronicleImportService {
         }
       }
 
+      // 4) Pattern index (theme clusters with embeddings / vectorization)
+      final indexFile = File(path.join(exportDir.path, 'pattern_index', 'chronicle_index.json'));
+      if (await indexFile.exists()) {
+        try {
+          final content = await indexFile.readAsString();
+          final indexJson = jsonDecode(content) as Map<String, dynamic>;
+          if (indexJson.isNotEmpty && indexJson.containsKey('theme_clusters')) {
+            final indexStorage = ChronicleIndexStorage();
+            await indexStorage.write(userId, indexJson);
+            result.patternIndexIncluded = true;
+          }
+        } catch (e) {
+          print('⚠️ ChronicleImportService: Failed to import pattern index: $e');
+        }
+      }
+
       result.success = true;
       if (result.totalCount == 0) {
         result.error = 'No importable files found. Select the folder you exported to (with monthly/, yearly/, multiyear/, decisions/, changelog.jsonl).';
       } else {
-        print('✅ ChronicleImportService: Imported ${result.monthlyCount} monthly, ${result.yearlyCount} yearly, ${result.multiyearCount} multi-year, ${result.decisionsCount} decisions, ${result.changelogEntries} changelog entries');
+        print('✅ ChronicleImportService: Imported ${result.monthlyCount} monthly, ${result.yearlyCount} yearly, ${result.multiyearCount} multi-year, ${result.decisionsCount} decisions, ${result.changelogEntries} changelog entries${result.patternIndexIncluded ? ', pattern index (theme embeddings)' : ''}');
       }
       return result;
     } catch (e) {
