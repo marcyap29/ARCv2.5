@@ -3,8 +3,6 @@ import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/ui/settings/settings_common.dart';
 import 'package:my_app/chronicle/core/chronicle_repos.dart';
-import 'package:my_app/chronicle/services/chronicle_export_service.dart';
-import 'package:my_app/chronicle/services/chronicle_import_service.dart';
 import 'package:my_app/chronicle/services/chronicle_onboarding_service.dart';
 import 'package:my_app/chronicle/synthesis/synthesis_engine.dart';
 import 'package:my_app/chronicle/models/chronicle_layer.dart';
@@ -24,10 +22,6 @@ import 'package:my_app/chronicle/reviews/screens/monthly_review_screen.dart';
 import 'package:my_app/chronicle/reviews/screens/yearly_review_screen.dart';
 import 'package:my_app/chronicle/reviews/screens/reviews_hub_screen.dart';
 import 'package:my_app/shared/ui/settings/privacy_settings_view.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:path/path.dart' as path;
-import 'dart:io';
-import 'package:my_app/lumara/agents/services/report_export_service.dart';
 
 /// CHRONICLE Management Settings View
 /// 
@@ -363,174 +357,6 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
           _statusIsError = !result.success;
         });
         if (result.success) await _loadAggregationCounts();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = 'Error: $e';
-          _statusIsError = true;
-        });
-      }
-    }
-  }
-
-  Future<void> _importFromZip() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['zip'],
-      allowMultiple: false,
-    );
-    final filePath = result?.files.single.path;
-    if (filePath == null || !mounted) return;
-
-    setState(() {
-      _isLoading = true;
-      _statusMessage = null;
-      _progressCurrent = 0;
-      _progressTotal = 0;
-      _progressStage = 'Extracting ZIP...';
-    });
-
-    try {
-      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final aggregationRepo = ChronicleRepos.aggregation;
-      final changelogRepo = ChronicleRepos.changelog;
-      final importService = ChronicleImportService(
-        aggregationRepo: aggregationRepo,
-        changelogRepo: changelogRepo,
-      );
-
-      final importResult = await importService.importFromZip(
-        userId: userId,
-        zipFile: File(filePath),
-        onProgress: (processed, total) {
-          if (mounted) {
-            setState(() {
-              _progressCurrent = processed;
-              _progressTotal = total;
-              _progressStage = 'Importing... ($processed / $total)';
-            });
-          }
-        },
-      );
-
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = importResult.success ? importResult.toString() : 'Import failed: ${importResult.error}';
-          _statusIsError = !importResult.success;
-        });
-        if (importResult.success) await _loadAggregationCounts();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = 'Error: $e';
-          _statusIsError = true;
-        });
-      }
-    }
-  }
-
-  Future<void> _importFromFolder() async {
-    final String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-    if (selectedDirectory == null || !mounted) return;
-
-    setState(() {
-      _isLoading = true;
-      _statusMessage = null;
-      _progressCurrent = 0;
-      _progressTotal = 0;
-      _progressStage = 'Scanning folder...';
-    });
-
-    try {
-      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-      final aggregationRepo = ChronicleRepos.aggregation;
-      final changelogRepo = ChronicleRepos.changelog;
-      final importService = ChronicleImportService(
-        aggregationRepo: aggregationRepo,
-        changelogRepo: changelogRepo,
-      );
-      final exportDir = Directory(selectedDirectory);
-
-      final result = await importService.importFromDirectory(
-        userId: userId,
-        exportDir: exportDir,
-        onProgress: (processed, total) {
-          if (mounted) {
-            setState(() {
-              _progressCurrent = processed;
-              _progressTotal = total;
-              _progressStage = 'Importing... ($processed / $total)';
-            });
-          }
-        },
-      );
-
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = result.success ? result.toString() : 'Import failed: ${result.error}';
-          _statusIsError = !result.success;
-        });
-        if (result.success) await _loadAggregationCounts();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = 'Error: $e';
-          _statusIsError = true;
-        });
-      }
-    }
-  }
-
-  Future<void> _exportAll() async {
-    setState(() {
-      _isLoading = true;
-      _statusMessage = null;
-    });
-
-    try {
-      final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'default_user';
-
-      // Export to LUMARA_Backups folder (same as .arcx and LUMARA_Outputs)
-      final backupsDir = await ReportExportService.instance.getLumaraBackupsDirectory();
-      final chronicleExportsDir = Directory(path.join(backupsDir.path, 'Chronicle_Exports'));
-      if (!await chronicleExportsDir.exists()) await chronicleExportsDir.create(recursive: true);
-
-      final now = DateTime.now();
-      final stamp = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}-${now.minute.toString().padLeft(2, '0')}';
-      final zipPath = path.join(chronicleExportsDir.path, 'chronicle_export_$stamp.zip');
-      final outputZip = File(zipPath);
-
-      final aggregationRepo = ChronicleRepos.aggregation;
-      final changelogRepo = ChronicleRepos.changelog;
-      final exportService = ChronicleExportService(
-        aggregationRepo: aggregationRepo,
-        changelogRepo: changelogRepo,
-      );
-
-      final result = await exportService.exportToZip(
-        userId: userId,
-        outputZipFile: outputZip,
-      );
-
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          if (result.success) {
-            _statusMessage = '${result.toString()} → ${path.basename(zipPath)}';
-            _statusIsError = false;
-          } else {
-            _statusMessage = 'Export failed: ${result.error}';
-            _statusIsError = true;
-          }
-        });
       }
     } catch (e) {
       if (mounted) {
@@ -919,34 +745,10 @@ class _ChronicleManagementViewState extends State<ChronicleManagementView> {
 
                   const SizedBox(height: 32),
 
-                  // Data and privacy (Import & Export + Privacy)
+                  // Privacy Protection (own card in Chronicle Management)
                   SettingsSection(
-                    title: 'Data and privacy',
+                    title: 'Privacy Protection',
                     children: [
-                      SettingsActionButton(
-                        title: 'Import from ZIP',
-                        subtitle: 'Import from a CHRONICLE export .zip file',
-                        icon: Icons.folder_zip,
-                        onPressed: _importFromZip,
-                        enabled: !_isLoading,
-                      ),
-                      const SizedBox(height: 12),
-                      SettingsActionButton(
-                        title: 'Import from folder',
-                        subtitle: 'Older exports: import from a folder (monthly/, yearly/, etc.)',
-                        icon: Icons.folder_open,
-                        onPressed: _importFromFolder,
-                        enabled: !_isLoading,
-                      ),
-                      const SizedBox(height: 12),
-                      SettingsActionButton(
-                        title: 'Export to ZIP',
-                        subtitle: 'Export all CHRONICLE data to a single .zip file',
-                        icon: Icons.download,
-                        onPressed: _exportAll,
-                        enabled: !_isLoading,
-                      ),
-                      const SizedBox(height: 12),
                       SettingsActionButton(
                         title: 'Privacy Protection',
                         subtitle: 'Configure PII detection and masking for CHRONICLE and LUMARA',

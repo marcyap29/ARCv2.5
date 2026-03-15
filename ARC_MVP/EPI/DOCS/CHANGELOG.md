@@ -1,7 +1,21 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.77
+**Version:** 3.3.78
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.78] - March 10, 2026
+
+### Doc-config-git-backup run; ARCX import progress phases; Chronicle Management UI simplification
+
+**Action:** Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge main.
+
+**Updated (sync with repo):**
+- **ARCX import:** arcx_import_service_v2 — CHRONICLE import progress phases (phaseStart/phaseEnd); clearer progress messages (CHRONICLE monthly/yearly/multiyear/changelog/pattern index, journal entries, chats); LUMARA favorites progress (interval + count); progress constants (_kChangelogProgressInterval, _kVoiceNotesProgressInterval, _kLumaraFavoritesProgressInterval).
+- **Settings:** chronicle_management_view — removed standalone Chronicle import-from-ZIP and import-from-folder UI (ChronicleImportService/ChronicleExportService usage from this view); Chronicle import/export remains via ARCX and standalone services elsewhere.
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

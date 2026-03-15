@@ -73,11 +73,16 @@ const double _kPhaseDecrypt = 0.20;
 const double _kPhaseExtract = 0.25;
 const double _kPhaseMediaEnd = 0.50;
 const double _kPhaseRegimesEnd = 0.55;
+const double _kPhaseChronicleStart = 0.518;
+const double _kPhaseChronicleEnd = 0.535;
 const double _kPhaseEntriesEnd = 0.90;
 const double _kPhaseChatsEnd = 0.95;
 const double _kPhaseResolveEnd = 1.0;
 const int _kYieldInterval = 5;
 const Duration _kYieldDuration = Duration(milliseconds: 100);
+const int _kChangelogProgressInterval = 75;
+const int _kVoiceNotesProgressInterval = 50;
+const int _kLumaraFavoritesProgressInterval = 50;
 
 /// ARCX Import Service V2
 class ARCXImportServiceV2 {
@@ -413,9 +418,14 @@ class ARCXImportServiceV2 {
         // Import LUMARA favorites (doesn't require phaseRegimeService)
         lumaraFavoritesImported = await _importLumaraFavorites(payloadDir, onProgress: onProgress);
         
-        // Import CHRONICLE aggregations (monthly/yearly/multiyear .md files + changelog)
-        onProgress?.call('Importing CHRONICLE aggregations...', _kPhaseRegimesEnd);
-        final chronicleImported = await _importChronicle(payloadDir, onProgress: onProgress);
+        // Import CHRONICLE (monthly, yearly, multiyear, changelog, pattern index)
+        onProgress?.call('Importing CHRONICLE (monthly, yearly, multiyear, changelog, pattern index)...', _kPhaseChronicleStart);
+        final chronicleImported = await _importChronicle(
+          payloadDir,
+          phaseStart: _kPhaseChronicleStart,
+          phaseEnd: _kPhaseChronicleEnd,
+          onProgress: onProgress,
+        );
 
         // Import LUMARA Chronicle (causal chains, gap-fill events, patterns, relationships)
         onProgress?.call('Importing LUMARA causal chains and learning moments...', _kPhaseRegimesEnd);
@@ -432,7 +442,7 @@ class ARCXImportServiceV2 {
         // Import Entries AFTER phase regimes so they can be tagged correctly
         final entriesDir = Directory(path.join(payloadDir.path, 'Entries'));
         if (await entriesDir.exists()) {
-          onProgress?.call('Importing entries...', _kPhaseRegimesEnd);
+          onProgress?.call('Importing journal entries (reflections, voice-linked, etc.)...', _kPhaseRegimesEnd);
           entriesImported = await _importEntries(
             entriesDir: entriesDir,
             options: options,
@@ -451,7 +461,7 @@ class ARCXImportServiceV2 {
         // Import Chats
         final chatsDir = Directory(path.join(payloadDir.path, 'Chats'));
         if (await chatsDir.exists()) {
-          onProgress?.call('Importing chats...', _kPhaseEntriesEnd);
+          onProgress?.call('Importing chats (conversations)...', _kPhaseEntriesEnd);
           chatsImported = await _importChats(
             chatsDir: chatsDir,
             options: options,
@@ -1106,11 +1116,14 @@ class ARCXImportServiceV2 {
         return {'answers': 0, 'chats': 0, 'entries': 0};
       }
 
-      onProgress?.call('Importing LUMARA favorites...', _kPhaseRegimesEnd);
       final content = await favoritesFile.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
-      
       final favoritesJson = data['lumara_favorites'] as List<dynamic>? ?? [];
+      final totalFav = favoritesJson.length;
+      onProgress?.call(
+        totalFav > 0 ? 'Importing LUMARA favorites (0 / $totalFav)...' : 'Importing LUMARA favorites (answers, chats, entries)...',
+        _kPhaseRegimesEnd,
+      );
       
       // Initialize FavoritesService with timeout to prevent hanging
       FavoritesService favoritesService;
@@ -1135,7 +1148,8 @@ class ARCXImportServiceV2 {
       int importedEntries = 0;
       int skippedCount = 0;
       
-      for (final favoriteJson in favoritesJson) {
+      for (var i = 0; i < favoritesJson.length; i++) {
+        final favoriteJson = favoritesJson[i];
         try {
           final favoriteMap = favoriteJson as Map<String, dynamic>;
           
@@ -1231,8 +1245,15 @@ class ARCXImportServiceV2 {
           print('ARCX Import V2: ⚠️ Failed to import LUMARA favorite: $e');
           skippedCount++;
         }
+        if ((i + 1) % _kLumaraFavoritesProgressInterval == 0 || i == favoritesJson.length - 1) {
+          onProgress?.call('Importing LUMARA favorites (${i + 1} / $totalFav)...', _kPhaseRegimesEnd);
+          await Future.delayed(Duration.zero);
+        }
       }
       
+      if (totalFav > 0) {
+        onProgress?.call('LUMARA favorites imported ($importedAnswers answers, $importedChats chats, $importedEntries entries).', _kPhaseRegimesEnd);
+      }
       print('ARCX Import V2: ✓ Imported LUMARA favorites ($importedAnswers answers, $importedChats chats, $importedEntries entries, $skippedCount skipped)');
       return {
         'answers': importedAnswers,
@@ -1249,13 +1270,17 @@ class ARCXImportServiceV2 {
 
   /// Import CHRONICLE aggregations from Chronicle/ directory
   /// Returns map with counts: {'monthly': X, 'yearly': Y, 'multiyear': Z, 'changelog_entries': N}
+  /// [phaseStart] and [phaseEnd] are progress fractions [0,1] for this step so the UI circle advances.
   Future<Map<String, int>> _importChronicle(
     Directory payloadDir, {
+    double phaseStart = 0.55,
+    double phaseEnd = 0.55,
     ImportProgressCallback? onProgress,
   }) async {
     try {
       final chronicleDir = Directory(path.join(payloadDir.path, 'Chronicle'));
       if (!await chronicleDir.exists()) {
+        onProgress?.call('CHRONICLE: no Chronicle folder in archive, skipping', phaseEnd);
         print('ARCX Import V2: ⚠️ Chronicle directory not found, skipping CHRONICLE import');
         return {
           'monthly': 0,
@@ -1267,7 +1292,11 @@ class ARCXImportServiceV2 {
 
       final aggregationRepo = ChronicleRepos.aggregation;
       final changelogRepo = ChronicleRepos.changelog;
-      
+      final range = phaseEnd - phaseStart;
+      void report(double fraction, String message) {
+        onProgress?.call(message, phaseStart + range * fraction);
+      }
+
       // Get current user ID (default to 'default_user' if not available)
       // In production, this should come from FirebaseAuthService
       const userId = 'default_user';
@@ -1336,7 +1365,7 @@ class ARCXImportServiceV2 {
       // Import monthly aggregations
       final monthlyDir = Directory(path.join(chronicleDir.path, 'monthly'));
       if (await monthlyDir.exists()) {
-        onProgress?.call('Importing monthly aggregations...', _kPhaseRegimesEnd);
+        report(0.0, 'CHRONICLE: importing monthly aggregations...');
         final monthlyFiles = monthlyDir.listSync()
             .whereType<File>()
             .where((f) => f.path.endsWith('.md'))
@@ -1364,7 +1393,7 @@ class ARCXImportServiceV2 {
       // Import yearly aggregations
       final yearlyDir = Directory(path.join(chronicleDir.path, 'yearly'));
       if (await yearlyDir.exists()) {
-        onProgress?.call('Importing yearly aggregations...', _kPhaseRegimesEnd);
+        report(0.22, 'CHRONICLE: importing yearly aggregations...');
         final yearlyFiles = yearlyDir.listSync()
             .whereType<File>()
             .where((f) => f.path.endsWith('.md'))
@@ -1392,7 +1421,7 @@ class ARCXImportServiceV2 {
       // Import multi-year aggregations
       final multiyearDir = Directory(path.join(chronicleDir.path, 'multiyear'));
       if (await multiyearDir.exists()) {
-        onProgress?.call('Importing multi-year aggregations...', _kPhaseRegimesEnd);
+        report(0.44, 'CHRONICLE: importing multi-year aggregations...');
         final multiyearFiles = multiyearDir.listSync()
             .whereType<File>()
             .where((f) => f.path.endsWith('.md'))
@@ -1417,20 +1446,19 @@ class ARCXImportServiceV2 {
         }
       }
       
-      // Import changelog
+      // Import changelog (with per-batch progress so the UI does not appear stuck)
       final changelogFile = File(path.join(chronicleDir.path, 'changelog.jsonl'));
       int changelogEntries = 0;
       if (await changelogFile.exists()) {
-        onProgress?.call('Importing changelog...', _kPhaseRegimesEnd);
         final content = await changelogFile.readAsString();
         final lines = content.split('\n').where((line) => line.trim().isNotEmpty).toList();
-        
-        for (final line in lines) {
+        final totalLines = lines.length;
+        report(0.55, totalLines > 0 ? 'CHRONICLE: importing changelog (0 / $totalLines entries)...' : 'CHRONICLE: importing changelog...');
+        for (var i = 0; i < lines.length; i++) {
+          final line = lines[i];
           try {
             final json = jsonDecode(line) as Map<String, dynamic>;
             final entry = ChangelogEntry.fromJson(json);
-            
-            // Log the entry (this will append to the existing changelog)
             await changelogRepo.log(
               userId: entry.userId,
               layer: entry.layer,
@@ -1442,12 +1470,24 @@ class ARCXImportServiceV2 {
           } catch (e) {
             print('ARCX Import V2: ⚠️ Failed to import changelog entry: $e');
           }
+          // Update progress periodically so the circle advances and UI does not look stuck
+          if ((i + 1) % _kChangelogProgressInterval == 0 || i == lines.length - 1) {
+            final frac = totalLines > 0 ? 0.55 + 0.37 * (i + 1) / totalLines : 0.92;
+            report(frac, 'CHRONICLE: importing changelog (${i + 1} / $totalLines entries)...');
+            await Future.delayed(Duration.zero);
+          }
         }
+        if (totalLines > 0) {
+          report(0.92, 'CHRONICLE: changelog imported ($changelogEntries entries).');
+        }
+      } else {
+        report(0.55, 'CHRONICLE: no changelog in archive.');
       }
       
       // Import pattern index (theme clusters with embeddings)
       final patternIndexFile = File(path.join(chronicleDir.path, 'pattern_index', 'chronicle_index.json'));
       if (await patternIndexFile.exists()) {
+        report(0.93, 'CHRONICLE: importing pattern index (theme clusters)...');
         try {
           final content = await patternIndexFile.readAsString();
           final indexJson = jsonDecode(content) as Map<String, dynamic>;
@@ -1459,6 +1499,9 @@ class ARCXImportServiceV2 {
         } catch (e) {
           print('ARCX Import V2: ⚠️ Failed to import CHRONICLE pattern index: $e');
         }
+        report(1.0, 'CHRONICLE: done (monthly, yearly, multiyear, changelog, pattern index).');
+      } else {
+        report(1.0, 'CHRONICLE: done.');
       }
       
       print('ARCX Import V2: ✓ Imported CHRONICLE: $monthlyCount monthly, $yearlyCount yearly, $multiyearCount multiyear, $changelogEntries changelog entries');
@@ -1575,10 +1618,14 @@ class ARCXImportServiceV2 {
         return 0;
       }
 
-      onProgress?.call('Importing voice notes...', _kPhaseRegimesEnd);
       final content = await voiceNotesFile.readAsString();
       final data = jsonDecode(content) as Map<String, dynamic>;
       final notesJson = data['voice_notes'] as List<dynamic>? ?? [];
+      final totalNotes = notesJson.length;
+      onProgress?.call(
+        totalNotes > 0 ? 'Importing voice notes (0 / $totalNotes)...' : 'Importing voice notes...',
+        _kPhaseRegimesEnd,
+      );
 
       Box<VoiceNote> box;
       if (Hive.isBoxOpen(VoiceNoteRepository.boxName)) {
@@ -1588,7 +1635,8 @@ class ARCXImportServiceV2 {
       }
 
       int imported = 0;
-      for (final noteJson in notesJson) {
+      for (var i = 0; i < notesJson.length; i++) {
+        final noteJson = notesJson[i];
         try {
           final m = noteJson as Map<String, dynamic>;
           final note = VoiceNote(
@@ -1606,8 +1654,15 @@ class ARCXImportServiceV2 {
         } catch (e) {
           print('ARCX Import V2: ⚠️ Failed to import voice note: $e');
         }
+        if ((i + 1) % _kVoiceNotesProgressInterval == 0 || i == notesJson.length - 1) {
+          onProgress?.call('Importing voice notes (${i + 1} / $totalNotes)...', _kPhaseRegimesEnd);
+          await Future.delayed(Duration.zero);
+        }
       }
 
+      if (totalNotes > 0) {
+        onProgress?.call('Voice notes imported ($imported).', _kPhaseRegimesEnd);
+      }
       print('ARCX Import V2: ✓ Imported $imported voice notes');
       return imported;
     } catch (e) {
@@ -1627,9 +1682,12 @@ class ARCXImportServiceV2 {
       final agentsDir = Directory(path.join(extensionsDir.path, 'agents'));
       if (!await agentsDir.exists()) return;
 
+      onProgress?.call('Importing agents data (writing drafts, research artifacts)...', _kPhaseRegimesEnd);
+
       // Writing drafts: copy payload tree into app writing_drafts/
       final sourceDrafts = Directory(path.join(agentsDir.path, 'writing_drafts'));
       if (await sourceDrafts.exists()) {
+        onProgress?.call('Importing writing drafts...', _kPhaseRegimesEnd);
         final appDir = await getApplicationDocumentsDirectory();
         final destDrafts = Directory(path.join(appDir.path, 'writing_drafts'));
         await destDrafts.create(recursive: true);
@@ -1647,12 +1705,14 @@ class ARCXImportServiceV2 {
             }
           }
         }
+        onProgress?.call('Writing drafts imported.', _kPhaseRegimesEnd);
         print('ARCX Import V2: ✓ Imported writing_drafts');
       }
 
       // Research artifacts: load and replace store
       final researchFile = File(path.join(agentsDir.path, 'research_artifacts.json'));
       if (await researchFile.exists()) {
+        onProgress?.call('Importing research artifacts...', _kPhaseRegimesEnd);
         final content = await researchFile.readAsString();
         final data = jsonDecode(content) as Map<String, dynamic>;
         final list = data['research_artifacts'] as List<dynamic>? ?? [];
@@ -1661,6 +1721,7 @@ class ARCXImportServiceV2 {
             .map((e) => StoredResearchArtifact.fromJson(e))
             .toList();
         await ResearchArtifactRepository.instance.replaceAllForImport(artifacts);
+        onProgress?.call('Research artifacts imported (${artifacts.length}).', _kPhaseRegimesEnd);
         print('ARCX Import V2: ✓ Imported ${artifacts.length} research artifacts');
       }
     } catch (e) {
