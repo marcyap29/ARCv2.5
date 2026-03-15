@@ -34,7 +34,9 @@ class SynthesisEngine {
     /// Optional context from a scanned document (e.g. Research screen "Scan document").
     String? documentContext,
   }) async {
-    final depth = _calculateSynthesisDepth(currentPhase, readinessScore);
+    final depth = researchDepthLabel != null
+        ? _depthLabelToSynthesisDepth(researchDepthLabel)
+        : _calculateSynthesisDepth(currentPhase, readinessScore);
     final depthLabel = researchDepthLabel ?? _synthesisDepthToLabel(depth);
     final agentPrompt = timelineContext != null
         ? _buildEnhancedPrompt(
@@ -97,6 +99,20 @@ class SynthesisEngine {
         return 'standard';
       case SynthesisDepth.deep:
         return 'deep_dive';
+    }
+  }
+
+  /// Map user/agent depth label to synthesis depth (prompt + token budget).
+  SynthesisDepth _depthLabelToSynthesisDepth(String researchDepthLabel) {
+    switch (researchDepthLabel) {
+      case 'quick_scan':
+        return SynthesisDepth.brief;
+      case 'standard':
+        return SynthesisDepth.moderate;
+      case 'deep_dive':
+        return SynthesisDepth.deep;
+      default:
+        return SynthesisDepth.moderate;
     }
   }
 

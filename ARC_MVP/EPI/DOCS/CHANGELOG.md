@@ -1,7 +1,22 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.78
+**Version:** 3.3.79
 **Last Updated:** March 10, 2026
+
+---
+
+## [3.3.79] - March 10, 2026
+
+### Doc-config-git-backup run; Research Agent depth selector (Brief / Summary / Deep Dive)
+
+**Action:** Documentation & Git Backup run (claude.md §284–501). Then commit, push, merge.
+
+**Updated (sync with repo):**
+- **Research screen:** research_screen.dart — user-selectable research depth: Brief, Summary, Deep Dive (SegmentedButton); passes ResearchDepth (quick_scan / standard / deep_dive) to conductResearch.
+- **Research agent:** research_agent.dart — when depth is quick_scan, cap plan to 3 sub-queries (effectivePlan) to reduce API usage; use effectivePlan for search execution.
+- **Synthesis engine:** synthesis_engine.dart — _depthLabelToSynthesisDepth maps quick_scan/standard/deep_dive to SynthesisDepth (brief/moderate/deep); synthesis uses researchDepthLabel when provided.
+
+**Other:** No new prompt sources; PROMPT_REFERENCES v2.9.0 unchanged.
 
 ---
 

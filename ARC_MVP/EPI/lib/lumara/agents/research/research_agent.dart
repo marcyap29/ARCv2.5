@@ -112,14 +112,24 @@ class ResearchAgent {
       currentPhase: phase,
     );
 
+    // Brief depth: fewer sub-queries to reduce API usage and keep synthesis short.
+    final effectivePlan = researchDepth == ResearchDepth.quick_scan && plan.subQueries.length > 3
+        ? ResearchPlan(
+            originalQuery: plan.originalQuery,
+            subQueries: plan.subQueries.take(3).toList(),
+            executionStrategy: plan.executionStrategy,
+            estimatedDuration: plan.estimatedDuration,
+          )
+        : plan;
+
     onProgress?.call(ResearchProgress(
-      status: 'Executing ${plan.subQueries.length} searches...',
+      status: 'Executing ${effectivePlan.subQueries.length} searches...',
       currentStep: 2,
       totalSteps: _totalSteps,
     ));
 
     final searchResults = await _searchOrchestrator.executeSearches(
-      queries: plan.subQueries,
+      queries: effectivePlan.subQueries,
       strategy: plan.executionStrategy,
       priorContext: priorContext,
       onProgress: (status) => onProgress?.call(ResearchProgress(

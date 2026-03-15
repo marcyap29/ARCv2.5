@@ -38,11 +38,15 @@ class ResearchScreen extends StatefulWidget {
   State<ResearchScreen> createState() => _ResearchScreenState();
 }
 
+/// User-facing research depth (no word counts shown).
+enum _ResearchDepthOption { brief, summary, deepDive }
+
 class _ResearchScreenState extends State<ResearchScreen> {
   late final TextEditingController _queryController;
 
   ContentBrief? _brief;
   bool _loading = false;
+  _ResearchDepthOption _depth = _ResearchDepthOption.summary;
   /// Streaming status messages (like chat research): each stage appends here.
   final List<String> _statusMessages = [];
   String? _error;
@@ -95,9 +99,15 @@ class _ResearchScreenState extends State<ResearchScreen> {
     final userId = FirebaseAuthService.instance.currentUser?.uid ?? 'anonymous';
     try {
       final agent = _createResearchAgent();
+      final depth = _depth == _ResearchDepthOption.brief
+          ? ResearchDepth.quick_scan
+          : _depth == _ResearchDepthOption.deepDive
+              ? ResearchDepth.deep_dive
+              : ResearchDepth.standard;
       final result = await agent.conductResearch(
         userId: userId,
         query: query,
+        researchDepth: depth,
         onProgress: (p) {
           if (mounted) setState(() => _statusMessages.add(p.status));
         },
@@ -329,6 +339,37 @@ class _ResearchScreenState extends State<ResearchScreen> {
                 ],
               ),
             ],
+            const Gap(12),
+            Text(
+              'Depth',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const Gap(6),
+            SegmentedButton<_ResearchDepthOption>(
+              segments: const [
+                ButtonSegment<_ResearchDepthOption>(
+                  value: _ResearchDepthOption.brief,
+                  label: Text('Brief'),
+                  icon: Icon(Icons.short_text, size: 18),
+                ),
+                ButtonSegment<_ResearchDepthOption>(
+                  value: _ResearchDepthOption.summary,
+                  label: Text('Summary'),
+                  icon: Icon(Icons.summarize, size: 18),
+                ),
+                ButtonSegment<_ResearchDepthOption>(
+                  value: _ResearchDepthOption.deepDive,
+                  label: Text('Deep Dive'),
+                  icon: Icon(Icons.auto_stories, size: 18),
+                ),
+              ],
+              selected: {_depth},
+              onSelectionChanged: (Set<_ResearchDepthOption> selected) {
+                if (selected.isNotEmpty) setState(() => _depth = selected.first);
+              },
+            ),
             const Gap(16),
             Row(
               children: [
