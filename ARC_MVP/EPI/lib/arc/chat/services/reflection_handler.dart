@@ -146,6 +146,7 @@ class ReflectionHandler {
       request: request,
       userId: effectiveUserId.isEmpty ? null : effectiveUserId,
       entryId: entryId,
+      chatContext: chatContext,
       onProgress: onProgress,
       onStreamChunk: onStreamChunk,
     );

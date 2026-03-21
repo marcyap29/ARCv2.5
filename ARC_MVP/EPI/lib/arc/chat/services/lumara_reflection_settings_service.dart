@@ -64,14 +64,10 @@ class LumaraReflectionSettingsService {
   static const String _keyAgentOsCommunication = 'lumara_agent_os_communication';
   static const String _keyAgentOsMemory = 'lumara_agent_os_memory';
 
-  // Personality config (from onboarding 7 questions; baseline for LUMARA expression)
+  // Personality config (optional baseline for LUMARA expression)
   static const String _keyPersonalityConfig = 'lumara_personality_config';
   static const String _keyPersonalityRawAnswers = 'lumara_personality_raw_answers';
   static const String _keyUserName = 'lumara_user_name';
-
-  /// Launch count for "How we'll work together" reminder (when user hasn't filled it). Show every 5–10 launches.
-  static const String _keyPersonalityReminderLaunchCount = 'lumara_personality_reminder_launch_count';
-  static const int _personalityReminderInterval = 7; // Show reminder every 7 launches (middle of 5–10)
 
   // Inferred preferences (overrides over time; high confidence overrides baseline)
   static const String _keyInferredPreferences = 'lumara_inferred_preferences';
@@ -190,7 +186,7 @@ class LumaraReflectionSettingsService {
     await _prefs!.setString(_keyPersonalityConfig, config);
   }
 
-  /// True if user has completed the "How we'll work together" setup (has config or raw answers).
+  /// True if personality config or raw answers exist (legacy data from removed onboarding step).
   Future<bool> hasPersonalityFilled() async {
     await initialize();
     final config = _prefs!.getString(_keyPersonalityConfig);
@@ -216,19 +212,6 @@ class LumaraReflectionSettingsService {
   Future<void> setPersonalityRawAnswers(Map<String, dynamic> answers) async {
     await initialize();
     await _prefs!.setString(_keyPersonalityRawAnswers, jsonEncode(answers));
-  }
-
-  /// Increment launch count for personality reminder; returns true if we should show the reminder this launch.
-  Future<bool> shouldShowPersonalityReminderThisLaunch() async {
-    await initialize();
-    final count = _prefs!.getInt(_keyPersonalityReminderLaunchCount) ?? 0;
-    final next = count + 1;
-    await _prefs!.setInt(_keyPersonalityReminderLaunchCount, next);
-    if (next >= _personalityReminderInterval) {
-      await _prefs!.setInt(_keyPersonalityReminderLaunchCount, 0);
-      return true;
-    }
-    return false;
   }
 
   /// Get user's preferred name (what LUMARA should call them). Empty if not set.
@@ -545,7 +528,7 @@ class LumaraReflectionSettingsService {
     await _prefs!.setString(_keyLumaraChatMode, mode.name);
   }
 
-  /// Master switch for Primary API (Default + Mode 1/2/3). When false, all use Groq and UI is grayed out.
+  /// Master switch for Primary API (Default + Mode 1/2/3). When true, [getLumaraModeApi] applies. When false, [defaultLumaraPrimaryProvider] (Reflect/Chat/Voice matrix) applies.
   Future<bool> getLumaraPrimaryApiMasterOn() async {
     await initialize();
     return _prefs!.getBool(_keyLumaraPrimaryApiMasterOn) ?? false;
@@ -554,6 +537,24 @@ class LumaraReflectionSettingsService {
   Future<void> setLumaraPrimaryApiMasterOn(bool value) async {
     await initialize();
     await _prefs!.setBool(_keyLumaraPrimaryApiMasterOn, value);
+  }
+
+  /// When Primary API master is **off**, product defaults for LUMARA (not user overrides):
+  /// - **Voice:** Groq for Simple, Personal, Analysis.
+  /// - **Chat:** Gemini for all three (large payload).
+  /// - **Reflect (journal):** Simple → Gemini; Personal → Groq; Analysis → Gemini.
+  static LLMProvider defaultLumaraPrimaryProvider({
+    required LumaraChatMode mode,
+    required bool isVoiceSession,
+    required bool isChatEntry,
+  }) {
+    if (isVoiceSession) return LLMProvider.groq;
+    if (isChatEntry) return LLMProvider.gemini;
+    return switch (mode) {
+      LumaraChatMode.personal => LLMProvider.groq,
+      LumaraChatMode.analytical => LLMProvider.gemini,
+      LumaraChatMode.deepAnalytical => LLMProvider.gemini,
+    };
   }
 
   /// Per-mode API (Mode 1 = personal, Mode 2 = analytical, Mode 3 = deepAnalytical). Default: Groq.

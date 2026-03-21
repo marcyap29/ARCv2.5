@@ -7,6 +7,7 @@ const firebase_functions_1 = require("firebase-functions");
 const config_1 = require("../config");
 const generative_ai_1 = require("@google/generative-ai");
 const authGuard_1 = require("../authGuard");
+const rateLimiter_1 = require("../rateLimiter");
 /**
  * Simple proxy to hide Gemini API key from client
  *
@@ -25,14 +26,19 @@ exports.proxyGemini = (0, https_1.onCall)({
     secrets: [config_1.GEMINI_API_KEY],
     // Auth enforced via enforceAuth() - no invoker: "public"
 }, async (request) => {
-    const { system, user, jsonExpected, entryId, chatId } = request.data;
+    const { system, user, jsonExpected, entryId, chatId, localCalendarDate } = request.data;
     if (!user) {
         throw new https_1.HttpsError("invalid-argument", "user prompt is required");
     }
     // Enforce authentication
     const authResult = await (0, authGuard_1.enforceAuth)(request);
     const { userId, isAnonymous, isPremium } = authResult;
+    const userEmail = request.auth?.token?.email;
     firebase_functions_1.logger.info(`Proxying Gemini request for user ${userId} (anonymous: ${isAnonymous}, premium: ${isPremium})`);
+    const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail, localCalendarDate);
+    if (!dailyCheck.allowed) {
+        throw new https_1.HttpsError("resource-exhausted", dailyCheck.error?.message || "Daily limit reached", dailyCheck.error);
+    }
     // Check per-entry limit for in-journal LUMARA (if entryId provided)
     if (entryId) {
         const limitResult = await (0, authGuard_1.checkJournalEntryLimit)(userId, entryId, isPremium);

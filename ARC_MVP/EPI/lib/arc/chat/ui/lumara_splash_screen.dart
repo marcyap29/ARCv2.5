@@ -9,9 +9,7 @@ import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/ui/auth/sign_in_screen.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_sequence.dart';
-import 'package:my_app/shared/ui/onboarding/personality_reminder_screen.dart';
 import 'package:my_app/arc/core/journal_repository.dart';
-import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 
 /// Splash screen with LUMARA logo (phase shape removed for reposition)
 class LumaraSplashScreen extends StatefulWidget {
@@ -82,21 +80,13 @@ class _LumaraSplashScreenState extends State<LumaraSplashScreen>
       final hasAnyJournalEntry = await _hasAnyJournalEntry();
 
       if (onboardingCompleted || hasAnyJournalEntry) {
-        // Completed onboarding (profile flag) or has at least one entry → home, or show "How we'll work together" reminder if not filled
         if (mounted && !_hasNavigated) {
           _hasNavigated = true;
-          final hasPersonality = await LumaraReflectionSettingsService.instance.hasPersonalityFilled();
-          final showReminder = !hasPersonality &&
-              await LumaraReflectionSettingsService.instance.shouldShowPersonalityReminderThisLaunch();
-          if (mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => showReminder
-                    ? const PersonalityReminderScreen()
-                    : const HomeView(),
-              ),
-            );
-          }
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const HomeView(),
+            ),
+          );
         }
       } else {
         // First-time user - show onboarding

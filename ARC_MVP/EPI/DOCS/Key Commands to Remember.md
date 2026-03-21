@@ -1,3 +1,4 @@
-Generate a Secret with this command
+# Generate a Secret with this command
+** openssl rand -hex 32
 
-openssl rand -hex 32
+##

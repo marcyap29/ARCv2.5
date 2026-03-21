@@ -182,7 +182,7 @@ exports.getUserSubscription = onCall(
       features: {
         lumaraThrottled: tier === 'free',
         phaseHistoryRestricted: tier === 'free',
-        dailyLumaraLimit: tier === 'premium' ? -1 : 50
+        dailyLumaraLimit: tier === 'premium' ? -1 : 20
       }
     };
   }

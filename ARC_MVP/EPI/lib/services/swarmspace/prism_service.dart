@@ -243,7 +243,7 @@ class PrismService {
     final name = SwarmSpaceClient.pluginDisplayName(pluginId);
     String dataDescription;
     if (pluginId == 'vision-ocr') {
-      dataDescription = 'Your image is sent to SwarmSpace (Vision API + Gemini) to extract text or describe content.';
+      dataDescription = 'Your image is sent to SwarmSpace (Image Analyzer) to extract text or answer your question.';
     } else {
       dataDescription = 'This plugin will receive sensitive personal data. It will be processed by SwarmSpace.';
     }

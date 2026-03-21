@@ -7,8 +7,10 @@ const https_1 = require("firebase-functions/v2/https");
 const firebase_functions_1 = require("firebase-functions");
 const config_1 = require("../config");
 const authGuard_1 = require("../authGuard");
+const rateLimiter_1 = require("../rateLimiter");
 const OLLAMA_CHAT_URL = "https://ollama.com/api/chat";
-const DEFAULT_MODEL = "gpt-oss:120b";
+// Default: NVIDIA Nemotron 3 Super 120B (Ollama Cloud). See https://ollama.com/library/nemotron-3-super
+const DEFAULT_MODEL = "nemotron-3-super:cloud";
 /**
  * Proxies chat requests to Ollama Cloud (ollama.com) so the API key never touches the client.
  * Used as the 3rd fallback when Gemini and Groq fail.
@@ -19,13 +21,28 @@ const DEFAULT_MODEL = "gpt-oss:120b";
 exports.proxyOllama = (0, https_1.onCall)({
     secrets: [config_1.OLLAMA_API_KEY],
 }, async (request) => {
-    const { system, user, temperature, maxTokens } = request.data ?? {};
+    const { system, user, temperature, maxTokens, entryId, chatId, localCalendarDate, } = request.data ?? {};
     if (!user || typeof user !== "string") {
         throw new https_1.HttpsError("invalid-argument", "user prompt is required");
     }
     const authResult = await (0, authGuard_1.enforceAuth)(request);
-    const { userId } = authResult;
+    const { userId, isPremium } = authResult;
+    const userEmail = request.auth?.token?.email;
     firebase_functions_1.logger.info(`Proxying Ollama request for user ${userId}`);
+    const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail, localCalendarDate);
+    if (!dailyCheck.allowed) {
+        throw new https_1.HttpsError("resource-exhausted", dailyCheck.error?.message || "Daily limit reached", dailyCheck.error);
+    }
+    const rateLimitCheck = await (0, rateLimiter_1.checkRateLimit)(userId, userEmail);
+    if (!rateLimitCheck.allowed) {
+        throw new https_1.HttpsError("resource-exhausted", rateLimitCheck.error?.message || "Rate limit exceeded", rateLimitCheck.error);
+    }
+    if (entryId && typeof entryId === "string") {
+        await (0, authGuard_1.checkJournalEntryLimit)(userId, entryId, isPremium);
+    }
+    if (chatId && typeof chatId === "string") {
+        await (0, authGuard_1.checkChatLimit)(userId, chatId, isPremium);
+    }
     const apiKey = config_1.OLLAMA_API_KEY.value();
     if (!apiKey) {
         throw new https_1.HttpsError("failed-precondition", "Ollama Cloud is not configured. Set OLLAMA_API_KEY secret.");

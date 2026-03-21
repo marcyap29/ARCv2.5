@@ -9,14 +9,11 @@ import 'package:my_app/models/phase_models.dart';
 import 'package:my_app/models/journal_entry_model.dart';
 import 'package:my_app/state/journal_entry_state.dart';
 import 'package:my_app/services/user_phase_service.dart';
-import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
 import 'package:hive/hive.dart';
 import 'package:logger/logger.dart';
 
-const String _keyLumaraPrefsSkipped = 'lumara_prefs_skipped';
 const String _keyProfileFieldsSkipped = 'profile_fields_skipped';
 const String _keyShowLumaraSetupNudge = 'show_lumara_setup_nudge';
-const String _keyOnboardingNudgeShown = 'onboarding_nudge_shown';
 
 class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
   ArcOnboardingCubit() : super(const ArcOnboardingState(
@@ -43,8 +40,8 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
         next = OnboardingScreen.narrativeIntelligence;
         break;
       case OnboardingScreen.narrativeIntelligence:
-        // Skip "How we'll work together"; go straight to "How should LUMARA work with you".
-        next = OnboardingScreen.lumaraPreferences;
+        // LUMARA preferences screen removed — inaugural/quiz already captures style
+        next = OnboardingScreen.profileFields;
         break;
       case OnboardingScreen.sentinelIntro:
         // Screen removed; skip to phase explanation
@@ -55,14 +52,13 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
         return;
       case OnboardingScreen.lumaraPreferences:
         next = OnboardingScreen.profileFields;
-        break;
+        break; // legacy state → profile only
       case OnboardingScreen.profileFields:
         next = OnboardingScreen.complete;
         break;
       case OnboardingScreen.phaseQuiz:
       case OnboardingScreen.phaseAnalysis:
       case OnboardingScreen.phaseReveal:
-      case OnboardingScreen.personalitySetup:
       case OnboardingScreen.complete:
         return; // Don't advance from these screens
     }
@@ -202,29 +198,9 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
     }
   }
 
-  /// Navigate from phase reveal to personality setup (7 questions).
-  void startPersonalitySetup() {
-    emit(state.copyWith(currentScreen: OnboardingScreen.personalitySetup));
-  }
-
-  /// Navigate to LUMARA Preferences ("How should LUMARA work with you") without showing personality setup.
-  void goToLumaraPreferences() {
-    emit(state.copyWith(currentScreen: OnboardingScreen.lumaraPreferences));
-  }
-
-  /// Persist personality answers, generate config, set default phase, then go to LUMARA Preferences (Phase 6).
-  Future<void> completePersonalityAndOnboarding(Map<String, dynamic> answers) async {
-    try {
-      await LumaraReflectionSettingsService.instance.generateAndSavePersonalityConfig(answers);
-    } catch (e) {
-      _logger.e('Error saving personality config: $e');
-    }
-    try {
-      await _setUserPhase(PhaseLabel.discovery);
-    } catch (e) {
-      _logger.e('Error setting default phase: $e');
-    }
-    emit(state.copyWith(currentScreen: OnboardingScreen.lumaraPreferences));
+  /// After phase reveal — skip redundant prefs; go to optional profile fields.
+  void goToProfileFieldsAfterPhase() {
+    emit(state.copyWith(currentScreen: OnboardingScreen.profileFields));
   }
 
   /// Advance from LUMARA Preferences to Profile Fields (after save or skip).
@@ -236,9 +212,8 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
   /// If user skipped LUMARA prefs or profile fields, set flag so HomeView shows one-time nudge.
   Future<void> advanceAfterProfileFields() async {
     final prefs = await SharedPreferences.getInstance();
-    final skippedPrefs = prefs.getBool(_keyLumaraPrefsSkipped) ?? false;
     final skippedProfile = prefs.getBool(_keyProfileFieldsSkipped) ?? false;
-    if (skippedPrefs || skippedProfile) {
+    if (skippedProfile) {
       await prefs.setBool(_keyShowLumaraSetupNudge, true);
     }
     await UserPhaseService.setOnboardingCompleted(true);

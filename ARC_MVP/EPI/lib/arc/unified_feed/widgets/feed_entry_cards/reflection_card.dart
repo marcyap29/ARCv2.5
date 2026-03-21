@@ -117,6 +117,15 @@ class ReflectionCard extends StatelessWidget {
               ],
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            entry.type == FeedEntryType.researchReport ? '#Research' : '#Reflection',
+            style: TextStyle(
+              color: kcSecondaryTextColor.withOpacity(0.6),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );

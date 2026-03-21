@@ -185,7 +185,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   bool _showLumaraBox = false;
   bool _isLumaraConfigured = false;
   bool _showPrivateNotes = false;
-  /// Reflection mode (Personal | Analytical | Deep Analytical), loaded from settings.
+  /// Reflection mode (Simple | Personal | Analysis), loaded from settings.
   LumaraChatMode _reflectionLumaraMode = LumaraChatMode.personal;
   
   // Scroll position tracking for scroll buttons
@@ -801,7 +801,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  /// Three-segment pill for reflection mode: Personal | Analytical | Deep Analytical.
+  /// Three-segment pill for reflection mode: Simple | Personal | Analysis.
   Widget _buildReflectionModePill(ThemeData theme) {
     return Container(
       decoration: BoxDecoration(
@@ -813,9 +813,9 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _buildReflectionModeSegment(theme, LumaraChatMode.analytical, 'Simple'),
           _buildReflectionModeSegment(theme, LumaraChatMode.personal, 'Personal'),
-          _buildReflectionModeSegment(theme, LumaraChatMode.analytical, 'Analytical'),
-          _buildReflectionModeSegment(theme, LumaraChatMode.deepAnalytical, 'Deep Analytical'),
+          _buildReflectionModeSegment(theme, LumaraChatMode.deepAnalytical, 'Analysis'),
         ],
       ),
     );
@@ -1840,80 +1840,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
   }
 
-  Widget _buildPhotoSelectionControls() {
-    final photoCount = _entryState.attachments.whereType<PhotoAttachment>().length;
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.photo_library,
-            size: 16,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$photoCount photo(s)',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const Spacer(),
-          if (_isPhotoSelectionMode) ...[
-            if (_selectedPhotoIndices.isNotEmpty) ...[
-              Text(
-                '${_selectedPhotoIndices.length} selected',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _deleteSelectedPhotos,
-                icon: const Icon(Icons.delete),
-                iconSize: 18,
-                color: Theme.of(context).colorScheme.error,
-                tooltip: 'Delete selected photos',
-              ),
-            ],
-            IconButton(
-              onPressed: _togglePhotoSelectionMode,
-              icon: const Icon(Icons.close),
-              iconSize: 18,
-              tooltip: 'Cancel selection',
-            ),
-          ] else ...[
-            // Prompt for selection when mode active but nothing selected
-            if (_isPhotoSelectionMode && _selectedPhotoIndices.isEmpty) ...[
-              Text(
-                'Tap photos to select',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            IconButton(
-              onPressed: _togglePhotoSelectionMode,
-              icon: const Icon(Icons.checklist),
-              iconSize: 18,
-              tooltip: 'Select photos',
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Combined photo selection toggle + gallery grid displayed near the top of the entry
+  /// Single merged photos section: preview grid + multi-select and remove in one box.
   Widget _buildPhotoGallerySection(ThemeData theme) {
     final photoAttachments = _entryState.attachments
         .whereType<PhotoAttachment>()
@@ -1936,13 +1863,76 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
       }
     });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildPhotoSelectionControls(),
-        const SizedBox(height: 12),
-        _buildPhotoThumbnailGrid(photoAttachments, theme),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.photo_library,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Photos (${photoAttachments.length})',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              if (_isPhotoSelectionMode) ...[
+                if (_selectedPhotoIndices.isNotEmpty) ...[
+                  Text(
+                    '${_selectedPhotoIndices.length} selected',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _deleteSelectedPhotos,
+                    icon: const Icon(Icons.delete),
+                    iconSize: 18,
+                    color: theme.colorScheme.error,
+                    tooltip: 'Delete selected photos',
+                  ),
+                ],
+                IconButton(
+                  onPressed: _togglePhotoSelectionMode,
+                  icon: const Icon(Icons.close),
+                  iconSize: 18,
+                  tooltip: 'Cancel selection',
+                ),
+              ] else ...[
+                IconButton(
+                  onPressed: _togglePhotoSelectionMode,
+                  icon: const Icon(Icons.checklist),
+                  iconSize: 18,
+                  tooltip: 'Select photos',
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: photoAttachments
+                .map((photo) => _buildPhotoThumbnailCard(photo, theme))
+                .toList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2233,7 +2223,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Reflection mode pill: Personal | Analytical | Deep Analytical
+                    // Reflection mode pill: Simple | Personal | Analysis
                     _buildReflectionModePill(theme),
                     const SizedBox(height: 10),
                     // Primary action row - optimized layout with even spacing
@@ -3563,48 +3553,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
-  /// Build a clean list of photo references (no thumbnails)
-  Widget _buildPhotoThumbnailGrid(List<PhotoAttachment> photos, ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.photo_library,
-                size: 18,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Photos (${photos.length})',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Show photos as a grid wrap
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: photos.map((photo) => _buildPhotoThumbnailCard(photo, theme)).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// Generate SHA-256 hash for photo linking
   Future<String?> _generatePhotoHash(String imagePath) async {
     try {
@@ -4480,7 +4428,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   /// Shows full entry with paragraph formatting (writer paragraphs + LUMARA blocks + writer comments)
   Widget _buildContentView(ThemeData theme) {
     // In view-only mode, show text with paragraph structure (double newlines = paragraphs)
-    // Photos are displayed separately via _buildPhotoGallerySection -> _buildPhotoThumbnailGrid
+    // Photos are displayed in _buildPhotoGallerySection (preview grid + multi-select/remove)
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(

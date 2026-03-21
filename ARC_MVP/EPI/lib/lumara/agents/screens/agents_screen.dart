@@ -24,12 +24,14 @@ class AgentsScreen extends StatefulWidget {
 
 const String _prefToggleWriting = 'agent_toggle_writing';
 const String _prefToggleResearch = 'agent_toggle_research';
+const String _prefToggleImageAnalyzer = 'agent_toggle_image_analyzer';
 
 class _AgentsScreenState extends State<AgentsScreen> {
   Map<String, AgentConnectionState> _connectionStates = {};
   bool _loading = true;
   bool _userToggleWriting = false;
   bool _userToggleResearch = false;
+  bool _userToggleImageAnalyzer = false;
 
   @override
   void initState() {
@@ -44,6 +46,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
     setState(() {
       _userToggleWriting = prefs.getBool(_prefToggleWriting) ?? false;
       _userToggleResearch = prefs.getBool(_prefToggleResearch) ?? false;
+      _userToggleImageAnalyzer = prefs.getBool(_prefToggleImageAnalyzer) ?? false;
     });
   }
 
@@ -57,6 +60,12 @@ class _AgentsScreenState extends State<AgentsScreen> {
     setState(() => _userToggleResearch = value);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefToggleResearch, value);
+  }
+
+  Future<void> _setToggleImageAnalyzer(bool value) async {
+    setState(() => _userToggleImageAnalyzer = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefToggleImageAnalyzer, value);
   }
 
   Future<void> _refreshConnections() async {
@@ -152,8 +161,17 @@ class _AgentsScreenState extends State<AgentsScreen> {
                     onConnect: _openConnectSettings,
                   ),
                   const SizedBox(height: 12),
-                  _VisionOcrCard(
-                    onTap: () {
+                  _AgentConnectionCard(
+                    icon: Icons.image_search_outlined,
+                    title: 'Image Analysis',
+                    subtitle:
+                        'Ask questions about photos—species, places, objects—or extract text. Powered by vision models.',
+                    state: _connectionStates[AgentsConnectionService.imageAnalyzerAgentId],
+                    useButtonLabel: 'Open Image Analyzer',
+                    showConnectToggle: true,
+                    userToggleOn: _userToggleImageAnalyzer,
+                    onToggleChanged: _setToggleImageAnalyzer,
+                    onUse: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute<void>(
@@ -161,6 +179,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
                         ),
                       );
                     },
+                    onConnect: _openConnectSettings,
                   ),
                   const SizedBox(height: 12),
                   _ActivityCard(
@@ -202,64 +221,6 @@ class _AgentsScreenState extends State<AgentsScreen> {
                 ],
               ),
             ),
-    );
-  }
-}
-
-/// Card that opens the Vision/Scanning screen.
-class _VisionOcrCard extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _VisionOcrCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      color: kcSurfaceAltColor,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: kcPrimaryColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.document_scanner, color: kcPrimaryColor, size: 26),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Vision/Scanning',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: kcPrimaryTextColor,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Extract text or describe images (Vision API + Gemini)',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: kcSecondaryColor),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

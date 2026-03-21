@@ -16,7 +16,7 @@ const groqClient_1 = require("../groqClient");
  * Flow:
  * 1. Verify Firebase Auth token (automatic via onCall)
  * 2. Load user from Firestore
- * 3. Check rate limit (free tier: 20 requests/day, 3 requests/minute)
+ * 3. Check rate limit (free tier: 20 unified LUMARA calls/day, 3 requests/minute)
  * 4. Uses Groq (GPT-OSS 120B) for reflection
  * 5. Generate reflection using LLM with LUMARA Master Prompt
  * 6. Return reflection text
@@ -45,7 +45,7 @@ exports.generateJournalReflection = (0, https_1.onCall)({
     // Auth enforced via enforceAuth() - no invoker: "public"
 }, async (request) => {
     const { entryText, entryId: _entryId, // For per-entry usage limit tracking (reserved)
-    phase, mood, chronoContext, chatContext, mediaContext, options = {}, } = request.data;
+    phase, mood, chronoContext, chatContext, mediaContext, options = {}, localCalendarDate, } = request.data;
     // Validate request
     if (!entryText) {
         throw new https_1.HttpsError("invalid-argument", "entryText is required");
@@ -56,8 +56,7 @@ exports.generateJournalReflection = (0, https_1.onCall)({
     const userEmail = request.auth?.token?.email;
     firebase_functions_1.logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous}, premium: ${isPremium})`);
     try {
-        // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
-        const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail);
+        const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail, localCalendarDate);
         if (!dailyCheck.allowed) {
             throw new https_1.HttpsError("resource-exhausted", dailyCheck.error?.message || "Daily limit reached", dailyCheck.error);
         }

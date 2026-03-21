@@ -166,7 +166,7 @@ class LumaraAPIConfig {
       isInternal: false,
     );
 
-    // Gemini: for Deep Analytical mode (Mode 3)
+    // Gemini: for Analysis mode (Mode 3 / deepAnalytical)
     const geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
     debugPrint('LUMARA API: Loading Gemini API key from environment: ${geminiApiKey.isNotEmpty ? 'Found' : 'Not found'}');
     _configs[LLMProvider.gemini] = LLMProviderConfig(

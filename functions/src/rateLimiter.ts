@@ -6,30 +6,75 @@ import { FREE_MAX_REQUESTS_PER_MINUTE } from "./config";
 
 const db = admin.firestore();
 
-/** Unified daily request limit for free tier users (chat + reflections + voice) */
-export const FREE_TIER_DAILY_LUMARA_LIMIT = 50;
+/** Unified daily request limit for free tier (all LUMARA modes: chat, reflection, voice, agents, etc.) */
+export const FREE_TIER_DAILY_LUMARA_LIMIT = 20;
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function addDaysIso(iso: string, deltaDays: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const t = Date.UTC(y, m - 1, d) + deltaDays * 86400000;
+  const x = new Date(t);
+  const yy = x.getUTCFullYear();
+  const mm = String(x.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(x.getUTCDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+/**
+ * Bucket key for daily usage: prefer the client's local calendar date when it is
+ * plausibly "today" somewhere on Earth (UTC date ± 1); otherwise UTC date.
+ * Matches device local midnight when the app sends [localCalendarDate] from DateTime.now().
+ */
+export function resolveLumaraUsageDay(clientLocalCalendarDate?: string): string {
+  const utcToday = new Date().toISOString().slice(0, 10);
+  const plausible = new Set([
+    addDaysIso(utcToday, -1),
+    utcToday,
+    addDaysIso(utcToday, 1),
+  ]);
+  if (
+    typeof clientLocalCalendarDate === "string" &&
+    ISO_DATE.test(clientLocalCalendarDate) &&
+    plausible.has(clientLocalCalendarDate)
+  ) {
+    return clientLocalCalendarDate;
+  }
+  return utcToday;
+}
+
+function isPremiumUser(userData: Record<string, unknown>): boolean {
+  const st = String(userData.subscriptionTier ?? "").toLowerCase();
+  return (
+    userData.plan === "pro" ||
+    st === "paid" ||
+    userData.throttleUnlocked === true ||
+    (st === "premium" && userData.subscriptionStatus === "active")
+  );
+}
 
 /** Emails that are always exempt from rate limiting */
 const EXEMPT_EMAILS = [
   "marcyap@orbitalai.net",
   "marcyap@fastmail.com",
+  "tester1@tester1.com",
 ];
 
 /**
- * Check and enforce the unified daily LUMARA limit (50 requests/day).
+ * Check and enforce the unified daily LUMARA limit (20 requests/day for free tier).
  *
  * This single pool covers ALL free-tier LUMARA interactions:
- * chat messages, journal reflections, journal analyses, and prompt generation.
- * Uses the same `lumaraDailyUsage` Firestore field as proxyGemini so all
- * call paths share one counter.
+ * chat, journal reflections, analyses, prompts, voice, agents, proxy paths, etc.
+ * Uses the same `lumaraDailyUsage` Firestore field so all call paths share one counter.
  *
  * - Exempt emails: unlimited
- * - Premium (plan=pro / subscriptionTier=PAID / throttleUnlocked): unlimited
- * - Free: max FREE_TIER_DAILY_LUMARA_LIMIT per calendar day (UTC)
+ * - Premium: unlimited
+ * - Free: max FREE_TIER_DAILY_LUMARA_LIMIT per calendar day (see resolveLumaraUsageDay)
  */
 export async function checkUnifiedDailyLimit(
   userId: string,
-  userEmail?: string
+  userEmail?: string,
+  clientLocalCalendarDate?: string
 ): Promise<QuotaCheckResult> {
   try {
     // Exempt emails bypass all limits
@@ -55,18 +100,12 @@ export async function checkUnifiedDailyLimit(
       userData = userDoc.data() as Record<string, any>;
     }
 
-    // Premium / unlocked users: unlimited
-    const isPremium =
-      userData.plan === "pro" ||
-      userData.subscriptionTier === "PAID" ||
-      userData.throttleUnlocked === true;
-
-    if (isPremium) {
+    if (isPremiumUser(userData)) {
       return { allowed: true };
     }
 
-    // Check and increment daily usage (shared with proxyGemini via lumaraDailyUsage)
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
+    // Check and increment daily usage (shared across proxies via lumaraDailyUsage)
+    const today = resolveLumaraUsageDay(clientLocalCalendarDate);
     const usage = userData.lumaraDailyUsage || {};
     const currentCount = usage.date === today ? (usage.count || 0) : 0;
 
@@ -129,13 +168,7 @@ export async function checkRateLimit(
       user = userDoc.data() as UserDocument;
     }
 
-    // Premium / unlocked: unlimited
-    const isPro =
-      user.plan === "pro" ||
-      user.subscriptionTier === "PAID" ||
-      user.throttleUnlocked === true;
-
-    if (isPro) {
+    if (isPremiumUser(user as unknown as Record<string, unknown>)) {
       return { allowed: true };
     }
 

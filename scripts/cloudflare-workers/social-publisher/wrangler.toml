@@ -1,4 +1,4 @@
-# SwarmSpace Social Publisher — Late.com proxy
+# SwarmSpace Social Publisher — Late.com proxy + LinkedIn OAuth + Bluesky AT Protocol
 # Deploy: npx wrangler deploy
 # Name: swarmspace-social-publisher (route: swarmspace-social-publisher.orbitalai.workers.dev)
 
@@ -6,6 +6,15 @@ name = "swarmspace-social-publisher"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
+# KV for OAuth state (short-lived) and stored tokens (linkedin/bluesky per user).
+# Create: npx wrangler kv namespace create "SOCIAL_PUBLISHER_KV"
+# Then replace the id below with the returned id.
+kv_namespaces = [
+  { binding = "SOCIAL_KV", id = "REPLACE_AFTER_KV_CREATE" }
+]
+
 # Secrets (set via wrangler secret put):
 # SWARMSPACE_INTERNAL_TOKEN
 # LATE_API_KEY
+# LINKEDIN_CLIENT_ID      — from LinkedIn Developer Portal
+# LINKEDIN_CLIENT_SECRET  — from LinkedIn Developer Portal

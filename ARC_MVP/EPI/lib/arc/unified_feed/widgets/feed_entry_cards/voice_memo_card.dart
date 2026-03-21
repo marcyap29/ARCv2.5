@@ -94,6 +94,15 @@ class VoiceMemoCard extends StatelessWidget {
           // Waveform placeholder
           const SizedBox(height: 8),
           _buildWaveformPlaceholder(),
+          const SizedBox(height: 8),
+          Text(
+            '#Voice',
+            style: TextStyle(
+              color: kcSecondaryTextColor.withOpacity(0.6),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );

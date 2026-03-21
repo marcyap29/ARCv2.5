@@ -10,6 +10,12 @@ import worker from "../src/index";
 const env = {
   SWARMSPACE_INTERNAL_TOKEN: "test-secret-token",
   LATE_API_KEY: "test-late-key",
+  SOCIAL_KV: {
+    get: vi.fn().mockResolvedValue(null),
+    put: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+    list: vi.fn().mockResolvedValue({ keys: [], list_complete: true }),
+  } as any,
 };
 
 function postInvoke(body: object, auth?: string): Promise<Response> {

@@ -6,7 +6,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
-import 'package:my_app/lumara/profile/lumara_preferences_screen.dart';
 import 'package:my_app/lumara/profile/profile_fields_screen.dart';
 import 'arc_onboarding_cubit.dart';
 import 'arc_onboarding_state.dart';
@@ -14,7 +13,6 @@ import 'widgets/lumara_pulsing_symbol.dart';
 import 'widgets/phase_explanation_screen.dart';
 import 'widgets/phase_analysis_screen.dart';
 import 'widgets/phase_reveal_screen.dart';
-import 'widgets/personality_setup_screen.dart';
 import 'phase_quiz_v2_screen.dart';
 
 /// Main onboarding sequence widget
@@ -95,13 +93,10 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               );
               screenKey = 'phase_reveal';
               break;
-            case OnboardingScreen.personalitySetup:
-              currentScreen = const PersonalitySetupScreen();
-              screenKey = 'personality_setup';
-              break;
             case OnboardingScreen.lumaraPreferences:
-              currentScreen = const LumaraPreferencesScreen();
-              screenKey = 'lumara_preferences';
+              // Legacy / no longer shown in flow — same as profile fields
+              currentScreen = const ProfileFieldsScreen();
+              screenKey = 'profile_fields';
               break;
             case OnboardingScreen.profileFields:
               currentScreen = const ProfileFieldsScreen();
@@ -120,8 +115,6 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
               state.currentScreen == OnboardingScreen.narrativeIntelligence ||
               state.currentScreen == OnboardingScreen.sentinelIntro ||
               state.currentScreen == OnboardingScreen.phaseExplanation ||
-              state.currentScreen == OnboardingScreen.personalitySetup ||
-              state.currentScreen == OnboardingScreen.lumaraPreferences ||
               state.currentScreen == OnboardingScreen.profileFields) {
             return AnimatedSwitcher(
               duration: const Duration(milliseconds: 1600),

@@ -1,6 +1,6 @@
 # Firebase Gemini API Key Secret — Setup & Run
 
-The **Deep Analytical** mode (Mode 3) in LUMARA uses the `proxyGemini` Cloud Function, which reads the Gemini API key from a Firebase secret. No API key is stored in the app.
+The **Analysis** mode (Mode 3) in LUMARA uses the `proxyGemini` Cloud Function, which reads the Gemini API key from a Firebase secret. No API key is stored in the app.
 
 ---
 
@@ -79,7 +79,7 @@ Or use the deploy script:
 ## 4. Verify
 
 1. In the app, sign in (proxy requires auth).
-2. Open LUMARA chat and select **Deep Analytical**.
+2. Open LUMARA chat and select **Analysis**.
 3. Send a message — it should go through `proxyGemini` using the secret.
 
 To confirm the secret is set (name only, not value):

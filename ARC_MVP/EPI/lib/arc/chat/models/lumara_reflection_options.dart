@@ -100,7 +100,7 @@ class LumaraReflectionOptions {
   /// When true, use full master prompt (Detailed Analysis); when false, use short prompt (perceptive with context).
   final bool useDetailedAnalysis;
 
-  /// Three-way mode for reflection: Personal (Groq), Analytical (Groq), Deep Analytical (Gemini).
+  /// Three-way mode: Personal, Simple (`analytical`, no journal in payload), Analysis (`deepAnalytical`; Gemini when selected).
   final LumaraChatMode lumaraChatMode;
 
   LumaraReflectionOptions({

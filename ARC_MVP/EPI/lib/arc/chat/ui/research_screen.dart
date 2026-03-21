@@ -54,7 +54,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
   String? _documentContext;
   static final ImagePicker _imagePicker = ImagePicker();
 
-  /// Research agent (same as chat): generateForAgents + SwarmSpaceWebSearchTool with context for PRISM.
+  /// Research agent: [generateForAgents] (Gemini-first) + SwarmSpaceWebSearchTool with context for PRISM.
   ResearchAgent _createResearchAgent() {
     return ResearchAgent(
       getAgentOsPrefix: () => LumaraReflectionSettingsService.instance.getAgentOsPrefix(),
@@ -114,7 +114,10 @@ class _ResearchScreenState extends State<ResearchScreen> {
         documentContext: _documentContext,
       );
       if (!mounted) return;
-      final brief = ContentBrief.fromResearchReport(result.report);
+      final brief = ContentBrief.fromResearchReport(
+        result.report,
+        chronicleSessionId: result.sessionId,
+      );
       setState(() {
         _loading = false;
         _statusMessages.add('Done.');

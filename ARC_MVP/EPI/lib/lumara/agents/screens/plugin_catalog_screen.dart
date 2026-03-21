@@ -20,7 +20,7 @@ String _pluginDisplayName(String pluginId) {
     'wikipedia': 'Wikipedia',
     'currency': 'Currency',
     'news': 'News',
-    'vision-ocr': 'Vision/Scanning',
+    'vision-ocr': 'Image Analyzer',
     'url-reader': 'URL Reader',
     'tavily-search': 'Tavily Search',
     'exa-search': 'Exa Search',

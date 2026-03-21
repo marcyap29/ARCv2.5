@@ -42,6 +42,8 @@ class ContentBrief {
   final List<SourceRef> sources;
   final DateTime createdAt;
   final String query;
+  /// Persisted research session id (Chronicle artifact). When set, Outputs can open [ResearchReportDetailScreen].
+  final String? chronicleSessionId;
 
   const ContentBrief({
     required this.title,
@@ -50,6 +52,7 @@ class ContentBrief {
     this.sources = const [],
     required this.createdAt,
     required this.query,
+    this.chronicleSessionId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -59,6 +62,8 @@ class ContentBrief {
         'sources': sources.map((s) => s.toJson()).toList(),
         'created_at': createdAt.toIso8601String(),
         'query': query,
+        if (chronicleSessionId != null && chronicleSessionId!.isNotEmpty)
+          'chronicle_session_id': chronicleSessionId,
       };
 
   factory ContentBrief.fromJson(Map<String, dynamic> json) {
@@ -77,12 +82,13 @@ class ContentBrief {
           ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
           : DateTime.now(),
       query: json['query'] as String? ?? '',
+      chronicleSessionId: json['chronicle_session_id'] as String?,
     );
   }
 
   /// Build a ContentBrief from ResearchAgent's [ResearchReport] so the Research screen
   /// and Outputs can use the same format whether research is run from chat or the Research screen.
-  factory ContentBrief.fromResearchReport(ResearchReport report) {
+  factory ContentBrief.fromResearchReport(ResearchReport report, {String? chronicleSessionId}) {
     final keyPoints = report.abstractBullets.isNotEmpty
         ? report.abstractBullets
         : report.keyInsights.map((i) => i.statement).toList();
@@ -103,6 +109,7 @@ class ContentBrief {
       sources: sources,
       createdAt: report.generatedAt,
       query: report.query,
+      chronicleSessionId: chronicleSessionId,
     );
   }
 }

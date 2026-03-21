@@ -4,7 +4,8 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { OLLAMA_API_KEY } from "../config";
-import { enforceAuth } from "../authGuard";
+import { enforceAuth, checkJournalEntryLimit, checkChatLimit } from "../authGuard";
+import { checkUnifiedDailyLimit, checkRateLimit } from "../rateLimiter";
 
 const OLLAMA_CHAT_URL = "https://ollama.com/api/chat";
 // Default: NVIDIA Nemotron 3 Super 120B (Ollama Cloud). See https://ollama.com/library/nemotron-3-super
@@ -22,15 +23,49 @@ export const proxyOllama = onCall(
     secrets: [OLLAMA_API_KEY],
   },
   async (request) => {
-    const { system, user, temperature, maxTokens } = request.data ?? {};
+    const {
+      system,
+      user,
+      temperature,
+      maxTokens,
+      entryId,
+      chatId,
+      localCalendarDate,
+    } = request.data ?? {};
 
     if (!user || typeof user !== "string") {
       throw new HttpsError("invalid-argument", "user prompt is required");
     }
 
     const authResult = await enforceAuth(request);
-    const { userId } = authResult;
+    const { userId, isPremium } = authResult;
+    const userEmail = request.auth?.token?.email as string | undefined;
     logger.info(`Proxying Ollama request for user ${userId}`);
+
+    const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail, localCalendarDate);
+    if (!dailyCheck.allowed) {
+      throw new HttpsError(
+        "resource-exhausted",
+        dailyCheck.error?.message || "Daily limit reached",
+        dailyCheck.error
+      );
+    }
+
+    const rateLimitCheck = await checkRateLimit(userId, userEmail);
+    if (!rateLimitCheck.allowed) {
+      throw new HttpsError(
+        "resource-exhausted",
+        rateLimitCheck.error?.message || "Rate limit exceeded",
+        rateLimitCheck.error
+      );
+    }
+
+    if (entryId && typeof entryId === "string") {
+      await checkJournalEntryLimit(userId, entryId, isPremium);
+    }
+    if (chatId && typeof chatId === "string") {
+      await checkChatLimit(userId, chatId, isPremium);
+    }
 
     const apiKey = OLLAMA_API_KEY.value();
     if (!apiKey) {

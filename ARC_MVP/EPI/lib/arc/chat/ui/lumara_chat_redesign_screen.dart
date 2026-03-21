@@ -900,7 +900,7 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
                 onTapFile: _onTapPendingFile,
               ),
             ),
-          // Three-way mode toggle: Personal | Analytical | Deep Analytical
+          // Three-way mode toggle: Simple | Personal | Analysis
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: BlocBuilder<LumaraAssistantCubit, LumaraAssistantState>(
@@ -977,7 +977,7 @@ class _LumaraChatRedesignScreenState extends State<LumaraChatRedesignScreen> {
   }
 }
 
-/// Three-segment pill for LUMARA chat mode: Personal | Analytical | Deep Analytical.
+/// Three-segment pill for LUMARA chat mode: Simple | Personal | Analysis.
 class _LumaraModePill extends StatelessWidget {
   final LumaraChatMode currentMode;
   final ValueChanged<LumaraChatMode> onModeChanged;
@@ -996,9 +996,9 @@ class _LumaraModePill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _segment(context, LumaraChatMode.analytical, 'Simple'),
           _segment(context, LumaraChatMode.personal, 'Personal'),
-          _segment(context, LumaraChatMode.analytical, 'Analytical'),
-          _segment(context, LumaraChatMode.deepAnalytical, 'Deep Analytical'),
+          _segment(context, LumaraChatMode.deepAnalytical, 'Analysis'),
         ],
       ),
     );

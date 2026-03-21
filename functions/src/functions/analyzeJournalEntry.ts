@@ -50,7 +50,7 @@ export const analyzeJournalEntry = onCall(
     secrets: [GROQ_API_KEY],
   },
   async (request) => {
-    const { entryId, entryContent } = request.data;
+    const { entryId, entryContent, localCalendarDate } = request.data;
 
     // Validate request
     if (!entryId || !entryContent) {
@@ -264,8 +264,7 @@ This will expire automatically. In the meantime, please reach out:
       else {
         logger.info('✓ Safe for analysis - proceeding to Groq API');
         
-        // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
-        const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail);
+        const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail, localCalendarDate);
         if (!dailyCheck.allowed) {
           throw new HttpsError(
             "resource-exhausted",

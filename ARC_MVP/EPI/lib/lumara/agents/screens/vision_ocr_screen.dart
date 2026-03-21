@@ -1,6 +1,6 @@
 // lib/lumara/agents/screens/vision_ocr_screen.dart
 //
-// Vision/Scanning: pick image (Gallery or Scan/camera), run OCR or Understand.
+// Image Analyzer: pick image (Gallery or camera), Simple (text) or Detailed (Q&A).
 // Result and actions (Save to Outputs, Add to Research, Dismiss) shown inline below result.
 
 import 'dart:convert';
@@ -22,7 +22,7 @@ import 'package:my_app/lumara/profile/user_profile_service.dart';
 import 'package:my_app/services/swarmspace/prism_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 
-/// Screen for Vision/Scanning: OCR or Understand on a picked or camera-captured image.
+/// Screen for Image Analyzer: Simple (extract text) or Detailed (answer your question).
 class VisionOcrScreen extends StatefulWidget {
   const VisionOcrScreen({super.key});
 
@@ -33,19 +33,20 @@ class VisionOcrScreen extends StatefulWidget {
 class _VisionOcrScreenState extends State<VisionOcrScreen> {
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
-  bool _modeOcr = true; // true = OCR, false = Understand
-  final TextEditingController _promptController = TextEditingController(
-    text: 'Describe this image and any text in it. Be concise.',
-  );
+  /// true = Simple (OCR), false = Detailed (understand + prompt)
+  bool _modeSimple = true;
+  final TextEditingController _questionController = TextEditingController();
   String? _result;
   String? _error;
   bool _loading = false;
-  /// Last scan result as ParsedDocument for Save/Add to Research (inline actions).
   ParsedDocument? _lastParsedDocument;
+
+  static const String _defaultDetailedPrompt =
+      'Describe this image and any text in it. Be concise.';
 
   @override
   void dispose() {
-    _promptController.dispose();
+    _questionController.dispose();
     super.dispose();
   }
 
@@ -65,7 +66,6 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
     }
   }
 
-  /// Run vision-ocr plugin (OCR or Understand) on current image.
   Future<void> _run() async {
     if (_image == null) {
       setState(() => _error = 'Pick an image first.');
@@ -79,14 +79,16 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
     });
     try {
       final bytes = await _image!.readAsBytes();
+      if (!mounted) return;
       final base64 = base64Encode(bytes);
-      final mode = _modeOcr ? 'ocr' : 'understand';
+      final mode = _modeSimple ? 'ocr' : 'understand';
       final params = <String, dynamic>{
         'image_b64': base64,
         'mode': mode,
       };
-      if (!_modeOcr && _promptController.text.trim().isNotEmpty) {
-        params['prompt'] = _promptController.text.trim();
+      if (!_modeSimple) {
+        final q = _questionController.text.trim();
+        params['prompt'] = q.isNotEmpty ? q : _defaultDetailedPrompt;
       }
       final prismResult = await PrismService.instance.authoriseAndCall(
         pluginId: 'vision-ocr',
@@ -97,7 +99,7 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
       if (prismResult.isDenied) {
         setState(() {
           _loading = false;
-          _error = 'Vision/Scanning was cancelled.';
+          _error = 'Image Analyzer was cancelled.';
         });
         return;
       }
@@ -130,8 +132,8 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
     }
   }
 
-  /// Single "Scan" action: if no image, open camera then run; otherwise run on current image.
-  Future<void> _onScan() async {
+  /// Open camera (or run if image already selected).
+  Future<void> _onTakePicture() async {
     if (_image == null) {
       final XFile? picked = await _picker.pickImage(
         source: ImageSource.camera,
@@ -156,7 +158,6 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
       String contentJson = req.contentJson;
       String? thumbnailUrl = req.thumbnailUrl;
 
-      // Persist scan image to app storage (reflection-style) and attach to content.
       if (_image != null) {
         try {
           final appDir = await getApplicationDocumentsDirectory();
@@ -221,7 +222,6 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
     });
   }
 
-  /// Use scanned result to fill a form: parse "Label: value" from rawText if needed, then open FormReviewScreen.
   Future<void> _onFillForm(ParsedDocument document) async {
     ParsedDocument doc = document;
     if (doc.keyFields.isEmpty && doc.rawText.trim().isNotEmpty) {
@@ -264,7 +264,7 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: kcPrimaryTextColor),
         title: Text(
-          'Vision/Scanning',
+          'Image Analyzer',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: kcPrimaryTextColor,
                 fontWeight: FontWeight.bold,
@@ -278,7 +278,6 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Image box at top, below title
                 if (_image != null) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
@@ -291,7 +290,6 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
                   ),
                   const Gap(16),
                 ],
-                // Mode: OCR | Understand
                 Text(
                   'Mode',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(color: kcSecondaryColor),
@@ -299,35 +297,62 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
                 const Gap(6),
                 SegmentedButton<bool>(
                   segments: const [
-                    ButtonSegment(value: true, label: Text('OCR (extract text)'), icon: Icon(Icons.text_fields)),
-                    ButtonSegment(value: false, label: Text('Understand'), icon: Icon(Icons.auto_awesome)),
+                    ButtonSegment(
+                      value: true,
+                      label: Text('Simple'),
+                      icon: Icon(Icons.text_fields, size: 18),
+                    ),
+                    ButtonSegment(
+                      value: false,
+                      label: Text('Detailed'),
+                      icon: Icon(Icons.auto_awesome, size: 18),
+                    ),
                   ],
-                  selected: {_modeOcr},
+                  selected: {_modeSimple},
                   onSelectionChanged: (s) {
                     if (s.isEmpty) return;
                     setState(() {
-                      _modeOcr = s.first;
-                      // Clear previous error/result so the same photo can be re-scanned in the new mode.
+                      _modeSimple = s.first;
                       _error = null;
                       _result = null;
                       _lastParsedDocument = null;
                     });
                   },
                 ),
-                if (!_modeOcr) ...[
-                  const Gap(12),
-                  TextField(
-                    controller: _promptController,
-                    decoration: const InputDecoration(
-                      labelText: 'Prompt (optional)',
-                      hintText: 'Describe this image...',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
+                const Gap(16),
+                Text(
+                  'Add your question in the box below, then choose a photo. '
+                  'Detailed mode answers using vision; Simple mode extracts visible text.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: kcSecondaryColor,
+                        height: 1.35,
+                      ),
+                ),
+                const Gap(8),
+                Text(
+                  'Examples:\n'
+                  '• What kind of animal is this?\n'
+                  '• What kind of bug is this?\n'
+                  '• What kind of tree is this?\n'
+                  '• What is the name of this building?',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: kcPrimaryTextColor.withOpacity(0.85),
+                        height: 1.4,
+                      ),
+                ),
+                const Gap(12),
+                TextField(
+                  controller: _questionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Your question',
+                    hintText: 'What would you like to know about the image?',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
                   ),
-                ],
+                  maxLines: 3,
+                  style: const TextStyle(color: kcPrimaryTextColor),
+                ),
                 const Gap(20),
-                // Two buttons: Gallery | Scan
                 Row(
                   children: [
                     Expanded(
@@ -341,9 +366,9 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: _loading ? null : _onScan,
-                        icon: const Icon(Icons.document_scanner_outlined, size: 20),
-                        label: const Text('Scan'),
+                        onPressed: _loading ? null : _onTakePicture,
+                        icon: const Icon(Icons.photo_camera_outlined, size: 20),
+                        label: const Text('Take a picture'),
                         style: FilledButton.styleFrom(backgroundColor: kcPrimaryColor),
                       ),
                     ),
@@ -375,7 +400,6 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: kcPrimaryTextColor),
                     ),
                   ),
-                  // Inline actions below result (no modal)
                   if (_lastParsedDocument != null)
                     ScanResultActionsInline(
                       document: _lastParsedDocument!,
@@ -388,7 +412,6 @@ class _VisionOcrScreenState extends State<VisionOcrScreen> {
               ],
             ),
           ),
-          // Running overlay
           if (_loading)
             Container(
               color: Colors.black38,

@@ -439,13 +439,8 @@ class ARCXExportServiceV2 {
       onProgress?.call('Exporting LUMARA favorites...');
       lumaraFavoritesExported = await _exportLumaraFavorites(payloadDir);
       
-      // Export CHRONICLE aggregations (monthly/yearly/multiyear .md files + changelog)
-      onProgress?.call('Exporting CHRONICLE aggregations...');
-      final chronicleExported = await _exportChronicle(payloadDir);
-
-      // Export LUMARA Chronicle (causal chains, gap-fill events, patterns, relationships)
-      onProgress?.call('Exporting LUMARA causal chains and learning moments...');
-      final lumaraChronicleExported = await _exportLumaraChronicle(payloadDir);
+      // CHRONICLE is exported separately via [exportChronicleOnlyArcx] to keep journal/chat
+      // ARCX archives smaller and avoid oversized imports when re-exporting.
 
       // Export voice notes (Voice Notes tab)
       int voiceNotesExported = 0;
@@ -486,14 +481,14 @@ class ARCXExportServiceV2 {
         lumaraFavoritesAnswersCount: lumaraFavoritesExported['answers'] ?? 0,
         lumaraFavoritesChatsCount: lumaraFavoritesExported['chats'] ?? 0,
         lumaraFavoritesEntriesCount: lumaraFavoritesExported['entries'] ?? 0,
-        chronicleMonthlyCount: chronicleExported['monthly'] ?? 0,
-        chronicleYearlyCount: chronicleExported['yearly'] ?? 0,
-        chronicleMultiyearCount: chronicleExported['multiyear'] ?? 0,
-        chronicleChangelogEntries: chronicleExported['changelog_entries'] ?? 0,
-        lumaraCausalChainsCount: lumaraChronicleExported['causal_chains'] ?? 0,
-        lumaraGapFillsCount: lumaraChronicleExported['gap_fills'] ?? 0,
-        lumaraPatternsCount: lumaraChronicleExported['patterns'] ?? 0,
-        lumaraRelationshipsCount: lumaraChronicleExported['relationships'] ?? 0,
+        chronicleMonthlyCount: 0,
+        chronicleYearlyCount: 0,
+        chronicleMultiyearCount: 0,
+        chronicleChangelogEntries: 0,
+        lumaraCausalChainsCount: 0,
+        lumaraGapFillsCount: 0,
+        lumaraPatternsCount: 0,
+        lumaraRelationshipsCount: 0,
         voiceNotesCount: voiceNotesExported,
         separateGroups: false,
         options: options,
@@ -2890,6 +2885,104 @@ user_id: ${aggregation.userId}
     
     return result;
   }
+
+  /// Standalone ARCX containing only CHRONICLE (aggregations, changelog, pattern index)
+  /// and LUMARA Chronicle (causal chains, patterns, etc.). Import with the same .arcx flow.
+  ///
+  /// Journal entries, chats, voice notes, and media are **not** included — use the main
+  /// ARCX export for those.
+  Future<ARCXExportResultV2> exportChronicleOnlyArcx({
+    required Directory outputDir,
+    String? password,
+    Function(String)? onProgress,
+  }) async {
+    final appDocDir = await getApplicationDocumentsDirectory();
+    final tempDir = Directory(
+        path.join(appDocDir.path, 'arcx_chronicle_only_${DateTime.now().millisecondsSinceEpoch}'));
+    await tempDir.create(recursive: true);
+    final payloadDir = Directory(path.join(tempDir.path, 'payload'));
+    await payloadDir.create(recursive: true);
+    try {
+      onProgress?.call('Exporting CHRONICLE aggregations...');
+      final chronicleExported = await _exportChronicle(payloadDir);
+      onProgress?.call('Exporting LUMARA Chronicle...');
+      final lumaraChronicleExported = await _exportLumaraChronicle(payloadDir);
+
+      final exportId = 'arcx-chronicle-${_uuid.v4()}';
+      final exportedAt = DateTime.now().toUtc().toIso8601String();
+      final options = ARCXExportOptions(
+        strategy: ARCXExportStrategy.together,
+        encrypt: true,
+        compression: 'auto',
+        dedupeMedia: true,
+        includeChecksums: false,
+        trackExportHistory: false,
+      );
+
+      final manifest = _createManifest(
+        exportId: exportId,
+        exportedAt: exportedAt,
+        entriesCount: 0,
+        chatsCount: 0,
+        mediaCount: 0,
+        phaseRegimesCount: 0,
+        lumaraFavoritesCount: 0,
+        lumaraFavoritesAnswersCount: 0,
+        lumaraFavoritesChatsCount: 0,
+        lumaraFavoritesEntriesCount: 0,
+        chronicleMonthlyCount: chronicleExported['monthly'] ?? 0,
+        chronicleYearlyCount: chronicleExported['yearly'] ?? 0,
+        chronicleMultiyearCount: chronicleExported['multiyear'] ?? 0,
+        chronicleChangelogEntries: chronicleExported['changelog_entries'] ?? 0,
+        lumaraCausalChainsCount: lumaraChronicleExported['causal_chains'] ?? 0,
+        lumaraGapFillsCount: lumaraChronicleExported['gap_fills'] ?? 0,
+        lumaraPatternsCount: lumaraChronicleExported['patterns'] ?? 0,
+        lumaraRelationshipsCount: lumaraChronicleExported['relationships'] ?? 0,
+        voiceNotesCount: 0,
+        separateGroups: false,
+        options: options,
+      );
+
+      final manifestFile = File(path.join(payloadDir.path, 'manifest.json'));
+      await manifestFile.writeAsString(jsonEncode(manifest.toJson()));
+
+      onProgress?.call('Packaging Chronicle archive...');
+      var arcxPath = await _packageAndEncrypt(
+        payloadDir: payloadDir,
+        manifest: manifest,
+        outputDir: outputDir,
+        exportId: exportId,
+        password: password,
+        onProgress: onProgress,
+        compression: options.compression,
+        exportNumber: null,
+      );
+
+      final ts = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+      final named = path.join(outputDir.path, 'LUMARA_Chronicle_$ts.arcx');
+      try {
+        await File(arcxPath).rename(named);
+        arcxPath = named;
+      } catch (e) {
+        print('ARCX Chronicle export: could not rename to LUMARA_Chronicle_*.arcx: $e');
+      }
+
+      onProgress?.call('Chronicle export complete');
+      return ARCXExportResultV2.success(
+        arcxPath: arcxPath,
+        entriesExported: 0,
+        chatsExported: 0,
+        mediaExported: 0,
+      );
+    } catch (e, stackTrace) {
+      print('ARCX Chronicle-only export failed: $e\n$stackTrace');
+      return ARCXExportResultV2.failure(e.toString());
+    } finally {
+      try {
+        await tempDir.delete(recursive: true);
+      } catch (_) {}
+    }
+  }
   
   /// Export full backup split into chunks of ~chunkSizeMB each
   /// 
@@ -3003,7 +3096,22 @@ user_id: ${aggregation.userId}
         }
       }
       
-      _callProgress(onProgress, 'Chunked backup complete: ${chunks.length} files created', 1.0);
+      _callProgress(onProgress, 'Exporting Chronicle archive...', 0.92);
+      final allArcxPaths = List<String>.from(chunkPaths);
+      try {
+        final chronicleRes = await exportChronicleOnlyArcx(
+          outputDir: backupDir,
+          password: password,
+          onProgress: (m) => _callProgress(onProgress, m, 0.96),
+        );
+        if (chronicleRes.success && chronicleRes.arcxPath != null) {
+          allArcxPaths.add(chronicleRes.arcxPath!);
+        }
+      } catch (e, st) {
+        debugPrint('ARCX Chunked: Chronicle companion export failed: $e\n$st');
+      }
+
+      _callProgress(onProgress, 'Chunked backup complete: ${allArcxPaths.length} file(s)', 1.0);
       
       // Record in export history
       final historyService = ExportHistoryService.instance;
@@ -3049,7 +3157,7 @@ user_id: ${aggregation.userId}
       return ChunkedBackupResult(
         success: true,
         folderPath: backupDir.path,
-        chunkPaths: chunkPaths,
+        chunkPaths: allArcxPaths,
         totalChunks: chunks.length,
         totalEntries: allEntries.length,
         totalChats: allChats.length,

@@ -7,6 +7,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/services/lumara_usage_calendar.dart';
 
 const _proxyOllamaUrl = 'https://us-central1-arc-epi.cloudfunctions.net/proxyOllama';
 
@@ -20,6 +21,7 @@ Future<String> ollamaSend({
 }) async {
   final requestData = <String, dynamic>{
     'user': user,
+    'localCalendarDate': lumaraLocalCalendarDate(),
     if (system != null && system.isNotEmpty) 'system': system,
     if (temperature != 0.7) 'temperature': temperature,
     if (maxTokens != null) 'maxTokens': maxTokens,

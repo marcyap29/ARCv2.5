@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.5.0  
-**Last Updated:** 2026-03-10  
+**Last Updated:** 2026-03-20  
 **Record count:** 40 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
@@ -103,6 +103,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 
 | Fix / change | Version | Bug record | Notes |
 |--------------|---------|------------|--------|
+| Doc-config-git-backup; onboarding trim; Functions proxyGroq module; LUMARA/API; social-publisher worker | v3.3.80 | — | 2026-03-20: personality screens removed; root `functions/proxyGroq.ts`; lumara_usage_calendar on groq/gemini/ollama; outputs/feed/agents/research; Cloudflare worker Bluesky/LinkedIn; see CHANGELOG [3.3.80]. |
 | Reflection Session Safety System | v3.3.16 | — | Feature: AURORA-based risk monitoring with rumination/validation-seeking detection and tiered interventions. 6 new files. |
 | RevenueCat In-App Purchases | v3.3.16 | — | Feature: In-app subscription via RevenueCat SDK; dual-channel premium (Stripe web + RevenueCat in-app). |
 | Voice Sigil state machine upgrade | v3.3.16 | — | Feature: 6-state animation system replacing old glowing indicator; legacy voice journal files deleted. |

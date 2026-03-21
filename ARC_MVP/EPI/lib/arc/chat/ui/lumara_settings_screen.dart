@@ -619,12 +619,12 @@ class _LumaraSettingsScreenState extends State<LumaraSettingsScreen> {
                       if (mounted) setState(() => _mode1Api = p);
                     }),
                     const SizedBox(height: 10),
-                    _buildModeRockerRow(theme, 'Mode 2 (Analytical)', _mode2Api, (p) async {
+                    _buildModeRockerRow(theme, 'Mode 2 (Simple)', _mode2Api, (p) async {
                       await LumaraReflectionSettingsService.instance.setLumaraModeApi(LumaraChatMode.analytical, p);
                       if (mounted) setState(() => _mode2Api = p);
                     }),
                     const SizedBox(height: 10),
-                    _buildModeRockerRow(theme, 'Mode 3 (Deep Analytical)', _mode3Api, (p) async {
+                    _buildModeRockerRow(theme, 'Mode 3 (Analysis)', _mode3Api, (p) async {
                       await LumaraReflectionSettingsService.instance.setLumaraModeApi(LumaraChatMode.deepAnalytical, p);
                       if (mounted) setState(() => _mode3Api = p);
                     }),

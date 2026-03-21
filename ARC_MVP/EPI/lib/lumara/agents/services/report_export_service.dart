@@ -14,6 +14,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 import 'package:my_app/lumara/agents/models/research_models.dart';
+import 'package:my_app/lumara/agents/research/content_brief.dart';
 import 'package:my_app/lumara/agents/services/docx_export_helper.dart';
 import 'package:my_app/services/google_drive_service.dart';
 
@@ -26,6 +27,32 @@ enum ReportExportDestination { device, share, googleDrive }
 class ReportExportService {
   ReportExportService._();
   static final ReportExportService instance = ReportExportService._();
+
+  /// Build an ATLAS [ResearchReport] from a saved [ContentBrief] (Outputs tab) for export/share.
+  /// Full detailed findings are not stored in the brief; key points map to abstract bullets.
+  ResearchReport reportFromContentBrief(ContentBrief brief, {required String id}) {
+    final query = brief.query.trim().isNotEmpty ? brief.query : brief.title;
+    final citations = <ResearchCitation>[];
+    for (var i = 0; i < brief.sources.length; i++) {
+      final s = brief.sources[i];
+      citations.add(ResearchCitation(
+        id: i + 1,
+        title: s.title.isNotEmpty ? s.title : s.url,
+        source: s.domain.isNotEmpty ? s.domain : 'web',
+        url: s.url,
+      ));
+    }
+    return ResearchReport(
+      id: id,
+      query: query,
+      abstractBullets: List<String>.from(brief.keyPoints),
+      summary: brief.summary,
+      detailedFindings: '',
+      keyInsights: const [],
+      citations: citations,
+      generatedAt: brief.createdAt,
+    );
+  }
 
   /// Build markdown string from report (saves space; used as base for .md export).
   String toMarkdown(ResearchReport report) {

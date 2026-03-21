@@ -12,6 +12,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
+import 'package:my_app/services/lumara_usage_calendar.dart';
 
 /// Cloud Function URL — same region/project the SDK resolves to.
 const _proxyGroqUrl = 'https://us-central1-arc-epi.cloudfunctions.net/proxyGroq';
@@ -35,6 +36,7 @@ Future<String> groqSend({
 }) async {
   final requestData = <String, dynamic>{
     'user': user,
+    'localCalendarDate': lumaraLocalCalendarDate(),
     if (system != null && system.isNotEmpty) 'system': system,
     if (model != 'openai/gpt-oss-120b') 'model': model,
     if (temperature != 0.7) 'temperature': temperature,

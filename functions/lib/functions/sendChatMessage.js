@@ -43,7 +43,7 @@ const MODEL_CHANGE_INTENT = /change\s*(my\s*)?model|switch\s*model|use\s*(a\s*)?
 exports.sendChatMessage = (0, https_1.onCall)({
     secrets: [config_1.GROQ_API_KEY, config_1.GEMINI_API_KEY, config_1.LLM_SETTINGS_ENCRYPTION_KEY],
 }, async (request) => {
-    const { threadId, message } = request.data;
+    const { threadId, message, localCalendarDate } = request.data;
     // Validate request
     if (!threadId || !message) {
         throw new https_1.HttpsError("invalid-argument", "threadId and message are required");
@@ -54,8 +54,8 @@ exports.sendChatMessage = (0, https_1.onCall)({
     const userEmail = request.auth?.token?.email;
     firebase_functions_1.logger.info(`Sending chat message in thread ${threadId} for user ${userId} (anonymous: ${isAnonymous})`);
     try {
-        // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
-        const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail);
+        // Unified daily limit: 20 total LUMARA API calls/day (all modes); bucket = client local date when plausible
+        const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail, localCalendarDate);
         if (!dailyCheck.allowed) {
             throw new https_1.HttpsError("resource-exhausted", dailyCheck.error?.message || "Daily limit reached", dailyCheck.error);
         }

@@ -27,6 +27,10 @@ class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen>
   String? _saveError;
   /// When false, Detailed Findings is shown as rendered markdown; when true, as editable text field.
   bool _detailedFindingsEditing = false;
+  final ScrollController _bodyScrollController = ScrollController();
+  double _lastBodyScrollOffset = 0;
+  bool _showJumpToBottom = false;
+  bool _showJumpToTop = false;
   ResearchReport get report => widget.report;
 
   @override
@@ -36,10 +40,56 @@ class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen>
     _summaryController = TextEditingController(text: report.summary);
     _detailedFindingsController = TextEditingController(text: report.detailedFindings);
     _tags = List<String>.from(report.tags);
+    _bodyScrollController.addListener(_onBodyScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _onBodyScroll();
+    });
+  }
+
+  void _onBodyScroll() {
+    if (!_bodyScrollController.hasClients) return;
+    final offset = _bodyScrollController.offset;
+    final maxExtent = _bodyScrollController.position.maxScrollExtent;
+    const threshold = 150.0;
+    final nearTop = offset < threshold;
+    final nearBottom = offset > maxExtent - threshold;
+    final scrollingDown = offset > _lastBodyScrollOffset;
+    final scrollingUp = offset < _lastBodyScrollOffset;
+    _lastBodyScrollOffset = offset;
+
+    bool showBottom = false;
+    bool showTop = false;
+    if (maxExtent > 400) {
+      if (scrollingDown && !nearBottom) showBottom = true;
+      if (scrollingUp && !nearTop) showTop = true;
+    }
+    if (showBottom != _showJumpToBottom || showTop != _showJumpToTop) {
+      setState(() {
+        _showJumpToBottom = showBottom;
+        _showJumpToTop = showTop;
+      });
+    }
+  }
+
+  void _scrollBodyToTop() {
+    _bodyScrollController.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
+    setState(() => _showJumpToTop = false);
+  }
+
+  void _scrollBodyToBottom() {
+    if (!_bodyScrollController.hasClients) return;
+    _bodyScrollController.animateTo(
+      _bodyScrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOut,
+    );
+    setState(() => _showJumpToBottom = false);
   }
 
   @override
   void dispose() {
+    _bodyScrollController.removeListener(_onBodyScroll);
+    _bodyScrollController.dispose();
     _queryController.dispose();
     _summaryController.dispose();
     _detailedFindingsController.dispose();
@@ -596,10 +646,63 @@ class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen>
     );
   }
 
+  Future<void> _quickShareReport(BuildContext context) async {
+    final format = await showModalBottomSheet<ReportExportFormat>(
+      context: context,
+      backgroundColor: kcSurfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Share as',
+                style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: kcPrimaryTextColor,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.article_outlined),
+                title: const Text('Markdown (.md)'),
+                onTap: () => Navigator.pop(ctx, ReportExportFormat.markdown),
+              ),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf),
+                title: const Text('PDF'),
+                onTap: () => Navigator.pop(ctx, ReportExportFormat.pdf),
+              ),
+              ListTile(
+                leading: const Icon(Icons.description),
+                title: const Text('Word (.docx)'),
+                onTap: () => Navigator.pop(ctx, ReportExportFormat.docx),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (format == null || !context.mounted) return;
+    final ok = await ReportExportService.instance.exportAndShare(report, format: format);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'Share sheet opened' : 'Share failed'),
+        backgroundColor: ok ? Colors.green : Colors.red,
+      ),
+    );
+  }
+
   Widget _buildActionButtons(BuildContext context) {
     return Column(
       children: [
-        ElevatedButton.icon(
+        OutlinedButton.icon(
           onPressed: () {
             Navigator.push(
               context,
@@ -609,12 +712,11 @@ class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen>
               ),
             );
           },
-          icon: const Icon(Icons.edit_note),
-          label: const Text('Create Content from This Research'),
-          style: ElevatedButton.styleFrom(
+          icon: const Icon(Icons.edit_note, size: 20),
+          label: const Text('Use in Writing'),
+          style: OutlinedButton.styleFrom(
             minimumSize: const Size(double.infinity, 48),
-            backgroundColor: kcPrimaryColor,
-            foregroundColor: Colors.white,
+            foregroundColor: kcPrimaryColor,
           ),
         ),
         const SizedBox(height: 8),
@@ -705,6 +807,11 @@ class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen>
               ),
             ),
           IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share',
+            onPressed: () => _quickShareReport(context),
+          ),
+          IconButton(
             icon: _saving
                 ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.save_outlined),
@@ -720,11 +827,6 @@ class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen>
               const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_outline, color: Colors.red), SizedBox(width: 12), Text('Delete report', style: TextStyle(color: Colors.red))])),
             ],
           ),
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Back to Outputs',
-            onPressed: () => Navigator.of(context).pop(),
-          ),
         ],
       ),
       body: LayoutBuilder(
@@ -732,44 +834,98 @@ class _ResearchReportDetailScreenState extends State<ResearchReportDetailScreen>
           final isMobile = constraints.maxWidth < 600;
           final padding = EdgeInsets.all(isMobile ? 20 : 16);
           final sectionSpacing = isMobile ? 28.0 : 24.0;
-          return SingleChildScrollView(
-        padding: padding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context),
-            SizedBox(height: sectionSpacing),
-            _buildTagsSection(context),
-            SizedBox(height: sectionSpacing),
-            if (report.abstractBullets.isNotEmpty) ...[
-              _buildAbstractSection(context, isMobile),
-              SizedBox(height: sectionSpacing),
+          return Stack(
+            children: [
+              SingleChildScrollView(
+                controller: _bodyScrollController,
+                padding: padding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(context),
+                    SizedBox(height: sectionSpacing),
+                    _buildTagsSection(context),
+                    SizedBox(height: sectionSpacing),
+                    if (report.abstractBullets.isNotEmpty) ...[
+                      _buildAbstractSection(context, isMobile),
+                      SizedBox(height: sectionSpacing),
+                    ],
+                    _buildEditableSection(context, 'Summary', _summaryController, isMobile: isMobile),
+                    SizedBox(height: sectionSpacing),
+                    _buildDetailedFindingsSection(context, isMobile),
+                    if (report.keyInsights.isNotEmpty) ...[
+                      SizedBox(height: sectionSpacing),
+                      _buildInsightsSection(context, isMobile),
+                      SizedBox(height: sectionSpacing),
+                    ],
+                    if (report.strategicImplications.isNotEmpty) ...[
+                      SizedBox(height: sectionSpacing),
+                      _buildMarkdownSection(context, 'Strategic Implications',
+                          report.strategicImplications, isMobile),
+                    ],
+                    if (report.nextSteps.isNotEmpty) ...[
+                      SizedBox(height: sectionSpacing),
+                      _buildNextStepsSection(context),
+                    ],
+                    SizedBox(height: sectionSpacing),
+                    if (report.citations.isNotEmpty) _buildSourcesSection(context),
+                    const SizedBox(height: 32),
+                    _buildActionButtons(context),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+              if (_showJumpToBottom || _showJumpToTop)
+                Positioned(
+                  bottom: 16,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(24),
+                        onTap: _showJumpToBottom ? _scrollBodyToBottom : _scrollBodyToTop,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: kcSurfaceColor,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: kcPrimaryColor.withValues(alpha: 0.3)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _showJumpToBottom ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
+                                color: kcPrimaryColor,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _showJumpToBottom ? 'Jump to bottom' : 'Jump to top',
+                                style: const TextStyle(
+                                  color: kcPrimaryColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
-            _buildEditableSection(context, 'Summary', _summaryController, isMobile: isMobile),
-            SizedBox(height: sectionSpacing),
-            _buildDetailedFindingsSection(context, isMobile),
-            if (report.keyInsights.isNotEmpty) ...[
-              SizedBox(height: sectionSpacing),
-              _buildInsightsSection(context, isMobile),
-              SizedBox(height: sectionSpacing),
-            ],
-            if (report.strategicImplications.isNotEmpty) ...[
-              SizedBox(height: sectionSpacing),
-              _buildMarkdownSection(context, 'Strategic Implications',
-                  report.strategicImplications, isMobile),
-            ],
-            if (report.nextSteps.isNotEmpty) ...[
-              SizedBox(height: sectionSpacing),
-              _buildNextStepsSection(context),
-            ],
-            SizedBox(height: sectionSpacing),
-            if (report.citations.isNotEmpty) _buildSourcesSection(context),
-            const SizedBox(height: 32),
-            _buildActionButtons(context),
-            const SizedBox(height: 32),
-          ],
-        ),
-      );
+          );
         },
       ),
     );

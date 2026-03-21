@@ -1,8 +1,7 @@
 // lib/lumara/agents/research/research_pipeline.dart
 //
-// Phase 3 Research Pipeline: brave-search → semantic-scholar → gemini-flash synthesis.
+// Phase 3 Research Pipeline: brave-search → semantic-scholar → Groq synthesis ([generateForAgents]).
 // All plugin calls via PrismService.authoriseAndCall(). Returns ContentBrief.
-// When Gemini Flash is unavailable, falls back to Groq (generateForAgents) for synthesis.
 // Graceful degradation when search plugins fail.
 
 import 'dart:convert';
@@ -10,7 +9,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
 import 'package:my_app/services/swarmspace/prism_service.dart';
-import 'package:my_app/services/swarmspace/swarmspace_client.dart';
 
 import 'content_brief.dart';
 import 'research_models.dart';
@@ -118,7 +116,7 @@ Future<ContentBrief?> runResearchPipeline({
     }
   }
 
-  // ── Step 3: Synthesis (Gemini Flash, then Groq fallback) ───────────────────
+  // ── Step 3: Synthesis (Gemini-first via generateForAgents — Writing/Research agent default) ──
   onStage?.call('Synthesising...');
   final contextForSynthesis = _buildSynthesisContext(
     query: query,
@@ -127,40 +125,19 @@ Future<ContentBrief?> runResearchPipeline({
     documentContext: documentContext,
   );
 
-  String? rawText;
-  final geminiResult = await callPlugin('gemini-flash', {
-    'system': _synthesisSystemPrompt,
-    'user': contextForSynthesis,
-    'max_tokens': 1500,
-    'temperature': 0.4,
-  });
-
-  if (!geminiResult.isDenied && geminiResult.result != null && geminiResult.result!.success) {
-    final geminiData = geminiResult.result!.data;
-    rawText = geminiData?['text'] as String? ??
-        geminiData?['content'] as String? ??
-        _extractTextFromCandidates(geminiData) ??
-        '';
-  }
-
-  // Fallback to Groq when Gemini Flash is unavailable (same path as LUMARA chat research).
-  if (rawText == null || rawText.trim().isEmpty) {
-    onStage?.call(
-      'Synthesising with other sources...',
+  late final String rawText;
+  try {
+    rawText = await generateForAgents(
+      systemPrompt: _synthesisSystemPrompt,
+      userPrompt: contextForSynthesis,
+      maxTokens: 1500,
     );
-    try {
-      rawText = await generateForAgents(
-        systemPrompt: _synthesisSystemPrompt,
-        userPrompt: contextForSynthesis,
-        maxTokens: 1500,
-      );
-    } catch (e) {
-      setError(kPipelineFailureMessage);
-      return null;
-    }
+  } catch (e) {
+    setError(kPipelineFailureMessage);
+    return null;
   }
 
-  if (rawText == null || rawText.trim().isEmpty) {
+  if (rawText.trim().isEmpty) {
     setError(kPipelineFailureMessage);
     return null;
   }
@@ -232,18 +209,6 @@ You are a research synthesizer. Given a research question and web/academic snipp
 - summary: 2–4 sentence summary
 - keyPoints: array of 3–6 bullet points (strings)
 - sources: array of { "title", "url", "domain" } from the provided snippets (include at least the most relevant). Output only valid JSON, no markdown.''';
-
-String? _extractTextFromCandidates(Map<String, dynamic>? data) {
-  if (data == null) return null;
-  final candidates = data['candidates'] as List?;
-  if (candidates == null || candidates.isEmpty) return null;
-  final first = candidates.first as Map<String, dynamic>?;
-  final content = first?['content'] as Map<String, dynamic>?;
-  final parts = content?['parts'] as List?;
-  if (parts == null || parts.isEmpty) return null;
-  final part = parts.first as Map<String, dynamic>?;
-  return part?['text'] as String?;
-}
 
 ContentBrief? _parseSynthesisToBrief({
   required String query,

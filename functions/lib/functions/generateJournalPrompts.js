@@ -30,7 +30,7 @@ const db = admin_1.admin.firestore();
 exports.generateJournalPrompts = (0, https_1.onCall)({
     secrets: [config_1.GROQ_API_KEY],
 }, async (request) => {
-    const { expanded = false, context } = request.data || {};
+    const { expanded = false, context, localCalendarDate } = request.data || {};
     const userId = request.auth?.uid;
     if (!userId) {
         throw new https_1.HttpsError("unauthenticated", "User must be authenticated");
@@ -45,8 +45,7 @@ exports.generateJournalPrompts = (0, https_1.onCall)({
         const user = userDoc.data();
         void user; // Reserved for future tier-based logic
         const userEmail = request.auth?.token?.email;
-        // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
-        const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail);
+        const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail, localCalendarDate);
         if (!dailyCheck.allowed) {
             throw new https_1.HttpsError("resource-exhausted", dailyCheck.error?.message || "Daily limit reached", dailyCheck.error);
         }

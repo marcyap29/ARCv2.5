@@ -1,7 +1,31 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.79
-**Last Updated:** March 10, 2026
+**Version:** 3.3.80
+**Last Updated:** March 20, 2026
+
+---
+
+## [3.3.80] - March 20, 2026
+
+### Doc-config-git-backup run; onboarding trim; root Functions proxyGroq module; LUMARA API; social-publisher worker
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup). Commit, push `test`, merge `test` → `main`.
+
+**Updated (sync with repo):**
+- **Onboarding:** Removed standalone `personality_reminder_screen` and `personality_setup_screen`; `arc_onboarding_cubit`, `arc_onboarding_sequence`, `arc_onboarding_state`, `phase_reveal_screen` adjusted.
+- **Firebase Functions (repo root `functions/`):** Added `src/functions/proxyGroq.ts` (compiled to `lib/functions/proxyGroq.js`); `index` exports; updates to `authGuard`, `rateLimiter`, `proxyGemini`, `proxyOllama`, `sendChatMessage`, `generateJournalReflection`, `generateJournalPrompts`, `analyzeJournalEntry`, `swarmspaceRouter`.
+- **EPI `ARC_MVP/EPI/functions/index.js`:** Groq proxy and related callable wiring updates.
+- **LUMARA:** `lumara_assistant_cubit`, `enhanced_lumara_api`, `lumara_cloud_generate`, `lumara_master_prompt`, `lumara_mode_definition`, `lumara_reflection_settings_service`, `reflection_handler`, chat/splash/settings/research/writing screens; voice `voice_session_service`.
+- **LLM clients:** Shared `lumara_usage_calendar.dart` (`lumaraLocalCalendarDate`) for per-day metadata on `groq_send` / `gemini_send` / `ollama_send` requests.
+- **Outputs & feed:** `output_detail_screen`, `outputs_tab_screen`; unified feed cards (`active_conversation`, `lumara_prompt`, `reflection`, `saved_conversation`, `voice_memo`) and `timeline_modal`.
+- **Agents / research:** `agents_screen`, `research_pipeline`, `content_brief`, `research_report_detail_screen`, `vision_ocr_screen`, `report_export_service`; `agent_tips`.
+- **ARCX:** `arcx_export_service_v2` export path refinements.
+- **Settings / home / journal:** `settings_view`, `home_view`, `journal_screen`; `mcp_export_screen`; subscription status touch-ups.
+- **SwarmSpace:** `agents_connection_service`, `prism_service` updates.
+- **Cloudflare social-publisher worker:** `scripts/cloudflare-workers/social-publisher` — `index.ts` expansion, `bluesky.ts`, `linkedin.ts`, README/wrangler/test updates.
+- **Docs:** `SOCIAL_PUBLISHER_ACTIVATION.md` (router deploy + worker activation); trims/updates to `LUMARA_MESSAGE_INJECTION.md`, `FIREBASE_GEMINI_SECRET_SETUP.md`, `Key Commands to Remember.md`.
+
+**Prompt audit:** Edits in existing sources (`lumara_master_prompt.dart`, `lumara_mode_definition.dart`, backend TS callables). PROMPT_REFERENCES v2.9.1 — catalog sync + backend path note for `proxyGroq`.
 
 ---
 

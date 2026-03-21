@@ -715,6 +715,11 @@ class _McpExportScreenState extends State<McpExportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Successfully exported ${result.entriesExported} entries, ${result.chatsExported} chats, and ${result.mediaExported} media items.'),
+            const SizedBox(height: 12),
+            Text(
+              'CHRONICLE summaries are not in this file. Export them from Settings → Import & Export → Export Chronicle (.arcx).',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.35),
+            ),
             const SizedBox(height: 16),
             if (result.arcxPath != null)
               Text(

@@ -122,10 +122,16 @@ exports.getUserSubscription = onCall(
 
     if (userDoc.exists) {
       const userData = userDoc.data();
-      // Check if user has active Stripe subscription
-      if (userData.stripeSubscriptionId &&
+      const st = String(userData.subscriptionTier || '').toLowerCase();
+      if (
+        (userData.stripeSubscriptionId &&
           userData.subscriptionStatus === 'active' &&
-          userData.subscriptionTier === 'premium') {
+          userData.subscriptionTier === 'premium') ||
+        userData.plan === 'pro' ||
+        userData.subscriptionTier === 'PAID' ||
+        userData.throttleUnlocked === true ||
+        (st === 'premium' && userData.subscriptionStatus === 'active')
+      ) {
         tier = 'premium';
       }
     }
@@ -141,7 +147,7 @@ exports.getUserSubscription = onCall(
     features: {
       lumaraThrottled: tier === 'free',
       phaseHistoryRestricted: tier === 'free',
-      dailyLumaraLimit: tier === 'premium' ? -1 : 50
+      dailyLumaraLimit: tier === 'premium' ? -1 : 20
     }
   };
   }
@@ -213,12 +219,82 @@ exports.getAssemblyAIToken = onCall(
   }
 );
 
-/** Free-tier daily LUMARA call limit (enforced server-side) */
-const FREE_TIER_DAILY_LUMARA_LIMIT = 50;
+/** Free-tier unified daily LUMARA limit (all modes: chat, reflection, voice, agents, Groq/Gemini, etc.) */
+const FREE_TIER_DAILY_LUMARA_LIMIT = 20;
+
+function addDaysIso(iso, deltaDays) {
+  const parts = iso.split("-").map(Number);
+  const y = parts[0];
+  const m = parts[1];
+  const d = parts[2];
+  const t = Date.UTC(y, m - 1, d) + deltaDays * 86400000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/** Client sends device-local YYYY-MM-DD; accept if plausibly "today" globally (UTC ±1 day), else UTC bucket. */
+function resolveLumaraUsageDay(clientLocalCalendarDate) {
+  const utcToday = new Date().toISOString().slice(0, 10);
+  const plausible = new Set([
+    addDaysIso(utcToday, -1),
+    utcToday,
+    addDaysIso(utcToday, 1),
+  ]);
+  if (
+    typeof clientLocalCalendarDate === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(clientLocalCalendarDate) &&
+    plausible.has(clientLocalCalendarDate)
+  ) {
+    return clientLocalCalendarDate;
+  }
+  return utcToday;
+}
+
+function userHasPremiumLumaraAccess(userData, email) {
+  const exemptEmails = [
+    "marcyap@orbitalai.net",
+    "marcyap@fastmail.com",
+    "tester1@tester1.com",
+  ];
+  if (email && exemptEmails.includes(email.toLowerCase())) return true;
+  const st = String(userData.subscriptionTier || "").toLowerCase();
+  return (
+    (userData.subscriptionTier === "premium" && userData.subscriptionStatus === "active") ||
+    userData.plan === "pro" ||
+    userData.subscriptionTier === "PAID" ||
+    userData.throttleUnlocked === true ||
+    (st === "premium" && userData.subscriptionStatus === "active")
+  );
+}
+
+async function enforceUnifiedLumaraDailyLimit(uid, email, localCalendarDate) {
+  const db = getFirestore();
+  const userRef = db.collection("users").doc(uid);
+  const userDoc = await userRef.get();
+  const userData = userDoc.exists ? userDoc.data() : {};
+
+  if (userHasPremiumLumaraAccess(userData, email)) {
+    return;
+  }
+
+  const today = resolveLumaraUsageDay(localCalendarDate);
+  const usage = userData.lumaraDailyUsage || {};
+  if (usage.date === today && (usage.count || 0) >= FREE_TIER_DAILY_LUMARA_LIMIT) {
+    console.log(`Unified LUMARA daily limit reached for user ${uid}`);
+    throw new HttpsError(
+      "resource-exhausted",
+      `Daily limit of ${FREE_TIER_DAILY_LUMARA_LIMIT} LUMARA requests reached. Upgrade to premium for unlimited use.`
+    );
+  }
+  const newCount = usage.date === today ? (usage.count || 0) + 1 : 1;
+  await userRef.set(
+    { lumaraDailyUsage: { date: today, count: newCount } },
+    { merge: true }
+  );
+}
 
 /**
  * Proxy Gemini API calls - hides API key from client.
- * Rate limiting: free-tier users are limited to FREE_TIER_DAILY_LUMARA_LIMIT calls per day (enforced here).
+ * Rate limiting: free tier shares one counter across all LUMARA proxy paths (see enforceUnifiedLumaraDailyLimit).
  */
 exports.proxyGemini = onCall(
   {
@@ -231,48 +307,11 @@ exports.proxyGemini = onCall(
       throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
     }
 
-    const { system, user, jsonExpected } = request.data;
+    const { system, user, jsonExpected, localCalendarDate } = request.data || {};
     const uid = request.auth.uid;
     const email = request.auth.token.email;
 
-    // Rate limiting for free-tier users (server-side enforcement)
-    const db = getFirestore();
-    const userRef = db.collection("users").doc(uid);
-    const userDoc = await userRef.get();
-    const userData = userDoc.exists ? userDoc.data() : {};
-
-    // Founder/admin emails are always exempt from rate limiting
-    const exemptEmails = [
-      'marcyap@orbitalai.net',
-      'marcyap@fastmail.com',
-      'tester1@tester1.com',
-    ];
-    const isExemptEmail = email && exemptEmails.includes(email.toLowerCase());
-
-    // Check premium status: active Stripe subscription, or "pro" plan, or "PAID" tier
-    const hasActivePremium = (
-      (userData.subscriptionTier === "premium" && userData.subscriptionStatus === "active") ||
-      userData.plan === "pro" ||
-      userData.subscriptionTier === "PAID"
-    );
-
-    const tier = (isExemptEmail || hasActivePremium) ? "premium" : "free";
-    if (tier === "free") {
-      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const usage = userData.lumaraDailyUsage || {};
-      if (usage.date === today && (usage.count || 0) >= FREE_TIER_DAILY_LUMARA_LIMIT) {
-        console.log(`proxyGemini: Free-tier daily limit reached for user ${uid}`);
-        throw new HttpsError(
-          "resource-exhausted",
-          `Daily limit of ${FREE_TIER_DAILY_LUMARA_LIMIT} LUMARA requests reached. Upgrade to premium for unlimited use.`
-        );
-      }
-      const newCount = usage.date === today ? (usage.count || 0) + 1 : 1;
-      await userRef.set(
-        { lumaraDailyUsage: { date: today, count: newCount } },
-        { merge: true }
-      );
-    }
+    await enforceUnifiedLumaraDailyLimit(uid, email, localCalendarDate);
 
     // Debug logging for parameter validation
     console.log('proxyGemini: Received data:', {
@@ -373,13 +412,15 @@ exports.proxyGroq = onCall(
       return { ok: true, ts: Date.now() };
     }
 
-    const { system, user, model, temperature, maxTokens, entryId, chatId } = request.data || {};
+    const { system, user, model, temperature, maxTokens, entryId, chatId, localCalendarDate } = request.data || {};
     const uid = request.auth.uid;
     const email = request.auth.token.email;
 
     if (user == null) {
       throw new HttpsError("invalid-argument", "user is required");
     }
+
+    await enforceUnifiedLumaraDailyLimit(uid, email, localCalendarDate);
     const systemStr = typeof system === "string" ? system : (system != null ? JSON.stringify(system) : "");
     const userStr = typeof user === "string" ? user : JSON.stringify(user);
     if (userStr.trim().length === 0) {

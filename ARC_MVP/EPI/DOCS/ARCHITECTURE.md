@@ -1,8 +1,8 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.67
-**Last Updated:** March 10, 2026
-**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA (GPT-OSS 120B primary), LUMARA Vision Reposition (phases de-emphasized in UI), Personality Onboarding, Dual Prompt Mode, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration (HealthKit removed on iOS in v3.3.67), AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, and Timeline Pagination
+**Version:** 3.3.80
+**Last Updated:** March 20, 2026
+**Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA (GPT-OSS 120B primary), LUMARA Vision Reposition (phases de-emphasized in UI), streamlined onboarding (standalone personality setup screens removed v3.3.80), Dual Prompt Mode, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration (HealthKit removed on iOS in v3.3.67), AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Timeline Pagination, repo-root Firebase Functions `proxyGroq` module (v3.3.80), SwarmSpace social-publisher Cloudflare worker (Bluesky/LinkedIn paths)
 
 ---
 
@@ -85,6 +85,9 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Voice Session: Auto-Endpoint Disabled (v3.3.20)**: Voice recording no longer auto-stops on silence; user must tap to end turn (prevents premature cutoff).
 - ✅ **Privacy Settings: Inline PII Scrub Demo (v3.3.20)**: Real-time PII scrubbing demo in Privacy Settings; shows scrubbed output and redaction count.
 - ✅ **Google Drive Export Progress UI (v3.3.17)**: Visual progress bar with percentage, granular stage messages, and spinner during Google Drive backup export.
+- ✅ **Onboarding consolidation (v3.3.80)**: Standalone personality reminder and personality setup screens removed; onboarding flow carried by `arc_onboarding_*` and related widgets.
+- ✅ **Firebase Functions source layout (v3.3.80)**: Repo-root `functions/src/functions/proxyGroq.ts` (and siblings) as the TypeScript module path for Groq proxy deployment; rate limiter and auth guard updates alongside journal callables.
+- ✅ **SwarmSpace social-publisher worker (v3.3.80)**: Cloudflare Worker under `scripts/cloudflare-workers/social-publisher/` extended (e.g. Bluesky/LinkedIn helpers); activation and router deploy documented in `SOCIAL_PUBLISHER_ACTIVATION.md`.
 
 ### Current Version
 

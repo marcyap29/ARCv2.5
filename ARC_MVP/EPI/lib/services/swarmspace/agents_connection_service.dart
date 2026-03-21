@@ -52,6 +52,9 @@ class AgentsConnectionService {
   static const String writingAgentId = 'writing';
   static const String researchAgentId = 'research';
   static const String newsAgentId = 'news';
+  static const String imageAnalyzerAgentId = 'image_analyzer';
+
+  static const String _visionOcr = 'vision-ocr';
 
   final SwarmSpaceClient _client = SwarmSpaceClient.instance;
 
@@ -130,6 +133,40 @@ class AgentsConnectionService {
     }
   }
 
+  /// Image Analyzer (vision-ocr) — Simple / Detailed photo analysis.
+  Future<AgentConnectionState> checkImageAnalyzerConnection() async {
+    try {
+      final available = await _client.isPluginAvailable(_visionOcr);
+      if (!available) {
+        return AgentConnectionState(
+          agentId: imageAnalyzerAgentId,
+          status: AgentConnectionStatus.notConnected,
+          message: 'Connect SwarmSpace in Settings to use Image Analyzer.',
+        );
+      }
+      final quota = _client.getCachedQuota(_visionOcr);
+      if (quota != null && quota.isExhausted) {
+        return AgentConnectionState(
+          agentId: imageAnalyzerAgentId,
+          status: AgentConnectionStatus.connected,
+          message: 'Daily vision quota reached. Resets at midnight UTC.',
+          quota: quota,
+        );
+      }
+      return AgentConnectionState(
+        agentId: imageAnalyzerAgentId,
+        status: AgentConnectionStatus.connected,
+        quota: quota,
+      );
+    } catch (e) {
+      return AgentConnectionState(
+        agentId: imageAnalyzerAgentId,
+        status: AgentConnectionStatus.notConnected,
+        message: 'Unable to check: $e',
+      );
+    }
+  }
+
   /// Check news plugin availability.
   Future<AgentConnectionState> checkNewsConnection() async {
     try {
@@ -156,11 +193,13 @@ class AgentsConnectionService {
       checkWritingConnection(),
       checkResearchConnection(),
       checkNewsConnection(),
+      checkImageAnalyzerConnection(),
     ]);
     return {
       writingAgentId: results[0],
       researchAgentId: results[1],
       newsAgentId: results[2],
+      imageAnalyzerAgentId: results[3],
     };
   }
 

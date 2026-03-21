@@ -33,7 +33,7 @@ export const generateJournalPrompts = onCall(
     secrets: [GROQ_API_KEY],
   },
   async (request) => {
-    const { expanded = false, context } = request.data || {};
+    const { expanded = false, context, localCalendarDate } = request.data || {};
 
     const userId = request.auth?.uid;
     if (!userId) {
@@ -53,8 +53,7 @@ export const generateJournalPrompts = onCall(
       void user; // Reserved for future tier-based logic
       const userEmail = request.auth?.token?.email as string | undefined;
 
-      // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
-      const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail);
+      const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail, localCalendarDate);
       if (!dailyCheck.allowed) {
         throw new HttpsError(
           "resource-exhausted",

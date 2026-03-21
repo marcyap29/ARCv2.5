@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-02-25. Document version: 2.9.0.
+- **Last synced with codebase:** 2026-03-20. Document version: 2.9.1.
 
 ---
 
@@ -1260,8 +1260,8 @@ The Firebase Cloud Functions use LUMARA-style system prompts that are simplified
 
 | Function | Purpose | Prompt type |
 |----------|---------|-------------|
-| **proxyGroq** (`functions/index.js`) | **Primary** cloud LLM proxy (v3.3.24) | Forwards system + user prompts to Groq API (Llama 3.3 70B / Mixtral 8x7b). No prompt modification — passes through exactly. API key hidden via Firebase Secret Manager (`GROQ_API_KEY`). |
-| **proxyGemini** (`functions/index.js`) | **Fallback** cloud LLM proxy | Forwards system + user prompts to Gemini API. No prompt modification — passes through exactly. API key hidden via `GEMINI_API_KEY` secret. |
+| **proxyGroq** (`functions/src/functions/proxyGroq.ts` → repo-root deploy; legacy inline also in `ARC_MVP/EPI/functions/index.js`) | **Primary** cloud LLM proxy | Forwards system + user prompts to Groq (e.g. GPT-OSS 120B). No prompt modification — passes through. API key via Firebase Secret Manager (`GROQ_API_KEY`). |
+| **proxyGemini** (`functions/src/functions/proxyGemini.ts` + exports) | **Fallback** cloud LLM proxy | Forwards system + user prompts to Gemini. No prompt modification — passes through. API key via `GEMINI_API_KEY` secret. |
 | **sendChatMessage.ts** | Chat with user (cloud) | LUMARA system prompt with web access and trigger-safety policy |
 | **generateJournalReflection.ts** | Journal reflection (cloud) | LUMARA system prompt (simplified, no web access); encourages gentle guidance when patterns suggest it |
 | **generateJournalPrompts.ts** | Journal prompt generation | LUMARA system prompt for generating 4 initial or 12-18 expanded prompts (33/33/33 mix: contextual, fun/playful, deep) |
@@ -2060,6 +2060,7 @@ At runtime the interceptor concatenates: `'$_privacySystemPrompt\n$originalSyste
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.9.1 | 2026-03-20 | **Doc sync (v3.3.80):** Backend table — `proxyGroq` / `proxyGemini` canonical paths under repo-root `functions/src/functions/` (deploy bundle), with note on legacy `ARC_MVP/EPI/functions/index.js` Groq inline. Ongoing prompt text updates in `lumara_master_prompt.dart`, `lumara_mode_definition.dart`; callable prompt alignment in `sendChatMessage.ts`, `generateJournalReflection.ts`, `generateJournalPrompts.ts`, `analyzeJournalEntry.ts` (no new prompt categories). |
 | 2.9.0 | 2026-02-25 | **v3.3.59 prompt changes:** (1) `prompts_arc.dart` system prompt rewritten — "ARC's journaling copilot" → "LUMARA, a personal AI inside a private journaling app"; added journal context awareness, direct answer directives; **Bible retrieval instructions removed** (module deleted). (2) `lumara_master_prompt.dart` — new `USER PERSONALITY CONFIG` and `INFERRED PREFERENCES` control state blocks; phase de-emphasis ("do not name or cite phase labels to the user"); all "Claude" / "Claude-quality" references → "natural" / "conversational"; new `<response_shape>` section for journal reflections. (3) GPT-OSS 120B default model in `groq_send.dart` (was Llama 3.3 70B). (4) `lumara_cloud_generate.dart` simplified to 2-tier (proxyGroq → direct Groq; Gemini fallback removed). (5) §7 Faith/Biblical Scholar: note added — Bible module removed, mentor profile retained. |
 | 2.8.0 | 2026-02-24 | **Prompt audit:** Added LUMARA Groq Cached Prompt — `lib/arc/chat/llm/prompts/lumara_groq_cached_prompt.dart` (`lumaraStableSystemPrompt`, `buildLumaraDynamicContext`). Stable prefix for Groq caching (~50% cached input discount); used by `groq_send.dart`. |
 | 2.7.0 | 2026-02-20 | **Prompt audit:** Added §1 ECHO On-Device LLM System Prompt (Qwen Adapter) — `lib/echo/providers/llm/prompt_templates.dart` (`PromptTemplates.systemPrompt`, task templates for weekly_summary/rising_patterns/phase_rationale/compare_period/prompt_suggestion/chat, few-shot examples, context formatter). Used by ECHO Qwen/Gemma on-device adapter via `qwen_adapter.dart`. |

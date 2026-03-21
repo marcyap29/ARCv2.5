@@ -18,7 +18,7 @@ class AgentTip {
 
 /// All tips shown in rotation. Add new ones here.
 final List<AgentTip> kAgentTips = [
-  const AgentTip('Vision vs OCR: Use Vision for exact text extraction; use LUMARA for understanding and summarizing images.'),
+  const AgentTip('Image Analyzer: Simple for text on the page; Detailed to ask what something is.'),
   const AgentTip('Research uses Brave Search, Tavily, and more—sources are cited in the report.'),
   const AgentTip('Writing keeps your voice and themes; paste a research summary for better drafts.'),
   const AgentTip('Plugins in the catalog show tier (free/standard/premium) and example queries.'),

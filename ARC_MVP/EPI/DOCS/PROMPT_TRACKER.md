@@ -1,7 +1,7 @@
 # Prompt Tracker
 
-**Version:** 1.28.0  
-**Last Updated:** March 10, 2026  
+**Version:** 1.29.0  
+**Last Updated:** March 20, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
 ---
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-03-20 | Doc sync v3.3.80: Doc-config-git-backup run; master prompt / mode definition / backend callable prompt edits; PROMPT_REFERENCES v2.9.1 (sync date, backend proxy paths, version history) | CHANGELOG v3.3.80 |
 | 2026-03-10 | Doc sync v3.3.79: Doc-config-git-backup run; Research Agent depth selector (Brief/Summary/Deep Dive); prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.79 |
 | 2026-03-10 | Doc sync v3.3.78: Doc-config-git-backup run; ARCX import progress phases; Chronicle Management UI simplification; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.78 |
 | 2026-03-10 | Doc sync v3.3.77: Doc-config-git-backup run; ARCX CHRONICLE + pattern index; timeline refresh after restore; Chronicle export/import themes; prompt audit — no new prompts; PROMPT_REFERENCES v2.9.0 unchanged | CHANGELOG v3.3.77 |

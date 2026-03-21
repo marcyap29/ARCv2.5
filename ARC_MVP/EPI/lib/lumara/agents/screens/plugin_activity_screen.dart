@@ -14,7 +14,7 @@ const Map<String, String> _pluginDisplayNames = {
   'brave-search': 'Brave Search',
   'semantic-scholar': 'Semantic Scholar',
   'gemini-flash': 'Gemini Flash',
-  'vision-ocr': 'Vision/Scanning',
+  'vision-ocr': 'Image Analyzer',
   'url-reader': 'URL Reader',
   'media-upload': 'Media Upload',
   'tavily-search': 'Tavily Search',

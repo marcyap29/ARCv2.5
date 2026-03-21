@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 10, 2026 (doc sync 2026-03-10, v3.3.79)  
+**Last Updated:** March 20, 2026 (doc sync 2026-03-20, v3.3.80)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -45,15 +45,15 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-10 | ✅ Synced | v3.3.67 - HealthKit removal, OpenAI provider removal |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-10 | ✅ Synced | v3.3.79 - Research Agent depth selector (Brief/Summary/Deep Dive) |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-10 | ✅ Synced | v2.9.0 - no new prompts this run |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-10 | ✅ Synced | v1.28.0 - Doc sync 2026-03-10 (v3.3.79) row |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-10 | ✅ Synced | v3.5.0 - 40 records; Last Updated 2026-03-10 |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-10 | ✅ Synced | v3.3.67 - doc sync |
-| README.md | `/DOCS/README.md` | 2026-03-10 | ✅ Synced | Key docs table; CHANGELOG version ref updated |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-20 | ✅ Synced | v3.3.80 - onboarding trim, root Functions proxyGroq module, social-publisher worker |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-20 | ✅ Synced | v3.3.80 - doc-config-git-backup + repo delta since v3.3.79 |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-20 | ✅ Synced | v2.9.1 - backend proxy paths; v3.3.80 prompt-source edits |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-20 | ✅ Synced | v1.29.0 - Doc sync 2026-03-20 (v3.3.80) row |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-20 | ✅ Synced | v3.5.0 - 40 records; Last Updated 2026-03-20 |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-20 | ✅ Synced | v3.3.80 - doc sync |
+| README.md | `/DOCS/README.md` | 2026-03-20 | ✅ Synced | Key docs table; CHANGELOG v3.3.80 |
 | claude.md | `/DOCS/claude.md` | 2026-03-06 | ✅ Synced | Doc/Config/Git Backup prompt |
-| backend.md | `/DOCS/backend.md` | 2026-03-10 | ✅ Synced | v3.3.67 - OpenAI adapter removed |
+| backend.md | `/DOCS/backend.md` | 2026-03-20 | ✅ Synced | v3.3.80 - proxyGroq.ts module, rateLimiter/authGuard |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
 ### White Papers & Specifications
@@ -116,10 +116,25 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | LUMARA_SWARMSPACE_BUILD_STATUS.md | DOCS/ | LUMARA SwarmSpace build status — v3.3.72 |
 | SWARMSPACE_GEMINI_MODEL_ALIGNMENT.md | DOCS/ | SwarmSpace Gemini model alignment — v3.3.72 |
 | MASTER_PROMPT_SHORTENING.md | DOCS/ | Dual-mode master prompt architecture (conversation vs detailed analysis) — v3.3.59 |
+| SOCIAL_PUBLISHER_ACTIVATION.md | DOCS/ | SwarmSpace social-publisher: router deploy, worker secrets, flow — v3.3.80 |
 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-20 - Documentation & Git Backup run (v3.3.80; doc sync 2026-03-20)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md). Trigger: user request (full repo pass). Commit, push `test`, merge `test` → `main`.
+
+**PROMPT REFERENCES AUDIT:** Edits in existing files only (`lumara_master_prompt.dart`, `lumara_mode_definition.dart`, backend TS callables). PROMPT_REFERENCES.md → v2.9.1 (sync date, backend `proxyGroq`/`proxyGemini` path clarification, version history row).
+
+**Git Backup — Identify what changed (since v3.3.79):** Large working tree: onboarding screens removed; LUMARA cubit/API/cloud generate/master prompt; unified feed cards + timeline; outputs; agents/research/vision; ARCX export; settings/journal/home; `lumara_usage_calendar` on LLM requests; repo-root `functions/` proxyGroq module + rateLimiter/authGuard/journal callables; EPI `ARC_MVP/EPI/functions/index.js`; Cloudflare social-publisher worker (Bluesky/LinkedIn); DOCS touch-ups + `SOCIAL_PUBLISHER_ACTIVATION.md`.
+
+**Updates:** CHANGELOG.md v3.3.80; CONFIGURATION_MANAGEMENT.md this entry + inventory; PROMPT_TRACKER.md v1.29.0; bug_tracker.md Recent code changes + Last Updated; ARCHITECTURE.md / FEATURES.md / backend.md / README.md version alignment.
+
+**Status:** ✅ Doc updates applied with code; commit and push, then merge to `main`.
+
+---
 
 ### 2026-03-10 - Documentation & Git Backup run (v3.3.79; doc sync 2026-03-10)
 

@@ -20,6 +20,7 @@ import { generateJournalReflection } from "./functions/generateJournalReflection
 import { getUserSubscription } from "./functions/getUserSubscription";
 import { createCheckoutSession } from "./functions/createCheckoutSession";
 import { proxyGemini } from "./functions/proxyGemini";
+import { proxyGroq } from "./functions/proxyGroq";
 import { proxyOllama } from "./functions/proxyOllama";
 import { getAssemblyAIToken } from "./functions/getAssemblyAIToken";
 import { getWisprApiKey } from "./functions/getWisprApiKey";
@@ -34,6 +35,7 @@ export { generateJournalReflection };
 export { getUserSubscription };
 export { createCheckoutSession };
 export { proxyGemini };
+export { proxyGroq };
 export { proxyOllama };
 export { getAssemblyAIToken };
 export { getWisprApiKey };
@@ -51,7 +53,7 @@ export { getWisprApiKey };
  * Load User from Firestore
  *   ↓ Check Subscription Tier
  * Rate Limiter (checkRateLimit)
- *   ↓ FREE: 20/day, 3/minute | PAID: Unlimited
+ *   ↓ FREE: 20 unified LUMARA calls/day, 3/minute | PAID: Unlimited
  * Quota Guard (checkCanAnalyzeEntry / checkCanSendMessage)
  *   ↓ Enforce Limits
  * Model Router (selectModel)

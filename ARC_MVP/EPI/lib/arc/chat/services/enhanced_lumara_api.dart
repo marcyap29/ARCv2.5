@@ -482,11 +482,16 @@ class EnhancedLumaraApi {
       
       // Therapeutic mode is now handled by control state builder
       // No need to determine depth level here - it's in the control state JSON
+
+      final LumaraChatMode lumaraChatMode = request.options.lumaraChatMode;
+      final bool omitPersonalMemory = lumaraChatMode == LumaraChatMode.analytical ||
+          lumaraChatMode == LumaraChatMode.deepAnalytical;
       
       // 2. Retrieve all candidate nodes for context matching (skip if skipHeavyProcessing is true)
       List<MatchedNode> matches = [];
       
       if (!skipHeavyProcessing) {
+      if (!omitPersonalMemory) {
       // Only load these settings when needed (not voice mode)
       final similarityThreshold = await settingsService.getSimilarityThreshold();
       final lookbackYears = await settingsService.getEffectiveLookbackYears(); // Legacy: still used for node storage
@@ -525,12 +530,15 @@ class EnhancedLumaraApi {
         excerpt: _similarity.gatherText(item.node).substring(0, min(200, _similarity.gatherText(item.node).length)),
       )).toList();
       } else {
+        print('LUMARA: Simple/Analysis mode — skipping journal node matching');
+      }
+      } else {
         print('LUMARA: Skipping node matching and context retrieval for voice mode');
       }
       
       // 4. Call cloud API — no hard-coded fallbacks
       print('LUMARA Enhanced API v2.3: Calling Groq API (no hard-coded fallbacks)');
-      print('LUMARA v2.3 Options: toneMode=${request.options.toneMode.name}, regenerate=${request.options.regenerate}, preferQuestionExpansion=${request.options.preferQuestionExpansion}, conversationMode=${request.options.conversationMode?.name}');
+      print('LUMARA v2.3 Options: toneMode=${request.options.toneMode.name}, regenerate=${request.options.regenerate}, preferQuestionExpansion=${request.options.preferQuestionExpansion}, conversationMode=${request.options.conversationMode?.name}, lumaraChatMode=${request.options.lumaraChatMode.name}');
       
       // Always call Groq API — same as main LUMARA chat
       try {
@@ -601,7 +609,7 @@ class EnhancedLumaraApi {
           }
           
           // Add earlier entries context - use for pattern recognition with dated examples
-          if (matches.isNotEmpty) {
+          if (!omitPersonalMemory && matches.isNotEmpty) {
             contextParts.add('**HISTORICAL CONTEXT (Use for pattern recognition with dated examples)**:\n${matches.map((m) => 'From ${m.approxDate?.toString().substring(0, 10) ?? 'Unknown date'}: ${m.excerpt}').join('\n\n')}\n\n**PATTERN REQUIREMENT**: If showing patterns, reference specific dated examples from above (e.g., "in August", "on October 3rd"). Focus on meaningful patterns, not listing all projects.');
           }
           
@@ -628,15 +636,19 @@ class EnhancedLumaraApi {
           if (!skipHeavyProcessing) {
           final memoryFocusPreset = await settingsService.getMemoryFocusPreset();
           engagementMode = EngagementMode.reflect; // Engagement mode setting removed; fixed default
-          // Use new context selector instead of hard-coded limits (orchestrator may override with ARC data later)
-          final contextSelector = LumaraContextSelector();
+          if (!omitPersonalMemory) {
+            // Use new context selector instead of hard-coded limits (orchestrator may override with ARC data later)
+            final contextSelector = LumaraContextSelector();
             recentJournalEntries = await contextSelector.selectContextEntries(
-            memoryFocus: memoryFocusPreset,
-            engagementMode: engagementMode!,
-            currentEntryText: request.userText,
-            currentDate: DateTime.now(),
-            entryId: entryId, // Use entryId parameter from function signature
-          );
+              memoryFocus: memoryFocusPreset,
+              engagementMode: engagementMode!,
+              currentEntryText: request.userText,
+              currentDate: DateTime.now(),
+              entryId: entryId, // Use entryId parameter from function signature
+            );
+          } else {
+            print('LUMARA: Simple/Analysis mode — skipping journal entry selection');
+          }
           } else {
             // Voice mode: use dropdown choice if provided, else settings
             if (voiceEngagementModeOverride != null) {
@@ -667,7 +679,7 @@ class EnhancedLumaraApi {
             // Voice mode: Load 0 journal entries by default for speed; only load when user asks about history
             // (Context selector + Hive can add 2–5s; skipping gives much faster first response.)
             final voiceEntryLimit = isHistoricalQuery ? 10 : 0;
-            if (voiceEntryLimit > 0) {
+            if (!omitPersonalMemory && voiceEntryLimit > 0) {
               final contextSelector = LumaraContextSelector();
               recentJournalEntries = await contextSelector.selectContextEntries(
                 memoryFocus: MemoryFocusPreset.focused,
@@ -679,7 +691,11 @@ class EnhancedLumaraApi {
               );
               print('LUMARA: Voice mode loaded $voiceEntryLimit journal entries (historical query)');
             } else {
-              print('LUMARA: Voice mode skipping journal context for speed (0 entries)');
+              if (omitPersonalMemory) {
+                print('LUMARA: Voice + Simple/Analysis — no journal context');
+              } else {
+                print('LUMARA: Voice mode skipping journal context for speed (0 entries)');
+              }
             }
           }
           
@@ -857,7 +873,8 @@ class EnhancedLumaraApi {
 
           // Hard cap Chronicle context to ~10K tokens (40K chars) before PII scrub.
           // Protects against uncompressed yearly aggregations blowing up the payload.
-          const maxChronicleChars = 40000;
+          // Large enough for long-context providers (Gemini-class); still bounded for latency.
+          const maxChronicleChars = 120000;
           if (chronicleContext != null && chronicleContext.length > maxChronicleChars) {
             print('⚠️ EnhancedLumaraApi: CHRONICLE context truncated from ${chronicleContext.length} to $maxChronicleChars chars');
             chronicleContext = '${chronicleContext.substring(0, maxChronicleChars)}\n\n[Chronicle context truncated — full history available on deeper query]';
@@ -877,15 +894,32 @@ class EnhancedLumaraApi {
             chronicleMiniContext = r.scrubbedText;
             chronicleReversibleMap.addAll(r.reversibleMap);
           }
+
+          if (omitPersonalMemory) {
+            chronicleContext = null;
+            chronicleMiniContext = null;
+            chronicleLayerNames = null;
+            atlasContext = null;
+            auroraContext = null;
+            queryPlan = null;
+            promptMode = LumaraPromptMode.rawBacked;
+            recentEntriesFromArc = null;
+            entryContentsFromArc = null;
+            chronicleReversibleMap = {};
+            print('LUMARA: Simple/Analysis mode — Chronicle/journal context stripped from payload');
+          }
           
           // Build base context with current entry explicitly labeled as TODAY
-          // Only build if using raw mode or hybrid mode
+          // Only build if using raw mode or hybrid mode (Simple/Analysis: no journal/Chronicle bundle)
           String? baseContext;
-          if (promptMode == LumaraPromptMode.rawBacked || promptMode == LumaraPromptMode.hybrid) {
+          if (omitPersonalMemory) {
+            baseContext = null;
+          } else if (promptMode == LumaraPromptMode.rawBacked || promptMode == LumaraPromptMode.hybrid) {
             final baseContextParts = <String>[];
 
             // Layer 0 date-range retrieval (e.g. "Show me February 3-9") when plan requests it
-            if (userId != null &&
+            if (!omitPersonalMemory &&
+                userId != null &&
                 _layer0Repo != null &&
                 queryPlan != null &&
                 queryPlan.layer0DateRange != null) {
@@ -929,11 +963,14 @@ class EnhancedLumaraApi {
             } else {
               baseContextParts.addAll(recentJournalEntries.map((e) => '- ${e.content}'));
             }
-            
             baseContext = baseContextParts.join('\n\n');
             
             // Add supporting entries if drill-down needed
-            if (promptMode == LumaraPromptMode.hybrid && queryPlan != null && queryPlan.drillDown && _drillDownHandler != null) {
+            if (!omitPersonalMemory &&
+                promptMode == LumaraPromptMode.hybrid &&
+                queryPlan != null &&
+                queryPlan.drillDown &&
+                _drillDownHandler != null) {
               try {
                 // Get aggregations for drill-down
                 final aggregations = <ChronicleAggregation>[];
@@ -968,7 +1005,7 @@ class EnhancedLumaraApi {
 
           // LUMARA CHRONICLE: use universal optimizer (query-relevant, use-case-sized) with fallback to legacy builder
           String? lumaraChronicleContext;
-          if (userId != null && userId.isNotEmpty) {
+          if (!omitPersonalMemory && userId != null && userId.isNotEmpty) {
             try {
               final useCase = skipHeavyProcessing
                   ? PromptUseCase.userVoice
@@ -1199,7 +1236,7 @@ class EnhancedLumaraApi {
           }
 
           // Real-time pushback: if user message looks like a claim, check against CHRONICLE and inject truth_check context
-          if (!skipHeavyProcessing && userId != null && _layer0Repo != null) {
+          if (!omitPersonalMemory && !skipHeavyProcessing && userId != null && _layer0Repo != null) {
             final checker = ChronicleContradictionChecker(layer0: _layer0Repo!);
             if (checker.detectsUserClaim(request.userText)) {
               final contradiction = await checker.checkAgainstChronicle(
@@ -1288,26 +1325,27 @@ class EnhancedLumaraApi {
               mode: promptMode,
               currentDate: now,
               modeSpecificInstructions: modeSpecificInstructions.isNotEmpty ? modeSpecificInstructions : null,
+              omitPersonalPayload: omitPersonalMemory,
             );
-            // Groq on_demand: 8k tokens/request limit (~24–28k chars total). Cap both system and user.
-            // Previous uncapped payload caused 413 "Request too large" (48k tokens requested).
-            const maxTotalChars = 24000; // ~6k tokens, leaves headroom
-            const maxSystemChars = 10000; // Identity, control state, core rules
-            const maxUserChars = 14000;  // Context + current entry
+            // Long-context cloud path (Gemini proxy, etc.): allow extended chat + Chronicle in user payload.
+            // Tight provider limits may still return 413 — caller/config may switch models.
+            const maxTotalCharsWarn = 500000;
+            const maxSystemChars = 48000;
+            const maxUserChars = 400000;
             if (systemPrompt.length > maxSystemChars) {
-              systemPrompt = '${systemPrompt.substring(0, maxSystemChars)}\n\n[System prompt truncated for Groq 8k token limit — core instructions preserved]';
-              print('⚠️ LUMARA V23: System prompt truncated to $maxSystemChars chars (Groq 8k token limit)');
+              systemPrompt = '${systemPrompt.substring(0, maxSystemChars)}\n\n[System prompt truncated — core instructions preserved]';
+              print('⚠️ LUMARA V23: System prompt truncated to $maxSystemChars chars');
             }
             if (userPromptForApi.length > maxUserChars) {
-              // Preserve tail: current entry + RESPOND NOW are at the end. Truncate from the start.
+              // Preserve tail: current entry + mode instructions + RESPOND NOW are at the end.
               final originalLen = userPromptForApi.length;
               final tail = userPromptForApi.substring(userPromptForApi.length - maxUserChars);
-              userPromptForApi = '[Recent entries and CHRONICLE context truncated for token limit.]\n\n$tail';
-              print('⚠️ LUMARA V23: User payload truncated from $originalLen to ${userPromptForApi.length} chars (current entry preserved)');
+              userPromptForApi = '[Earlier context truncated for size limit.]\n\n$tail';
+              print('⚠️ LUMARA V23: User payload truncated from $originalLen to ${userPromptForApi.length} chars (tail preserved)');
             }
             final totalChars = systemPrompt.length + userPromptForApi.length;
-            if (totalChars > maxTotalChars) {
-              print('⚠️ LUMARA V23: Combined payload $totalChars chars exceeds target $maxTotalChars — Groq may still accept if under ~32k');
+            if (totalChars > maxTotalCharsWarn) {
+              print('⚠️ LUMARA V23: Combined payload $totalChars chars (very large — watch provider limits)');
             }
             print('🔵 LUMARA V23: Non-voice split payload: system=${systemPrompt.length} chars, user=${userPromptForApi.length} chars');
             if (chronicleContext != null) {
@@ -1322,13 +1360,12 @@ class EnhancedLumaraApi {
           }
 
           // Session start (single request for reflection): inject full three-mode block. Every message: mode tag only.
-          final mode = request.options.lumaraChatMode;
-          userPromptForApi = '${lumaraModeTag(mode)}\n\n$userPromptForApi';
+          userPromptForApi = '${lumaraModeTag(lumaraChatMode)}\n\n$userPromptForApi';
 
           onProgress?.call('Calling cloud API...');
 
           // Reflection = one request per session → always inject full three-mode definition block (session start).
-          final effectiveSystemPrompt = mode == LumaraChatMode.deepAnalytical
+          final effectiveSystemPrompt = lumaraChatMode == LumaraChatMode.deepAnalytical
               ? lumaraModeDefinitionBlock
               : (systemPrompt.isNotEmpty
                   ? '$lumaraModeDefinitionBlock\n\n$systemPrompt'
@@ -1340,6 +1377,9 @@ class EnhancedLumaraApi {
             maxTokens: 4096,
             entryId: entryId,
             skipTransformation: true,
+            chatMode: lumaraChatMode,
+            isVoiceSession: skipHeavyProcessing,
+            isChatEntry: request.entryType == models.EntryType.chat,
           );
 
           // Restore PII in response when CHRONICLE context was scrubbed before send
@@ -1876,6 +1916,9 @@ Respond now:''';
         system: 'You are LUMARA, an AI assistant providing direct, factual answers.',
         user: factualPrompt,
         skipTransformation: true,
+        chatMode: request.options.lumaraChatMode,
+        isVoiceSession: false,
+        isChatEntry: request.entryType == models.EntryType.chat,
       );
 
       if (response.isNotEmpty) {
@@ -1924,6 +1967,9 @@ Respond now:''';
         system: 'You are LUMARA, providing brief, warm acknowledgments to simple updates.',
         user: conversationalPrompt,
         skipTransformation: true,
+        chatMode: request.options.lumaraChatMode,
+        isVoiceSession: false,
+        isChatEntry: request.entryType == models.EntryType.chat,
       );
 
       if (response.isNotEmpty) {

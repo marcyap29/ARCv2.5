@@ -298,7 +298,7 @@ class _HomeViewState extends State<HomeView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text(
-          'You can set up your LUMARA preferences and profile anytime in Settings → LUMARA.',
+          'You can complete your profile anytime in Settings → Subscription and Account → My Profile.',
         ),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 4),

@@ -112,8 +112,12 @@ async function enforceAuth(request) {
             user.isAnonymous = false;
         }
     }
-    // Check if user is premium (admin users are always premium)
-    const isPremium = isAdmin || user.plan === "pro" || user.subscriptionTier === "PAID";
+    const st = String(user.subscriptionTier ?? "").toLowerCase();
+    const isPremium = isAdmin ||
+        user.plan === "pro" ||
+        st === "paid" ||
+        user.throttleUnlocked === true ||
+        (st === "premium" && user.subscriptionStatus === "active");
     return {
         userId,
         isAnonymous,

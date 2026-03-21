@@ -92,6 +92,15 @@ class SavedConversationCard extends StatelessWidget {
               ],
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            '#Chat',
+            style: TextStyle(
+              color: kcSecondaryTextColor.withOpacity(0.6),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );

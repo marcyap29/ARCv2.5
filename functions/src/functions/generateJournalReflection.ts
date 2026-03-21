@@ -16,7 +16,7 @@ import { groqChatCompletion } from "../groqClient";
  * Flow:
  * 1. Verify Firebase Auth token (automatic via onCall)
  * 2. Load user from Firestore
- * 3. Check rate limit (free tier: 20 requests/day, 3 requests/minute)
+ * 3. Check rate limit (free tier: 20 unified LUMARA calls/day, 3 requests/minute)
  * 4. Uses Groq (GPT-OSS 120B) for reflection
  * 5. Generate reflection using LLM with LUMARA Master Prompt
  * 6. Return reflection text
@@ -55,6 +55,7 @@ export const generateJournalReflection = onCall(
       chatContext,
       mediaContext,
       options = {},
+      localCalendarDate,
     } = request.data;
 
     // Validate request
@@ -73,8 +74,7 @@ export const generateJournalReflection = onCall(
     logger.info(`Generating journal reflection for user ${userId} (anonymous: ${isAnonymous}, premium: ${isPremium})`);
 
     try {
-      // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
-      const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail);
+      const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail, localCalendarDate);
       if (!dailyCheck.allowed) {
         throw new HttpsError(
           "resource-exhausted",

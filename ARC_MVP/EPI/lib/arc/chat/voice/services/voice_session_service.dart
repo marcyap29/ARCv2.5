@@ -25,6 +25,8 @@ import '../prompts/voice_response_builders.dart'; // For VoiceResponseConfig onl
 import '../prompts/phase_voice_prompts.dart'; // Phase-specific voice prompts
 import '../../services/enhanced_lumara_api.dart';
 import '../../services/reflection_handler.dart';
+import '../../services/lumara_reflection_settings_service.dart';
+import '../../prompts/lumara_mode_definition.dart';
 import '../../models/lumara_reflection_options.dart' as models;
 import 'package:my_app/mira/memory/enhanced_memory_schema.dart';
 import '../models/voice_session.dart';
@@ -639,6 +641,7 @@ class VoiceSessionService {
       List<AttributionTrace>? attributionTraces;
       try {
         final handler = await _getReflectionHandler();
+        final voiceChatMode = await LumaraReflectionSettingsService.instance.getLumaraChatMode();
         final reflectionResponse = await handler.handleReflectionRequest(
           userQuery: prismResult.scrubbedText,
           entryId: null,
@@ -649,6 +652,9 @@ class VoiceSessionService {
           options: models.LumaraReflectionOptions(
             conversationMode: models.ConversationMode.continueThought,
             toneMode: models.ToneMode.normal,
+            lumaraChatMode: voiceChatMode,
+            useDetailedAnalysis: voiceChatMode == LumaraChatMode.analytical ||
+                voiceChatMode == LumaraChatMode.deepAnalytical,
           ),
         ).timeout(
           const Duration(seconds: 120),

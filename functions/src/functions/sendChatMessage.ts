@@ -57,7 +57,7 @@ export const sendChatMessage = onCall(
     secrets: [GROQ_API_KEY, GEMINI_API_KEY, LLM_SETTINGS_ENCRYPTION_KEY],
   },
   async (request) => {
-    const { threadId, message } = request.data;
+    const { threadId, message, localCalendarDate } = request.data;
 
     // Validate request
     if (!threadId || !message) {
@@ -75,8 +75,8 @@ export const sendChatMessage = onCall(
     logger.info(`Sending chat message in thread ${threadId} for user ${userId} (anonymous: ${isAnonymous})`);
 
     try {
-      // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
-      const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail);
+      // Unified daily limit: 20 total LUMARA API calls/day (all modes); bucket = client local date when plausible
+      const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail, localCalendarDate);
       if (!dailyCheck.allowed) {
         throw new HttpsError(
           "resource-exhausted",

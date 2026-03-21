@@ -1,7 +1,7 @@
 # Backend Architecture & Setup
 
-**Version:** 3.3.67
-**Last Updated:** March 10, 2026
+**Version:** 3.3.80
+**Last Updated:** March 20, 2026
 **Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration (web), RevenueCat (in-app purchases), Local Backup Services, and Groq API Proxy (GPT-OSS 120B primary). OpenAI provider and adapter removed (v3.3.67).
 
 ---
@@ -42,6 +42,8 @@ Groq API (GPT-OSS 120B / 20B / Llama 3.3 70B)
 
 ### Implementation
 
+**Repo-root TypeScript bundle (v3.3.80):** Canonical Cloud Functions sources live under `functions/src/` (e.g. `functions/src/functions/proxyGroq.ts`, `proxyGemini.ts`, `proxyOllama.ts`, journal callables, `rateLimiter.ts`, `authGuard.ts`). Build output is `functions/lib/`. `ARC_MVP/EPI/functions/index.js` may still mirror or supplement deploys for the same Firebase project — keep behavior in sync when changing proxies.
+
 **Client Side (`lib/services/groq_send.dart` — v3.3.59):**
 ```dart
 Future<String> groqSend({
@@ -60,6 +62,8 @@ Future<String> groqSend({
   // Retry up to 2× with escalating back-off on connection pool errors
 }
 ```
+
+**Per-day metadata (v3.3.80):** Groq/Gemini/Ollama client payloads include `localCalendarDate` from `lib/services/lumara_usage_calendar.dart` (`lumaraLocalCalendarDate()`) so server-side rate limits and usage can key on the user’s local calendar day.
 
 **Unified Entry Point (`lumaraSend` — v3.3.59):**
 Pipeline: PRISM scrub → optional correlation-resistant transformation → `groqSend` (proxyGroq) → PII restore. Replaces direct `geminiSend` calls for all chat/reflection flows. `geminiSend` / `geminiSendStream` marked `@Deprecated`.

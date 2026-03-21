@@ -305,11 +305,36 @@ class _SearchResultTile extends StatelessWidget {
                   fontSize: 12,
                 ),
               ),
+              const SizedBox(height: 4),
+              Text(
+                _hashtagForType(entry.type),
+                style: TextStyle(
+                  color: kcSecondaryTextColor.withOpacity(0.6),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  String _hashtagForType(FeedEntryType type) {
+    switch (type) {
+      case FeedEntryType.researchReport:
+        return '#Research';
+      case FeedEntryType.voiceMemo:
+        return '#Voice';
+      case FeedEntryType.savedConversation:
+      case FeedEntryType.activeConversation:
+        return '#Chat';
+      case FeedEntryType.reflection:
+        return '#Reflection';
+      case FeedEntryType.lumaraInitiative:
+        return '#Writing';
+    }
   }
 
   IconData _iconForType(FeedEntryType type) {

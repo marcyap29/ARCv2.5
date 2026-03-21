@@ -189,7 +189,7 @@ class _WritingScreenState extends State<WritingScreen> {
     }
   }
 
-  /// Run writing pipeline using the same path as legacy (generateForAgents: SwarmSpace then Groq).
+  /// Run writing pipeline via [generateForAgents] (Gemini-first, then Groq/Ollama fallbacks).
   /// Uses Phase 5b prompt: Format, Tone, Style, optional Brief. Navigates to DraftEditorScreen.
   Future<void> _runPhase5bPipeline() async {
     final topic = _promptController.text.trim();

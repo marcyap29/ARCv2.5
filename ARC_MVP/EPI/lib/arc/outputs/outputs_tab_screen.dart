@@ -14,8 +14,11 @@ import 'package:my_app/arc/outputs/outputs_cubit.dart';
 import 'package:my_app/arc/outputs/outputs_models.dart';
 import 'package:my_app/arc/outputs/outputs_repository.dart';
 import 'package:my_app/arc/outputs/widgets/output_folder_tile.dart';
+import 'package:my_app/lumara/agents/screens/research_report_detail_screen.dart';
+import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
 import 'package:my_app/lumara/agents/writing/draft_editor_screen.dart';
 import 'package:my_app/lumara/agents/writing/pipeline_draft.dart';
+import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 
 /// If [item] is a Writing output with contentJson that parses as PipelineDraft, returns that draft; otherwise null.
@@ -168,6 +171,54 @@ class _OutputsTabBodyState extends State<_OutputsTabBody> {
     }).toList();
   }
 
+  /// Writing drafts open in the draft editor; research with a linked Chronicle session opens
+  /// [ResearchReportDetailScreen] (same UI as timeline). Otherwise [OutputDetailScreen].
+  Future<void> _openOutputItem(BuildContext context, OutputItem item) async {
+    final draft = _tryParseWriterDraft(item);
+    if (draft != null) {
+      if (!context.mounted) return;
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (context) => DraftEditorScreen(draft: draft),
+        ),
+      );
+      return;
+    }
+
+    if (item.agentKey == 'research' && item.folderKey == 'research') {
+      final brief = OutputDetailScreen.parseResearchContent(item.contentJson);
+      final sid = brief?.chronicleSessionId?.trim();
+      if (sid != null && sid.isNotEmpty) {
+        final uid = FirebaseAuthService.instance.currentUser?.uid;
+        final primaryUserId = uid ?? 'anonymous';
+        var report = await AgentsChronicleService.instance.getResearchReportById(primaryUserId, sid);
+        if (report == null && uid == null) {
+          report = await AgentsChronicleService.instance.getResearchReportById('default_user', sid);
+        }
+        final chronicleReport = report;
+        if (chronicleReport != null) {
+          if (!context.mounted) return;
+          await Navigator.push<void>(
+            context,
+            MaterialPageRoute<void>(
+              builder: (context) => ResearchReportDetailScreen(report: chronicleReport),
+            ),
+          );
+          return;
+        }
+      }
+    }
+
+    if (!context.mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => OutputDetailScreen(item: item),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -245,24 +296,7 @@ class _OutputsTabBodyState extends State<_OutputsTabBody> {
                           selectionModeEnabled: _selectionModeEnabled,
                           selectedItemIds: _selectedItemIds,
                           onToggleSelect: _toggleItemSelection,
-                          onItemTap: (item) {
-                            final draft = _tryParseWriterDraft(item);
-                            if (draft != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute<void>(
-                                  builder: (context) => DraftEditorScreen(draft: draft),
-                                ),
-                              );
-                            } else {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute<void>(
-                                  builder: (context) => OutputDetailScreen(item: item),
-                                ),
-                              );
-                            }
-                          },
+                          onItemTap: (item) => _openOutputItem(context, item),
                           onItemTagsChanged: (item, userTags) async {
                             final updated = item.copyWith(userTags: userTags);
                             await OutputsRepository.instance.updateUserTags(item.id, userTags);

@@ -5,6 +5,7 @@ import { logger } from "firebase-functions";
 import { GEMINI_API_KEY } from "../config";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { enforceAuth, checkJournalEntryLimit, checkChatLimit } from "../authGuard";
+import { checkUnifiedDailyLimit } from "../rateLimiter";
 
 /**
  * Simple proxy to hide Gemini API key from client
@@ -26,7 +27,7 @@ export const proxyGemini = onCall(
     // Auth enforced via enforceAuth() - no invoker: "public"
   },
   async (request) => {
-    const { system, user, jsonExpected, entryId, chatId } = request.data;
+    const { system, user, jsonExpected, entryId, chatId, localCalendarDate } = request.data;
 
     if (!user) {
       throw new HttpsError(
@@ -38,8 +39,18 @@ export const proxyGemini = onCall(
     // Enforce authentication
     const authResult = await enforceAuth(request);
     const { userId, isAnonymous, isPremium } = authResult;
-    
+    const userEmail = request.auth?.token?.email as string | undefined;
+
     logger.info(`Proxying Gemini request for user ${userId} (anonymous: ${isAnonymous}, premium: ${isPremium})`);
+
+    const dailyCheck = await checkUnifiedDailyLimit(userId, userEmail, localCalendarDate);
+    if (!dailyCheck.allowed) {
+      throw new HttpsError(
+        "resource-exhausted",
+        dailyCheck.error?.message || "Daily limit reached",
+        dailyCheck.error
+      );
+    }
 
     // Check per-entry limit for in-journal LUMARA (if entryId provided)
     if (entryId) {

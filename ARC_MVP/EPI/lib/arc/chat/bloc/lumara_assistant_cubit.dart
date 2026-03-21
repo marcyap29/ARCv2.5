@@ -108,7 +108,7 @@ class LumaraAssistantLoaded extends LumaraAssistantState {
   final String? pendingAgenticQuestion;
   final String? pendingAgenticGapId;
   final AgenticLoopContext? pendingAgenticLoopContext;
-  /// Three-way chat mode: Personal (Groq), Analytical (Groq), Deep Analytical (Gemini).
+  /// Three-way chat mode: Simple, Personal, Analysis (UI order). Simple = no journal; Analysis often Gemini.
   final LumaraChatMode lumaraChatMode;
   /// Mode for which the full definition block was last injected (session start or mode change).
   final LumaraChatMode? modeDefinitionInjectedForMode;
@@ -353,6 +353,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   // Auto-save and compaction - Updated for 25-message summarization
   static const int _maxMessagesBeforeCompaction = 25;
   static const int _compactionThreshold = 150; // Summarize after 150 messages
+  /// Caps for inline chat transcript sent as API [chatContext] (aligned with long-context cloud models).
+  static const int _lumaraChatTranscriptMaxMessages = 200;
+  static const int _lumaraChatTranscriptMaxMsgChars = 24000;
+  static const int _lumaraChatTranscriptMaxTotalChars = 280000;
   bool _isCompacting = false;
 
   // AURORA reflection session monitoring
@@ -522,7 +526,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
   }
 
   /// Set whether to use full master prompt (Detailed Analysis) or short prompt (perceptive with context).
-  /// @deprecated Use [setLumaraChatMode] instead. true → Analytical, false → Personal.
+  /// @deprecated Use [setLumaraChatMode] instead. true → Simple (`analytical`), false → Personal.
   void setDetailedAnalysis(bool value) {
     final currentState = state;
     if (currentState is LumaraAssistantLoaded) {
@@ -533,7 +537,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
     }
   }
 
-  /// Set three-way chat mode (Personal | Analytical | Deep Analytical). Routes to Groq or Gemini; does not clear history.
+  /// Set three-way chat mode (Simple | Personal | Analysis in UI). Routes by provider settings; does not clear history.
   void setLumaraChatMode(LumaraChatMode mode) {
     final currentState = state;
     if (currentState is LumaraAssistantLoaded) {
@@ -965,6 +969,8 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
                   toneMode: models.ToneMode.normal,
                   regenerate: false,
                   preferQuestionExpansion: false,
+                  useDetailedAnalysis: currentState.useDetailedAnalysis,
+                  lumaraChatMode: currentState.lumaraChatMode,
                 ),
               );
               
@@ -976,6 +982,11 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
               String reflectionText;
               var attributionTraces = <AttributionTrace>[];
               String? notice;
+
+              final chatTranscript = _buildLumaraChatTranscript(
+                updatedMessages,
+                excludeTrailingUserMessage: true,
+              );
 
               if (currentEntry != null && userId != null && userId.isNotEmpty) {
                 final handler = await _getReflectionHandler();
@@ -989,7 +1000,10 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
                     toneMode: models.ToneMode.normal,
                     regenerate: false,
                     preferQuestionExpansion: false,
+                    useDetailedAnalysis: currentState.useDetailedAnalysis,
+                    lumaraChatMode: currentState.lumaraChatMode,
                   ),
+                  chatContext: chatTranscript,
                   onProgress: (msg) => _emitStep(msg),
                   onStreamChunk: (_) => _emitStep('Streaming…'),
                 );
@@ -1012,6 +1026,7 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
                 final result = await _enhancedApi.generatePromptedReflectionV23(
                   request: request,
                   userId: userId,
+                  chatContext: chatTranscript,
                   onProgress: (msg) => _emitStep(msg),
                   onStreamChunk: (_) => _emitStep('Streaming…'),
                 );
@@ -1135,11 +1150,18 @@ Continue naturally.''';
           toneMode: models.ToneMode.normal,
           regenerate: false,
           preferQuestionExpansion: false,
+          useDetailedAnalysis: currentState.useDetailedAnalysis,
+          lumaraChatMode: currentState.lumaraChatMode,
         ),
+      );
+      final continuationTranscript = _buildLumaraChatTranscript(
+        currentState.messages,
+        excludeTrailingUserMessage: false,
       );
       final result = await _enhancedApi.generatePromptedReflectionV23(
         request: request,
         userId: userId,
+        chatContext: continuationTranscript,
       );
       final response = result.reflection;
       var attributionTraces = result.attributionTraces;
@@ -1246,6 +1268,9 @@ Continue naturally.''';
     // Get context (using provided scope)
     final context = await _contextProvider.buildContext(scope: scope);
 
+    final loadedState = state is LumaraAssistantLoaded ? state as LumaraAssistantLoaded : null;
+    final currentMode = loadedState?.lumaraChatMode ?? LumaraChatMode.personal;
+
     // Build context for streaming
     // Extract user query from baseMessages (last user message)
     final userQuery = baseMessages.lastWhere(
@@ -1266,6 +1291,7 @@ Continue naturally.''';
         context, 
         userQuery: userQuery,
         currentEntry: null, // Streaming doesn't have current entry context
+        lumaraChatMode: currentMode,
       );
         entryText = contextResult['context'] as String;
         // Use the initial traces we already have
@@ -1276,15 +1302,13 @@ Continue naturally.''';
           context, 
           userQuery: userQuery,
           currentEntry: null, // Streaming doesn't have current entry context
+          lumaraChatMode: currentMode,
         );
         entryText = contextResult['context'] as String;
         contextAttributionTraces = contextResult['attributionTraces'] as List<AttributionTrace>;
         print('LUMARA Debug: Built context with ${contextAttributionTraces.length} attribution traces (fallback)');
       }
     final keywords = _buildKeywordsContext(context);
-
-    final loadedState = state is LumaraAssistantLoaded ? state as LumaraAssistantLoaded : null;
-    final currentMode = loadedState?.lumaraChatMode ?? LumaraChatMode.personal;
     final isSessionStart = baseMessages.isEmpty;
     final isModeSwitch = baseMessages.isNotEmpty &&
         loadedState?.modeDefinitionInjectedForMode != null &&
@@ -1308,10 +1332,10 @@ Continue naturally.''';
     print('LUMARA Debug: Attribution traces from context: ${contextAttributionTraces.length}');
     print('LUMARA Debug: Chat session ID for rate limiting: $currentChatSessionId');
 
-    // Real-time pushback: if user message looks like a claim, check against CHRONICLE and inject truth_check (skip for Deep Analytical)
+    // Real-time pushback: CHRONICLE check (Personal mode only — Simple/Analysis omit journal memory)
     var effectiveSystemPrompt = systemPrompt;
     ContradictionResult? pushbackContradiction;
-    if (currentMode != LumaraChatMode.deepAnalytical && _userId != null && _userId!.isNotEmpty) {
+    if (currentMode == LumaraChatMode.personal && _userId != null && _userId!.isNotEmpty) {
       try {
         await ChronicleRepos.ensureLayer0Initialized();
         final checker = ChronicleContradictionChecker(layer0: ChronicleRepos.layer0);
@@ -1343,6 +1367,8 @@ Continue naturally.''';
         user: userWithModeTag,
         chatId: currentChatSessionId,
         chatMode: currentMode,
+        isChatEntry: true,
+        isVoiceSession: false,
       );
 
       // Update the UI with the full response
@@ -1499,22 +1525,32 @@ Continue naturally.''';
   }
 
   /// Build system prompt using unified master prompt with control state.
-  /// For [LumaraChatMode.deepAnalytical] returns empty string (no journal context; mode block only).
+  /// For [LumaraChatMode.deepAnalytical] returns empty string (no PRISM journal bundle; mode block only).
   Future<String> _buildSystemPrompt(String? entryText, String? phaseHint, String? keywords, {String? userMessage, LumaraChatMode? mode}) async {
     final effectiveMode = mode ?? (state is LumaraAssistantLoaded ? (state as LumaraAssistantLoaded).lumaraChatMode : LumaraChatMode.personal);
     if (effectiveMode == LumaraChatMode.deepAnalytical) {
       return '';
     }
-    // Build PRISM activity context from entry text and keywords
-    final prismActivity = <String, dynamic>{
-      'journal_entries': entryText != null && entryText.isNotEmpty ? [entryText] : [],
-      'drafts': [],
-      'chats': [],
-      'media': [],
-      'patterns': keywords != null && keywords.isNotEmpty ? keywords.split(',').map((e) => e.trim()).toList() : [],
-      'emotional_tone': 'neutral', // Could be enhanced with sentiment analysis
-      'cognitive_load': 'moderate', // Could be enhanced with analysis
-    };
+    // Simple mode: no journal/Chronicle hooks in control state or base context
+    final prismActivity = effectiveMode == LumaraChatMode.analytical
+        ? <String, dynamic>{
+            'journal_entries': <dynamic>[],
+            'drafts': <dynamic>[],
+            'chats': <dynamic>[],
+            'media': <dynamic>[],
+            'patterns': <dynamic>[],
+            'emotional_tone': 'neutral',
+            'cognitive_load': 'moderate',
+          }
+        : <String, dynamic>{
+            'journal_entries': entryText != null && entryText.isNotEmpty ? [entryText] : [],
+            'drafts': [],
+            'chats': [],
+            'media': [],
+            'patterns': keywords != null && keywords.isNotEmpty ? keywords.split(',').map((e) => e.trim()).toList() : [],
+            'emotional_tone': 'neutral',
+            'cognitive_load': 'moderate',
+          };
     
     // Build chrono context (time of day inferred from current time)
     final now = DateTime.now();
@@ -1547,12 +1583,13 @@ Continue naturally.''';
       isWrittenConversation: true, // Chat UI → no sentence/word cap
     );
     
-    // Build context string if entry text or keywords provided
     String? baseContext;
-    if (entryText != null && entryText.isNotEmpty) {
-      baseContext = 'Recent journal entry context:\n$entryText';
-    } else if (keywords != null && keywords.isNotEmpty) {
-      baseContext = 'Recent keywords: $keywords';
+    if (effectiveMode != LumaraChatMode.analytical) {
+      if (entryText != null && entryText.isNotEmpty) {
+        baseContext = 'Recent journal entry context:\n$entryText';
+      } else if (keywords != null && keywords.isNotEmpty) {
+        baseContext = 'Recent keywords: $keywords';
+      }
     }
     
     // Effective detailed analysis for this turn: from mode or toggle or phrase in user message
@@ -1578,17 +1615,18 @@ Continue naturally.''';
     // (No recent entries for chat mode, but date context is still important)
     masterPrompt = LumaraMasterPrompt.injectDateContext(masterPrompt);
 
-    // Response style must align with chat mode so it never overrides the mode block (Personal / Analytical / Deep Analytical).
+    // Response style must align with chat mode so it never overrides the mode block (Simple / Personal / Analysis).
     String responseStyleBlock;
     switch (effectiveMode) {
       case LumaraChatMode.analytical:
-        responseStyleBlock = 'You are LUMARA in Analytical mode. Follow the [MODE: Analytical] instructions from the mode block at the start of this system message.\n'
-            'DO NOT use reflective preamble, journal-led framing, or "trusted friend" tone. Respond with structured analysis, clear reasoning, direct answers. Use headers and tables where appropriate. Prioritize actionable output. No [FROM YOUR ENTRIES], [MY SYNTHESIS], or [HYPOTHETICAL EXAMPLE] tags.\n'
+        responseStyleBlock = 'You are LUMARA in Simple mode. Follow the [MODE: Simple] instructions from the mode block at the start of this system message.\n'
+            'No journal-led framing or provenance tags. Structured, factual, direct. Do not end with a tag line like “Simple answer”.\n'
             'DO NOT mention entry counts or phase labels. NEVER respond in third person about LUMARA. NEVER write product copy unless asked.\n';
         break;
       case LumaraChatMode.deepAnalytical:
-        responseStyleBlock = 'You are LUMARA in Deep Analytical mode. Follow the [MODE: Deep Analytical] instructions from the mode block at the start of this system message.\n'
-            'Journal entries do not exist. Treat the input as a standalone document for peer review. Use only [DOC] and [ANALYSIS] tags. No journal references, no narrative framing, no [FROM YOUR ENTRIES]/[MY SYNTHESIS]/[HYPOTHETICAL EXAMPLE]. Push back where warranted; do not validate unless technical merit justifies it.\n'
+        responseStyleBlock = 'You are LUMARA in Analysis mode. Follow the [MODE: Analysis] instructions from the mode block at the start of this system message.\n'
+            'Provenance: [GENERAL KNOWLEDGE] = established facts; [MY SYNTHESIS] = deep reasoning and connections (not bare definitions); [HYPOTHETICAL EXAMPLE] = speculative or extrapolated. No journal references. Push back where warranted; do not validate unless merit supports it.\n'
+            'Never reply with only a mode-switch acknowledgment (e.g. "Switching to Analysis" or "mode 3"); always give a full answer to the user\'s message.\n'
             'NEVER respond in third person about LUMARA. NEVER write product copy unless asked.\n';
         break;
       case LumaraChatMode.personal:
@@ -1625,6 +1663,50 @@ Continue naturally.''';
       'just give me an answer', 'just answer', 'be concise',
     ];
     return phrases.any((p) => lower.contains(p));
+  }
+
+  /// Prior turns in the LUMARA chat UI for API continuity (not journal/Chronicle).
+  /// When [excludeTrailingUserMessage] is true, drops the last message if it is the
+  /// current user turn (already sent as [LumaraReflectionRequest.userText]).
+  String? _buildLumaraChatTranscript(
+    List<LumaraMessage> messages, {
+    required bool excludeTrailingUserMessage,
+  }) {
+    if (messages.isEmpty) return null;
+    var slice = List<LumaraMessage>.from(messages);
+    if (excludeTrailingUserMessage &&
+        slice.isNotEmpty &&
+        slice.last.role == LumaraMessageRole.user) {
+      slice = slice.sublist(0, slice.length - 1);
+    }
+    if (slice.isEmpty) return null;
+
+    final maxMessages = _lumaraChatTranscriptMaxMessages;
+    final maxMsgChars = _lumaraChatTranscriptMaxMsgChars;
+    final maxTotalChars = _lumaraChatTranscriptMaxTotalChars;
+    final start = slice.length > maxMessages ? slice.length - maxMessages : 0;
+    final window = slice.sublist(start);
+
+    final chunks = <String>[];
+    for (final m in window) {
+      if (m.role == LumaraMessageRole.system) continue;
+      final label = m.role == LumaraMessageRole.user ? 'User' : 'LUMARA';
+      var body = m.content.trim();
+      if (body.isEmpty) continue;
+      if (body.length > maxMsgChars) {
+        body = '${body.substring(0, maxMsgChars)}\n[…truncated]';
+      }
+      chunks.add('$label: $body');
+    }
+    if (chunks.isEmpty) return null;
+
+    var transcript = chunks.join('\n\n');
+    if (transcript.length > maxTotalChars) {
+      transcript =
+          '…\n${transcript.substring(transcript.length - (maxTotalChars - 4))}';
+    }
+    return '''RECENT CONVERSATION IN THIS CHAT (same thread only — not Chronicle or journal memory unless quoted below; use for continuity):
+$transcript''';
   }
 
   /// Map task type to LUMARA intent
@@ -1932,7 +2014,15 @@ Continue naturally.''';
     ContextWindow context, {
     String? userQuery,
     JournalEntry? currentEntry,
+    LumaraChatMode? lumaraChatMode,
   }) async {
+    if (lumaraChatMode == LumaraChatMode.analytical ||
+        lumaraChatMode == LumaraChatMode.deepAnalytical) {
+      return {
+        'context': '',
+        'attributionTraces': <AttributionTrace>[],
+      };
+    }
     final buffer = StringBuffer();
     final Set<String> addedEntryIds = {}; // Track added entries to avoid duplicates
     final List<AttributionTrace> attributionTraces = []; // Collect attribution traces from memory nodes used

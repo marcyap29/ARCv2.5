@@ -38,7 +38,7 @@ const db = admin_1.admin.firestore();
 exports.analyzeJournalEntry = (0, https_1.onCall)({
     secrets: [config_1.GROQ_API_KEY],
 }, async (request) => {
-    const { entryId, entryContent } = request.data;
+    const { entryId, entryContent, localCalendarDate } = request.data;
     // Validate request
     if (!entryId || !entryContent) {
         throw new https_1.HttpsError("invalid-argument", "entryId and entryContent are required");
@@ -219,8 +219,7 @@ This will expire automatically. In the meantime, please reach out:
         // Safe to use Groq for analysis
         else {
             firebase_functions_1.logger.info('✓ Safe for analysis - proceeding to Groq API');
-            // Unified daily limit: 50 total LUMARA requests/day (chat + reflections + voice)
-            const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail);
+            const dailyCheck = await (0, rateLimiter_1.checkUnifiedDailyLimit)(userId, userEmail, localCalendarDate);
             if (!dailyCheck.allowed) {
                 throw new https_1.HttpsError("resource-exhausted", dailyCheck.error?.message || "Daily limit reached", dailyCheck.error);
             }

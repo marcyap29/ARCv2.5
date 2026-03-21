@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'package:my_app/arc/outputs/completed_form_export_service.dart';
 import 'package:my_app/arc/outputs/outputs_models.dart';
 import 'package:my_app/arc/outputs/widgets/tag_chip_row.dart';
+import 'package:my_app/lumara/agents/research/content_brief.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/ui/journal/widgets/full_screen_photo_viewer.dart';
 
@@ -46,6 +47,18 @@ class OutputDetailScreen extends StatelessWidget {
     }
   }
 
+  /// Parse research (ContentBrief) content for Research folder. Returns null if not valid.
+  static ContentBrief? parseResearchContent(String? contentJson) {
+    if (contentJson == null || contentJson.isEmpty) return null;
+    try {
+      final map = jsonDecode(contentJson) as Map<String, dynamic>?;
+      if (map == null) return null;
+      return ContentBrief.fromJson(map);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Parse scan content: returns (rawText, list of image paths) if scan format.
   static ({String? rawText, List<String> imagePaths}) parseScanContent(String? contentJson) {
     if (contentJson == null || contentJson.isEmpty) return (rawText: null, imagePaths: []);
@@ -75,9 +88,12 @@ class OutputDetailScreen extends StatelessWidget {
     final hasScanImages = scanData.imagePaths.isNotEmpty;
     final isCompletedForm = isCompletedFormItem(item);
     final formFields = isCompletedForm ? parseCompletedFormContent(item.contentJson) : null;
+    final isResearch = item.agentKey == 'research' && item.folderKey == 'research';
+    final researchBrief = isResearch ? parseResearchContent(item.contentJson) : null;
     final showGenericContent = item.contentJson != null &&
         item.contentJson!.isNotEmpty &&
-        (!isCompletedForm || formFields == null || formFields.isEmpty);
+        (!isCompletedForm || formFields == null || formFields.isEmpty) &&
+        (!isResearch || researchBrief == null);
 
     return Scaffold(
       backgroundColor: kcBackgroundColor,
@@ -165,6 +181,11 @@ class OutputDetailScreen extends StatelessWidget {
             if (isCompletedForm && formFields != null && formFields.isNotEmpty) ...[
               const SizedBox(height: 20),
               _CompletedFormContent(fields: formFields),
+            ],
+            // Research: readable form layout (title, summary, key points, sources)
+            if (isResearch && researchBrief != null) ...[
+              const SizedBox(height: 20),
+              _ResearchFormContent(brief: researchBrief),
             ],
             // Extracted text (scans) or generic content (or fallback when form parse fails)
             if (showGenericContent) ...[
@@ -259,6 +280,108 @@ class OutputDetailScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Research-form layout for ContentBrief (title, summary, key points, sources).
+class _ResearchFormContent extends StatelessWidget {
+  final ContentBrief brief;
+
+  const _ResearchFormContent({required this.brief});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel(context, 'Title'),
+        const SizedBox(height: 4),
+        _valueBlock(context, brief.title.isEmpty ? brief.query : brief.title),
+        if (brief.summary.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _sectionLabel(context, 'Summary'),
+          const SizedBox(height: 4),
+          _valueBlock(context, brief.summary),
+        ],
+        if (brief.keyPoints.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _sectionLabel(context, 'Key points'),
+          const SizedBox(height: 8),
+          ...brief.keyPoints.map((p) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '• ',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: kcPrimaryTextColor),
+                    ),
+                    Expanded(
+                      child: SelectableText(
+                        p,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: kcPrimaryTextColor),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+        if (brief.sources.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _sectionLabel(context, 'Sources'),
+          const SizedBox(height: 8),
+          ...brief.sources.map((s) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SelectableText(
+                      s.title.isNotEmpty ? s.title : s.url,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: kcPrimaryTextColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                    if (s.url.isNotEmpty)
+                      SelectableText(
+                        s.url,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: kcSecondaryTextColor,
+                              decoration: TextDecoration.underline,
+                            ),
+                      ),
+                  ],
+                ),
+              )),
+        ],
+      ],
+    );
+  }
+
+  Widget _sectionLabel(BuildContext context, String label) {
+    return Text(
+      label,
+      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: kcSecondaryTextColor,
+            fontWeight: FontWeight.w600,
+          ),
+    );
+  }
+
+  Widget _valueBlock(BuildContext context, String value) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: kcSurfaceAltColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: kcSecondaryTextColor.withValues(alpha: 0.2)),
+      ),
+      child: SelectableText(
+        value.isEmpty ? '—' : value,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: kcPrimaryTextColor),
       ),
     );
   }

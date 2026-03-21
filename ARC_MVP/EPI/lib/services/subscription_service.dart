@@ -205,6 +205,7 @@ class SubscriptionService {
       SubscriptionTier tier;
       switch (tierString?.toLowerCase()) {
         case 'premium':
+        case 'paid':
           if (kDebugMode) debugPrint('SubscriptionService: ✅ Premium tier confirmed (Stripe)!');
           return SubscriptionTier.premium;
         case 'free':

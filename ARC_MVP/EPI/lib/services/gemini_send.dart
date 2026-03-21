@@ -19,6 +19,7 @@ import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/arc/internal/echo/correlation_resistant_transformer.dart';
+import 'package:my_app/services/lumara_usage_calendar.dart';
 
 /// Extracts response text from proxy result (candidates or response string).
 String? _extractTextFromProxyResult(Map<String, dynamic> data) {
@@ -103,6 +104,7 @@ Future<String> _lumaraCallGeminiRaw({
   final requestData = <String, dynamic>{
     'system': system,
     'user': user,
+    'localCalendarDate': lumaraLocalCalendarDate(),
     if (chatId != null) 'chatId': chatId,
     'temperature': temperature,
   };
@@ -134,7 +136,8 @@ Future<String> _lumaraCallGeminiRaw({
 }
 
 /// Unified LUMARA send: PRISM scrub, optional transformation, then primary (Groq/Gemini/Ollama) → fallbacks, PII restore.
-/// Default order: Groq → Gemini → Ollama. When [chatMode] is set and Primary API master is on, uses that mode's API as primary.
+/// With [chatMode]: if Primary API master is on, uses saved per-mode API; if off, uses [LumaraReflectionSettingsService.defaultLumaraPrimaryProvider] from [isVoiceSession] + [isChatEntry].
+/// [forceGeminiPrimary]: Writing & Research agents — try Gemini first, then Groq/Ollama fallbacks.
 Future<String> lumaraSend({
   required String system,
   required String user,
@@ -146,6 +149,12 @@ Future<String> lumaraSend({
   double temperature = 0.7,
   int? maxTokens,
   LumaraChatMode? chatMode,
+  /// Written LUMARA chat vs journal reflection ([EntryType.chat] vs journal).
+  bool isChatEntry = false,
+  /// Voice / skip-heavy path: always Groq-first when using default routing.
+  bool isVoiceSession = false,
+  /// Writing & Research agents: Gemini-first.
+  bool forceGeminiPrimary = false,
 }) async {
   if (kDebugMode) print('LUMARA Send: PRISM scrub → primary (Groq/Gemini/Ollama) → fallbacks → PII restore');
 
@@ -211,14 +220,20 @@ Future<String> lumaraSend({
     }
   }
 
-  // Step 3: Primary provider — default Groq → Gemini → Ollama. With chatMode + Primary API master on, use that mode's API.
+  // Step 3: Primary provider — modality defaults, optional per-mode overrides, or manual provider.
   await LumaraAPIConfig.instance.initialize();
   LLMProvider primary = LLMProvider.groq;
-  if (chatMode != null) {
+  if (forceGeminiPrimary) {
+    primary = LLMProvider.gemini;
+  } else if (chatMode != null) {
     final masterOn = await LumaraReflectionSettingsService.instance.getLumaraPrimaryApiMasterOn();
     primary = masterOn
         ? await LumaraReflectionSettingsService.instance.getLumaraModeApi(chatMode)
-        : LLMProvider.groq;
+        : LumaraReflectionSettingsService.defaultLumaraPrimaryProvider(
+            mode: chatMode,
+            isVoiceSession: isVoiceSession,
+            isChatEntry: isChatEntry,
+          );
   } else {
     final manual = LumaraAPIConfig.instance.getManualProvider();
     primary = manual ?? LLMProvider.groq;
@@ -326,7 +341,7 @@ Future<String> lumaraSend({
         );
 }
 
-/// LUMARA send via Gemini (Mode 3 — Deep Analytical). Same PRISM scrub/restore as [lumaraSend], but routes to Gemini instead of Groq.
+/// LUMARA send via Gemini (Mode 3 — Analysis). Same PRISM scrub/restore as [lumaraSend], but routes to Gemini instead of Groq.
 /// Use when [LumaraChatMode.deepAnalytical] is active. Surfaces errors clearly; does not fall back to Groq.
 Future<String> lumaraSendWithGemini({
   required String system,
@@ -403,7 +418,7 @@ Future<String> lumaraSendWithGemini({
     }
 
     throw Exception(
-      'Deep Analytical mode requires Gemini. Sign in for cloud AI, or add a Gemini API key in Settings → LUMARA.',
+      'Analysis mode requires Gemini. Sign in for cloud AI, or add a Gemini API key in Settings → LUMARA.',
     );
   } on FirebaseFunctionsException catch (e) {
     if (e.code == 'resource-exhausted' || e.code == 'permission-denied' || e.code == 'unauthenticated') {
@@ -538,6 +553,7 @@ Future<String> geminiSend({
   final requestData = {
     'system': transformedSystem,
     'user': transformedUserText, // Either structured JSON or abstracted text
+    'localCalendarDate': lumaraLocalCalendarDate(),
     if (jsonExpected) 'jsonExpected': true,
     if (entryId != null) 'entryId': entryId,
     if (chatId != null) 'chatId': chatId,

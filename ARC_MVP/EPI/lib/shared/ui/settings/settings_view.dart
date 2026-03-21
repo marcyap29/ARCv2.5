@@ -1,3 +1,5 @@
+import 'dart:ui' show Rect;
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/shared/app_colors.dart';
@@ -43,6 +45,10 @@ import 'package:my_app/utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
 import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
+import 'package:share_plus/share_plus.dart';
+import 'package:my_app/mira/store/arcx/services/arcx_export_service_v2.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -599,7 +605,7 @@ class ImportExportFolderView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Text(
-                'When you back up, files save to this device by default (App Documents). Choose a destination below to use a different folder or the cloud.',
+                'Journal, chats, and voice back up in one set of ARCX files; CHRONICLE summaries are a separate, smaller ARCX (see Export Chronicle). Import both when restoring a full device.',
                 style: bodyStyle(context).copyWith(
                   color: kcSecondaryTextColor,
                   fontSize: 13,
@@ -634,6 +640,14 @@ class ImportExportFolderView extends StatelessWidget {
                   ),
                 );
               },
+            ),
+            const SizedBox(height: 10),
+            _SettingsTile(
+              title: 'Export Chronicle (.arcx)',
+              subtitle:
+                  'CHRONICLE layers, changelog, pattern index, and LUMARA causal data only. Not included in the main journal ARCX export.',
+              icon: Icons.auto_stories_outlined,
+              onTap: () => _exportChronicleArcx(context),
             ),
             if (Platform.isIOS)
               Padding(
@@ -678,7 +692,7 @@ class ImportExportFolderView extends StatelessWidget {
             const SizedBox(height: 16),
             _SettingsTile(
               title: 'Import Data',
-              subtitle: 'Restore from .zip, .mcpkg, or .arcx backup files',
+              subtitle: 'Restore from .arcx (journal and/or Chronicle), .zip, or .mcpkg',
               icon: Icons.cloud_download,
               onTap: () {
                 Navigator.push(
@@ -695,6 +709,93 @@ class ImportExportFolderView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _exportChronicleArcx(BuildContext context) async {
+    final nav = Navigator.of(context, rootNavigator: true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kcBackgroundColor,
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Text(
+                'Exporting Chronicle…',
+                style: bodyStyle(context).copyWith(color: kcPrimaryTextColor),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    var dialogClosed = false;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final exportsDir = Directory(path.join(dir.path, 'exports'));
+      if (!await exportsDir.exists()) {
+        await exportsDir.create(recursive: true);
+      }
+      final svc = ARCXExportServiceV2();
+      final result = await svc.exportChronicleOnlyArcx(
+        outputDir: exportsDir,
+        password: null,
+        onProgress: (_) {},
+      );
+      if (context.mounted) {
+        nav.pop();
+        dialogClosed = true;
+      }
+      if (!context.mounted) return;
+      if (result.success && result.arcxPath != null) {
+        // iOS requires a non-zero sharePositionOrigin for shareXFiles (popover anchor).
+        Rect? sharePositionOrigin;
+        if (context.mounted) {
+          final size = MediaQuery.sizeOf(context);
+          sharePositionOrigin = Rect.fromLTWH(
+            size.width / 2,
+            size.height / 2,
+            1,
+            1,
+          );
+        }
+        await Share.shareXFiles(
+          [XFile(result.arcxPath!)],
+          subject: 'LUMARA Chronicle backup',
+          sharePositionOrigin: sharePositionOrigin,
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Chronicle saved: ${path.basename(result.arcxPath!)}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.error ?? 'Chronicle export failed'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted && !dialogClosed) {
+        nav.pop();
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Chronicle export failed: $e'),
+            backgroundColor: kcDangerColor,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _restoreDataFromSettings(BuildContext context) async {
