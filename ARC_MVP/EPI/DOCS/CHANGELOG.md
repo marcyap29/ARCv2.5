@@ -1,7 +1,21 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.81
-**Last Updated:** March 22, 2026
+**Version:** 3.3.82
+**Last Updated:** March 23, 2026
+
+---
+
+## [3.3.82] - March 23, 2026
+
+### Doc-config-git-backup run; no code drift since v3.3.81; required docs heartbeat sync
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup). Commit, push `main`, merge `main` -> `test`, then re-sync `main`.
+
+**Updated (sync with repo):**
+- **Repo state:** `main` clean and aligned with `origin/main`; no new code changes detected since v3.3.81.
+- **Documentation heartbeat:** Required run updates applied to `CHANGELOG.md`, `CONFIGURATION_MANAGEMENT.md`, `PROMPT_TRACKER.md`, and `bugtracker/bug_tracker.md`.
+
+**Prompt audit:** No new prompt definitions detected; PROMPT_REFERENCES unchanged.
 
 ---
 

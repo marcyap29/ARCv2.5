@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.5.0  
-**Last Updated:** 2026-03-22  
+**Version:** 3.5.1  
+**Last Updated:** 2026-03-23  
 **Record count:** 40 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
@@ -103,6 +103,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 
 | Fix / change | Version | Bug record | Notes |
 |--------------|---------|------------|--------|
+| Doc-config-git-backup heartbeat sync (no code drift) | v3.3.82 | — | 2026-03-23: Required docs sync run executed; no new code changes since v3.3.81; CHANGELOG/CONFIGURATION_MANAGEMENT/PROMPT_TRACKER/bug_tracker refreshed. |
 | LUMARA mode binding preamble; privacy egress ↔ PiiScrubber; journal attachment reflection | v3.3.81 | — | 2026-03-22: `lumaraModeBindingPreamble` + Mode 1 long-attachment rules; `privacy_settings_types` + service sync to scrub; PRISM `containsBlockingPiiForEgress`; journal_screen attachment text for LUMARA; see CHANGELOG [3.3.81]. |
 | Doc-config-git-backup; onboarding trim; Functions proxyGroq module; LUMARA/API; social-publisher worker | v3.3.80 | — | 2026-03-20: personality screens removed; root `functions/proxyGroq.ts`; lumara_usage_calendar on groq/gemini/ollama; outputs/feed/agents/research; Cloudflare worker Bluesky/LinkedIn; see CHANGELOG [3.3.80]. |
 | Reflection Session Safety System | v3.3.16 | — | Feature: AURORA-based risk monitoring with rumination/validation-seeking detection and tiered interventions. 6 new files. |
@@ -195,4 +196,4 @@ Individual bug records stay in [records/](records/); only the legacy multi-part 
 ---
 
 **Status**: ✅ Active - All resolved issues documented; Build & Platform: 6 records (incl. BUG-ANALYZER-001 ⏳); Environment: 1 (Ollama); CHRONICLE: 1 (BUG-CHRONICLE-001 ✅); Privacy: 1 (BUG-PRISM-001 ✅); LUMARA chat/networking: 1 (BUG-LUMARA-GTM-001 ✅). Bugtracker Discovery run 2026-02-26: 1 new record indexed (40 total); BUGTRACKER_TRIAGE_BACKLOG created.  
-**Last Updated**: 2026-03-10
+**Last Updated**: 2026-03-23
