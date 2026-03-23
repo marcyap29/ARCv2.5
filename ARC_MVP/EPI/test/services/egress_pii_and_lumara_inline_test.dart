@@ -5,6 +5,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
+import 'package:my_app/echo/privacy_core/privacy_settings_types.dart';
 import 'package:my_app/services/lumara/pii_scrub.dart';
 
 void main() {
@@ -17,6 +18,19 @@ void main() {
 
       // Scrubbed text must not contain raw PII
       expect(result.scrubbedText, isNot(contains('john.doe@example.com')));
+      expect(adapter.isSafeToSend(result.scrubbedText), isTrue);
+    });
+
+    test(
+        'balanced preset: URL not in enabled mask types still passes isSafeToSend after scrub',
+        () {
+      PiiScrubber.applyEgressPrivacySettings(
+        PrivacySettings.fromLevel(PrivacyLevel.balanced),
+      );
+      final adapter = PrismAdapter();
+      const input = 'Read more at https://example.com/path?q=1 please.';
+      final result = adapter.scrub(input);
+      expect(result.scrubbedText, contains('https://'));
       expect(adapter.isSafeToSend(result.scrubbedText), isTrue);
     });
 

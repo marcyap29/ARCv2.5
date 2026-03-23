@@ -1317,9 +1317,11 @@ Continue naturally.''';
     // Build system prompt. Session start = full three-mode block; mode switch = mode-only block; else = no block (tag only on user message).
     String baseSystemPrompt = await _buildSystemPrompt(entryText, null, keywords, userMessage: text, mode: currentMode);
     if (isSessionStart) {
+      final modeDefinitions =
+          '$lumaraModeBindingPreamble\n\n$lumaraModeDefinitionBlock';
       baseSystemPrompt = baseSystemPrompt.isNotEmpty
-          ? '$lumaraModeDefinitionBlock\n\n$baseSystemPrompt'
-          : lumaraModeDefinitionBlock;
+          ? '$modeDefinitions\n\n$baseSystemPrompt'
+          : modeDefinitions;
     } else if (isModeSwitch) {
       baseSystemPrompt = baseSystemPrompt.isNotEmpty
           ? '${lumaraModeSwitchBlock(currentMode)}\n\n$baseSystemPrompt'

@@ -208,10 +208,11 @@ class PrismAdapter {
   }
 
   /// Validate that text is properly scrubbed (contains no raw PII)
-  /// 
-  /// Use this as a guardrail before sending to external services
+  ///
+  /// Use this as a guardrail before sending to external services. Aligned with
+  /// [PiiScrubber.rivetScrubWithMapping] enabled-type policy (not full detector).
   bool isSafeToSend(String text) {
-    return !PiiScrubber.containsPii(text);
+    return !PiiScrubber.containsBlockingPiiForEgress(text);
   }
 
   /// Transform PRISM-scrubbed text to correlation-resistant payload
@@ -252,8 +253,8 @@ class VoiceJournalSecurityGuard {
   /// 
   /// Enhanced validation: checks both raw PII and PRISM token format
   static void validateBeforeGemini(String text) {
-    // Check 1: No raw PII
-    if (_adapter.containsPII(text)) {
+    // Check 1: No PII that the egress scrub layer is required to remove
+    if (PiiScrubber.containsBlockingPiiForEgress(text)) {
       throw const SecurityException(
         'SECURITY VIOLATION: Attempted to send unscrubbed PII to Gemini. '
         'Text must be processed through PRISM before sending.'

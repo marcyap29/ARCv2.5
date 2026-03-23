@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.80
-**Last Updated:** March 20, 2026
+**Version:** 3.3.81
+**Last Updated:** March 22, 2026
 
 ---
 
@@ -195,6 +195,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Multimodal understanding
 - **Unified Feed integration (v3.3.19)**: `initialMessage` parameter auto-sends most recent journal entry to LUMARA for reflection when opened from feed. Back-arrow navigation (replaces drawer). "New Chat" removed from popup menu.
 - **Streaming Responses (v3.3.23)**: LUMARA reflections stream to the UI in real-time as chunks arrive from the cloud API. LUMARA inline blocks update progressively via `onStreamChunk` callback, showing "Streaming..." status. Falls back to non-streaming if direct API key unavailable.
+- **Journal file attachments for reflection (v3.3.81)**: Entries with file attachments that have extracted text can run LUMARA reflection without body text; extracted document text is appended to the reflection payload (per-file character cap) and summarized in compact reference panels above the editor. Continue is enabled when attachment reference text exists.
 - **Groq Primary LLM Provider (v3.3.24, updated v3.3.59)**: LUMARA uses **Groq** as the primary cloud LLM. Default model: **GPT-OSS 120B** (v3.3.59; previously Llama 3.3 70B). Also supports GPT-OSS 20B and Llama 3.3 70B. Direct HTTP POST bypasses GTMSessionFetcher. Firebase `proxyGroq` Cloud Function hides API key; model allowlist enforced server-side. Gemini demoted from active fallback to deprecated.
 - **Per-day request metadata (v3.3.80)**: `groq_send`, `gemini_send`, and `ollama_send` attach `localCalendarDate` from `lumara_usage_calendar.dart` (device-local `YYYY-MM-DD`) on cloud payloads for consistent daily quota / analytics alignment.
 - **Chat Phase Classification (v3.3.25)**: LUMARA chat sessions are automatically classified into ATLAS phases using the same inference pipeline as journal entries. Phase displayed in session app bar (tappable for manual override). Phase chips on chat list cards. Chat sessions contribute to phase regime building. Backfill support for existing chats.
@@ -700,6 +701,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - Privacy preferences
 - Data sharing controls
 - **Inline PII Scrub Demo (v3.3.20)**: "Test privacy protection" card in Privacy Settings. Real-time PII scrubbing: type text with names, emails, phone numbers → see scrubbed output and redaction count. Uses the same `PrismAdapter` pipeline as LUMARA.
+- **LUMARA egress + Settings privacy (v3.3.81)**: Stored privacy level/custom settings sync to `PiiScrubber` (`applyEgressPrivacySettings`) on load and save so outbound LUMARA scrubbing matches masking options, enabled PII categories, and detector sensitivity. Bootstrap initializes `PrivacySettingsService` early. PRISM pre-send checks use the same blocking-PII policy as egress scrub.
 - PII detection settings
 - Encryption options
 

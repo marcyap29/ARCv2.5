@@ -1364,12 +1364,15 @@ class EnhancedLumaraApi {
 
           onProgress?.call('Calling cloud API...');
 
-          // Reflection = one request per session → always inject full three-mode definition block (session start).
+          // Reflection = one request per session → preamble + full three-mode definition (session start).
+          // Preamble prevents document-heavy prompts from drifting into Mode 3 shape while tagged Personal.
+          final modeDefinitions =
+              '$lumaraModeBindingPreamble\n\n$lumaraModeDefinitionBlock';
           final effectiveSystemPrompt = lumaraChatMode == LumaraChatMode.deepAnalytical
-              ? lumaraModeDefinitionBlock
+              ? modeDefinitions
               : (systemPrompt.isNotEmpty
-                  ? '$lumaraModeDefinitionBlock\n\n$systemPrompt'
-                  : lumaraModeDefinitionBlock);
+                  ? '$modeDefinitions\n\n$systemPrompt'
+                  : modeDefinitions);
           String llmResponse = await lumaraSend(
             system: effectiveSystemPrompt,
             user: userPromptForApi,

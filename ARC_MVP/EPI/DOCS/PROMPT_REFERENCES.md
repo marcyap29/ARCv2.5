@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-03-20. Document version: 2.9.1.
+- **Last synced with codebase:** 2026-03-22. Document version: 2.9.2.
 
 ---
 
@@ -86,6 +86,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 23. [Research Query Planner](#23-research-query-planner)
 24. [Dual Chronicle Intelligence Summary](#24-dual-chronicle-intelligence-summary)
 25. [Privacy Guardrail System Prompt](#25-privacy-guardrail-system-prompt)
+26. [LUMARA Active-Mode Binding Preamble](#26-lumara-active-mode-binding-preamble-personal--simple--analysis)
 
 ---
 
@@ -2056,10 +2057,30 @@ At runtime the interceptor concatenates: `'$_privacySystemPrompt\n$originalSyste
 
 ---
 
+## 26. LUMARA Active-Mode Binding Preamble (Personal / Simple / Analysis)
+
+**Source:** `lib/arc/chat/prompts/lumara_mode_definition.dart` — `lumaraModeBindingPreamble` (prepended before `lumaraModeDefinitionBlock` / used with `lumaraModeSwitchBlock` for mode-only switches).
+
+**Injection sites:** Session start in `lib/arc/chat/bloc/lumara_assistant_cubit.dart` (full three-mode block); deep analytical reflection path in `lib/arc/chat/services/enhanced_lumara_api.dart` (same combined string).
+
+**Role:** States that the single `[MODE: …]` line on the user message is authoritative; the three-mode reference is definitions only. Reduces drift into Mode 3 (Analysis) formatting—claims/evidence tables, detached audit tone—when the active tag is `[MODE: Personal]`, including on long attachments. Mode 1 copy in the same file adds guidance to keep Personal voice and provenance for long PDFs/specs unless the user explicitly asks for formal critique.
+
+**Excerpt (binding preamble, abbreviated):**
+
+```
+CRITICAL — ACTIVE MODE (overrides shape of your reply)
+The user message begins with exactly one "[MODE: …]" line. That line is the ONLY mode you apply on this turn.
+The three-mode reference below is for definitions only; do not blend modes or default to Analysis formatting.
+…
+```
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.9.2 | 2026-03-22 | **v3.3.81:** New §26 — `lumaraModeBindingPreamble` in `lumara_mode_definition.dart`; session-start / reflection injection in `lumara_assistant_cubit.dart`, `enhanced_lumara_api.dart`. Mode 1 text extended for long attachments (stay Personal; no Mode 3 dossier unless requested). |
 | 2.9.1 | 2026-03-20 | **Doc sync (v3.3.80):** Backend table — `proxyGroq` / `proxyGemini` canonical paths under repo-root `functions/src/functions/` (deploy bundle), with note on legacy `ARC_MVP/EPI/functions/index.js` Groq inline. Ongoing prompt text updates in `lumara_master_prompt.dart`, `lumara_mode_definition.dart`; callable prompt alignment in `sendChatMessage.ts`, `generateJournalReflection.ts`, `generateJournalPrompts.ts`, `analyzeJournalEntry.ts` (no new prompt categories). |
 | 2.9.0 | 2026-02-25 | **v3.3.59 prompt changes:** (1) `prompts_arc.dart` system prompt rewritten — "ARC's journaling copilot" → "LUMARA, a personal AI inside a private journaling app"; added journal context awareness, direct answer directives; **Bible retrieval instructions removed** (module deleted). (2) `lumara_master_prompt.dart` — new `USER PERSONALITY CONFIG` and `INFERRED PREFERENCES` control state blocks; phase de-emphasis ("do not name or cite phase labels to the user"); all "Claude" / "Claude-quality" references → "natural" / "conversational"; new `<response_shape>` section for journal reflections. (3) GPT-OSS 120B default model in `groq_send.dart` (was Llama 3.3 70B). (4) `lumara_cloud_generate.dart` simplified to 2-tier (proxyGroq → direct Groq; Gemini fallback removed). (5) §7 Faith/Biblical Scholar: note added — Bible module removed, mentor profile retained. |
 | 2.8.0 | 2026-02-24 | **Prompt audit:** Added LUMARA Groq Cached Prompt — `lib/arc/chat/llm/prompts/lumara_groq_cached_prompt.dart` (`lumaraStableSystemPrompt`, `buildLumaraDynamicContext`). Stable prefix for Groq caching (~50% cached input discount); used by `groq_send.dart`. |

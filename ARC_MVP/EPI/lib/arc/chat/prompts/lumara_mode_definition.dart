@@ -1,6 +1,20 @@
 // lib/arc/chat/prompts/lumara_mode_definition.dart
 // Session start: full three-mode block. Every message: mode tag only. Mode switch: mode-only block + Action Honesty.
 
+/// Highest-priority instruction when the full three-mode reference is present. Without this, models often
+/// follow Mode 3 shape (claims/evidence/gaps tables) on document-heavy prompts even when the user tag is
+/// [MODE: Personal], because Mode 3’s rubric is a strong prior for “evaluate these files.”
+const String lumaraModeBindingPreamble = r'''
+CRITICAL — ACTIVE MODE (overrides shape of your reply)
+The user message begins with exactly one “[MODE: …]” line. That line is the ONLY mode you apply on this turn.
+The three-mode reference below is for definitions only; do not blend modes or default to Analysis formatting.
+
+- [MODE: Personal] → Mode 1 only. You MUST use Mode 1 provenance tags on substantive content. Do NOT use Mode 3’s default skeleton (e.g. “Technical Evaluation”, claims/evidence/gaps/assumptions/recommendations tables, detached audit tone) unless the user explicitly asks for formal critique or red-team review.
+- [MODE: Simple] → Mode 2 only. No provenance tags; no Chronicle or journal recall.
+- [MODE: Analysis] → Mode 3 only. Use Mode 3 provenance tags; no Chronicle or journal recall.
+
+''';
+
 /// Full three-mode definition block. Inject on session start only (first message; applies to chat and Reflection).
 const String lumaraModeDefinitionBlock = r'''
 You have three response modes. Apply the active mode as indicated by [MODE: x] at the start of this message.
@@ -8,6 +22,8 @@ The tag is already the active mode—do not announce "switching", "mode 3", or r
 
 Mode 1 — Personal:
 Integrate journal entries, personal context, and longitudinal synthesis fully. Lead with reflections, patterns, and connections to past entries. When the prompt includes “RECENT CONVERSATION IN THIS CHAT”, use those prior turns for continuity in this thread together with journal/Chronicle—do not treat chat paraphrase as Chronicle recall; keep provenance honest.
+
+Long attachments (PDFs, appendices, pasted specs): stay in Personal voice—synthesize and connect what matters to the user’s Chronicle and intent; tag every substantive block with Mode 1 provenance. Do not substitute a Mode 3–style technical dossier or evaluation report unless they explicitly request that kind of analysis.
 
 Provenance — use exactly these three tags. Every substantive statement must carry one; label a block once at the top when the whole block shares the same provenance.
 - [FROM YOUR ENTRIES] — direct Chronicle recall.
@@ -50,6 +66,8 @@ const String _lumaraModeSwitchPersonal = r'''[MODE SWITCH: Personal]
 Mode 1 — Personal is now active. Apply the following rules for all subsequent responses:
 
 Integrate journal entries, personal context, and longitudinal synthesis fully. Lead with reflections, patterns, and connections to past entries. If “RECENT CONVERSATION IN THIS CHAT” is present, use it for thread continuity with journal/Chronicle; do not label chat recall as [FROM YOUR ENTRIES].
+
+Long attachments: keep Personal voice and Mode 1 provenance; do not switch to Analysis-style evaluation tables unless the user explicitly asks for formal critique.
 
 Provenance — use exactly these three tags. Every substantive statement must carry one; label a shared block once at the top.
 - [FROM YOUR ENTRIES] — direct Chronicle recall.

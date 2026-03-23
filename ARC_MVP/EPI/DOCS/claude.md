@@ -1,8 +1,11 @@
 # EPI Documentation Context Guide
 
-**Version:** 3.3.29
-**Last Updated:** March 12, 2026
+**Version:** 3.3.30
+**Last Updated:** March 21, 2026
 **Current Branch:** `test`
+
+### Recent Updates (v3.3.30)
+- **LUMARA response modes locked in this doc**: Personal / Simple / Analysis — intended behavior, provenance tags, prompt wiring, and regression rules. See [LUMARA response modes](#lumara-response-modes-personal--simple--analysis) under Key Services. Do not change mode semantics or remove the binding preamble without updating that section and `lib/arc/chat/prompts/lumara_mode_definition.dart`.
 
 ### Recent Updates (v3.3.29)
 - **Bug tracker incorporated for regression prevention**: The bugtracker is now explicitly part of this context. Before generating or modifying code, you **must** use the [Bug prevention](#bug-prevention-avoid-reintroducing) list below and, for affected areas, `DOCS/bugtracker/` (index, records, master index) to avoid reintroducing known bugs. See [Bug Tracking](#bug-tracking) and the mandate there.
@@ -67,6 +70,7 @@
 | **BUGTRACKER_MASTER_INDEX.md** | Structure, format, tags, resolution patterns, maintenance | `DOCS/bugtracker/BUGTRACKER_MASTER_INDEX.md` |
 | **CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md** | Full-repo Code Simplifier plan: scan, divisible phases, agent roles | `DOCS/CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md` |
 | **Documentation, Config & Git Backup** | Universal prompt for docs, config, and backup sync | This file: section "Ultimate Documentation, Configuration Management and Git Backup Prompt" |
+| **LUMARA response modes** | Personal / Simple / Analysis — tags, Chronicle, prompts (**do not regress**) | [LUMARA response modes](#lumara-response-modes-personal--simple--analysis) |
 | **CLOUD_VISION_SETUP.md** | Vision/OCR plugin: enable Vision API, IAM, deploy workaround | `DOCS/CLOUD_VISION_SETUP.md` |
 | **Firebase 2nd gen invoker error** | "Unable to set the invoker" at deploy — fix in Cloud Run (Security → Allow public access) or gcloud `--no-invoker-iam-check` | This file: [Backend § Firebase 2nd gen](#firebase-2nd-gen-functions--unable-to-set-the-invoker-recurring-use-this-fix-every-time); `DOCS/FIREBASE_OLLAMA_DEPLOY.md` |
 
@@ -79,6 +83,7 @@ Quick links to each prompt section (copy the header name to find the block):
 | Prompt | Section link |
 |--------|--------------|
 | **Documentation, Configuration Management and Git Backup** | [Ultimate "Documentation, Configuration Management and Git Backup" Prompt](#ultimate-documentation-configuration-management-and-git-backup-prompt) |
+| **LUMARA response modes** | [LUMARA response modes (Personal / Simple / Analysis)](#lumara-response-modes-personal--simple--analysis) |
 | **Code Simplifier** | [Code Simplifier](#code-simplifier) |
 | **Bugtracker Consolidation & Optimization** | [Bugtracker Consolidation & Optimization Prompt](#bugtracker-consolidation--optimization-prompt) |
 | **DevSecOps Security Audit** | [DevSecOps Security Audit Prompt](#devsecops-security-audit-prompt) |
@@ -197,6 +202,7 @@ Location: `DOCS/bugtracker/`
 When generating or modifying code, **do not reintroduce** the following. Full details and fix instructions are in `DOCS/bugtracker/` (see above). **Checking this list and the relevant records before coding reduces regressions.**
 
 **LUMARA & journal**
+- **Response modes**: Before changing LUMARA mode behavior, prompts, or system/user message assembly, read [LUMARA response modes](#lumara-response-modes-personal--simple--analysis). Keep `lumaraModeBindingPreamble` + `lumaraModeDefinitionBlock` on session start for reflection and chat; keep per-mode provenance rules aligned with `lumara_mode_definition.dart`.
 - **Never** send an empty user string to Gemini/journal reflection APIs (rejection). Validate non-empty before calling.
 - **Never** let user prompt override master prompt constraints; keep system/user roles and instruction hierarchy clear.
 - **Always** send text through PRISM scrub before any cloud LLM call—including softer/deeper reflection paths and inline/journal APIs (BUG-PRISM-001). No bypass.
@@ -284,6 +290,41 @@ Response length is determined by **Engagement Mode** (primary driver), with **Pe
 - **Master Prompt**: `lib/arc/chat/llm/prompts/lumara_master_prompt.dart` - System prompt with temporal context
 - **Settings Service**: `lib/arc/chat/services/lumara_reflection_settings_service.dart` - Memory focus, persona, engagement
 - **Control State**: `lib/arc/chat/services/lumara_control_state_builder.dart` - Runtime control state
+
+### LUMARA response modes (Personal / Simple / Analysis)
+
+**Single source of truth for copy and rules:** `lib/arc/chat/prompts/lumara_mode_definition.dart` (`lumaraModeDefinitionBlock`, `lumaraModeBindingPreamble`, `lumaraModeSwitchBlock`, `lumaraModeTag`).
+
+**Enum (persistence / API):** `LumaraChatMode` — `personal`, `analytical` (UI label **Simple**), `deepAnalytical` (UI label **Analysis**). Settings: `LumaraReflectionSettingsService.getLumaraChatMode` / `setLumaraChatMode`.
+
+#### How a turn is labeled
+
+- Every user payload to the LLM is prefixed with **`lumaraModeTag(mode)`** — e.g. `[MODE: Personal]`, `[MODE: Simple]`, `[MODE: Analysis]`. That line is the **active mode** for the turn.
+
+#### What goes in the system prompt
+
+- **Session start** (first message in chat, and each journal reflection request): inject **`lumaraModeBindingPreamble`** immediately followed by **`lumaraModeDefinitionBlock`**, then (where applicable) the rest of the master/system prompt.
+  - **Journal / reflection:** `lib/arc/chat/services/enhanced_lumara_api.dart` (combined system string before `lumaraSend`).
+  - **LUMARA chat:** `lib/arc/chat/bloc/lumara_assistant_cubit.dart` when `isSessionStart` (empty message list).
+- **Mid-session mode change:** inject **`lumaraModeSwitchBlock(mode)`** only (not the full three-mode block again), then the base system prompt.
+- **Rationale for the preamble:** The definition block describes all three modes. Without **`lumaraModeBindingPreamble`**, document-heavy prompts (PDFs, appendices) tend to drift into **Analysis-shaped** answers (claims/evidence/gaps tables, “technical evaluation”) even when the user tag is **Personal**, and models may skip **Personal provenance** tags. The preamble states explicitly that only the `[MODE: …]` line applies and Personal must not default to Analysis formatting unless the user explicitly asks for formal critique.
+
+#### Intended usage by mode
+
+| Mode | UI name | Chronicle / journal memory | Provenance tags | Response shape |
+|------|---------|----------------------------|-----------------|----------------|
+| **Personal** | Personal | **Yes** — integrate entries, patterns, longitudinal synthesis; use in-chat block for **thread** continuity only | **Exactly three:** `[FROM YOUR ENTRIES]`, `[MY SYNTHESIS]`, `[GENERAL KNOWLEDGE]` — substantive blocks tagged (or one tag at top of a shared table/list). **Do not** label in-chat paraphrase as `[FROM YOUR ENTRIES]`. | Reflective lead-in, connections to their material; long attachments stay **Personal** (synthesize + tag), not a Mode‑3 dossier, unless user explicitly requests formal critique |
+| **Simple** | Simple | **No** — no journal/Chronicle recall; in-chat history allowed for this thread only | **None** — forbidden | Clear, direct, structured when helpful; no reflective “trusted friend” preamble |
+| **Analysis** | Analysis | **No** — same as Simple for memory | **Exactly three:** `[GENERAL KNOWLEDGE]`, `[MY SYNTHESIS]`, `[HYPOTHETICAL EXAMPLE]` | Deep critique: claims, support, gaps, assumptions, alternatives; push back when warranted |
+
+**Action honesty** (no false claims about saving/archiving data) applies in **all** modes — see the same Dart file.
+
+#### Regression rules (for implementers)
+
+1. Do **not** drop **`lumaraModeBindingPreamble`** on session start paths above.
+2. Do **not** replace the three-mode block with Analysis-only instructions for users who are in Personal mode.
+3. If you change tag names or mode rules, update **`lumara_mode_definition.dart`** and this subsection together.
+4. Journal mode selection remains **`journal_screen.dart`** (`LumaraReflectionOptions.lumaraChatMode`); chat mode remains **`LumaraAssistantLoaded.lumaraChatMode`**.
 
 ### LUMARA Settings UI
 - **Main Settings**: `lib/shared/ui/settings/settings_view.dart` - Memory Focus, Persona, Engagement Mode

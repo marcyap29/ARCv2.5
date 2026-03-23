@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 20, 2026 (doc sync 2026-03-20, v3.3.80)  
+**Last Updated:** March 22, 2026 (doc sync 2026-03-22, v3.3.81)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -45,14 +45,14 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-20 | ✅ Synced | v3.3.80 - onboarding trim, root Functions proxyGroq module, social-publisher worker |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-20 | ✅ Synced | v3.3.80 - doc-config-git-backup + repo delta since v3.3.79 |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-20 | ✅ Synced | v2.9.1 - backend proxy paths; v3.3.80 prompt-source edits |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-20 | ✅ Synced | v1.29.0 - Doc sync 2026-03-20 (v3.3.80) row |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-20 | ✅ Synced | v3.5.0 - 40 records; Last Updated 2026-03-20 |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-20 | ✅ Synced | v3.3.80 - doc sync |
-| README.md | `/DOCS/README.md` | 2026-03-20 | ✅ Synced | Key docs table; CHANGELOG v3.3.80 |
-| claude.md | `/DOCS/claude.md` | 2026-03-06 | ✅ Synced | Doc/Config/Git Backup prompt |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-22 | ✅ Synced | v3.3.81 - LUMARA mode preamble; privacy egress + journal attachments |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-22 | ✅ Synced | v3.3.81 - doc-config-git-backup + privacy/journal/LUMARA prompt delta |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-22 | ✅ Synced | v2.9.2 - §26 lumaraModeBindingPreamble; mode-definition attachment guidance |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-22 | ✅ Synced | v1.30.0 - Doc sync 2026-03-22 (v3.3.81) row |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-22 | ✅ Synced | v3.5.0 - 40 records; Last Updated 2026-03-22 |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-22 | ✅ Synced | v3.3.81 - doc sync |
+| README.md | `/DOCS/README.md` | 2026-03-22 | ✅ Synced | Key docs table; CHANGELOG v3.3.81 |
+| claude.md | `/DOCS/claude.md` | 2026-03-22 | ✅ Synced | Doc/Config/Git Backup prompt |
 | backend.md | `/DOCS/backend.md` | 2026-03-20 | ✅ Synced | v3.3.80 - proxyGroq.ts module, rateLimiter/authGuard |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
@@ -121,6 +121,20 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-22 - Documentation & Git Backup run (v3.3.81; doc sync 2026-03-22)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md). Trigger: user request. Commit, push `main`, merge `main` → `test`.
+
+**PROMPT REFERENCES AUDIT:** New §26 — `lumaraModeBindingPreamble` and attachment guidance in `lumara_mode_definition.dart`; injection in `lumara_assistant_cubit.dart`, `enhanced_lumara_api.dart`. PROMPT_REFERENCES.md → v2.9.2.
+
+**Git Backup — Identify what changed (since v3.3.80):** Privacy types extracted to `privacy_settings_types.dart`; `PrivacySettingsService` drives `PiiScrubber` via `applyEgressPrivacySettings`; masking service allowed-types; `prism_adapter` / voice journal guard use `containsBlockingPiiForEgress`; bootstrap privacy init; journal reflection with file attachment extracted text + UI panels; LUMARA mode binding preamble; tests extended.
+
+**Updates:** CHANGELOG.md v3.3.81; CONFIGURATION_MANAGEMENT.md this entry + inventory; PROMPT_TRACKER.md v1.30.0; bug_tracker.md Recent code changes + Last Updated; FEATURES.md / ARCHITECTURE.md / README.md version alignment.
+
+**Status:** ✅ Doc updates applied with code; commit, push `main`, merge into `test`.
+
+---
 
 ### 2026-03-20 - Documentation & Git Backup run (v3.3.80; doc sync 2026-03-20)
 

@@ -42,6 +42,7 @@ import 'package:my_app/services/temporal_notification_service.dart';
 
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:my_app/echo/privacy_core/privacy_settings_service.dart';
 
 // ==========================================================
 // NOTES FOR AI AGENT
@@ -455,6 +456,14 @@ Future<void> bootstrap({
       
       // Temporary: run app directly without Sentry
       logger.i('Running app without Sentry (temporarily disabled)');
+
+      // Privacy level → LUMARA egress (PiiScrubber) before any cloud calls
+      try {
+        await PrivacySettingsService.instance.initialize();
+        logger.d('Privacy settings initialized for LUMARA egress');
+      } catch (e, st) {
+        logger.w('Privacy settings init failed (non-fatal)', e, st);
+      }
       
       // Ensure runApp is called in the correct zone
       final app = await builder();

@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.80
-**Last Updated:** March 20, 2026
+**Version:** 3.3.81
+**Last Updated:** March 22, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA (GPT-OSS 120B primary), LUMARA Vision Reposition (phases de-emphasized in UI), streamlined onboarding (standalone personality setup screens removed v3.3.80), Dual Prompt Mode, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration (HealthKit removed on iOS in v3.3.67), AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Timeline Pagination, repo-root Firebase Functions `proxyGroq` module (v3.3.80), SwarmSpace social-publisher Cloudflare worker (Bluesky/LinkedIn paths)
 
 ---
@@ -88,6 +88,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Onboarding consolidation (v3.3.80)**: Standalone personality reminder and personality setup screens removed; onboarding flow carried by `arc_onboarding_*` and related widgets.
 - ✅ **Firebase Functions source layout (v3.3.80)**: Repo-root `functions/src/functions/proxyGroq.ts` (and siblings) as the TypeScript module path for Groq proxy deployment; rate limiter and auth guard updates alongside journal callables.
 - ✅ **SwarmSpace social-publisher worker (v3.3.80)**: Cloudflare Worker under `scripts/cloudflare-workers/social-publisher/` extended (e.g. Bluesky/LinkedIn helpers); activation and router deploy documented in `SOCIAL_PUBLISHER_ACTIVATION.md`.
+- ✅ **LUMARA mode binding + privacy egress alignment (v3.3.81)**: `lumaraModeBindingPreamble` prepended with the three-mode block on chat session start and deep analytical reflection so `[MODE: Personal]` resists Mode-3 audit formatting on document-heavy prompts. `PrivacySettingsService` syncs user presets to `PiiScrubber`; `PrismAdapter.isSafeToSend` / voice journal validation use `containsBlockingPiiForEgress`. Journal reflections can include extracted text from file attachments (capped) when the body field is empty.
 
 ### Current Version
 

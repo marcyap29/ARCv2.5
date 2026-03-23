@@ -54,7 +54,12 @@ class PIIMaskingService {
   PIIMaskingService(this._detectionService);
 
   /// Main masking method (REQ-2.1: Replace detected PII with semantic tokens)
-  MaskingResult maskText(String text, {MaskingOptions options = const MaskingOptions()}) {
+  /// When [allowedTypes] is set, only those [PIIType]s are masked (privacy level / user toggles).
+  MaskingResult maskText(
+    String text, {
+    MaskingOptions options = const MaskingOptions(),
+    Set<PIIType>? allowedTypes,
+  }) {
     // Step 1: Detect PII in the text
     final detectionResult = _detectionService.detectPII(text);
 
@@ -68,8 +73,19 @@ class PIIMaskingService {
     }
 
     // Step 2: Sort matches by position (reverse order for replacement)
-    final sortedMatches = [...detectionResult.matches]
+    var sortedMatches = [...detectionResult.matches]
       ..sort((a, b) => b.startIndex.compareTo(a.startIndex));
+    if (allowedTypes != null) {
+      sortedMatches = sortedMatches.where((m) => allowedTypes.contains(m.type)).toList();
+    }
+    if (sortedMatches.isEmpty) {
+      return MaskingResult(
+        maskedText: text,
+        maskingMap: {},
+        processedMatches: [],
+        hasReversibleMasking: false,
+      );
+    }
 
     String maskedText = text;
     final maskingMap = <String, String>{};

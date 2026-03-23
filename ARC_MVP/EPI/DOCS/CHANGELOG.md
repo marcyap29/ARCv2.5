@@ -1,7 +1,25 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.80
-**Last Updated:** March 20, 2026
+**Version:** 3.3.81
+**Last Updated:** March 22, 2026
+
+---
+
+## [3.3.81] - March 22, 2026
+
+### Doc-config-git-backup run; LUMARA mode binding preamble; privacy egress sync; journal document attachments
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup). Commit, push `main`, merge `main` → `test`.
+
+**Updated (sync with repo):**
+- **LUMARA prompts:** `lumara_mode_definition.dart` — `lumaraModeBindingPreamble` (active `[MODE: …]` overrides three-mode reference; resists Mode 3 shape on document-heavy Personal turns); Mode 1 guidance for long attachments. Injected on session start in `lumara_assistant_cubit.dart` and deep analytical reflection in `enhanced_lumara_api.dart`.
+- **Privacy / PRISM egress:** `privacy_settings_types.dart` (extracted types); `privacy_settings_service.dart` syncs stored presets to `PiiScrubber.applyEgressPrivacySettings`; `pii_scrub.dart` uses user `PrivacySettings` for masking options, enabled PII types, and detector sensitivity. `pii_masking_service.dart` supports allowed-type filtering. `prism_adapter.dart` / voice journal guard use `containsBlockingPiiForEgress` so pre-send checks match egress policy.
+- **Bootstrap:** `bootstrap.dart` initializes `PrivacySettingsService` before cloud LUMARA traffic.
+- **Journal:** `journal_screen.dart` — reflections allowed with attachment-only entries when files have extracted text; appends capped per-file document text for LUMARA; reference panels and Continue enabled when attachment text exists.
+- **Tests:** `egress_pii_and_lumara_inline_test.dart` extended for egress alignment.
+- **Docs:** `claude.md` (role section touch-up as in working tree).
+
+**Prompt audit:** New catalog section §26 in PROMPT_REFERENCES.md v2.9.2.
 
 ---
 

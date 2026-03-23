@@ -1,219 +1,20 @@
-// lib/services/privacy/privacy_settings_service.dart
 // Privacy Settings Service for user-configurable PII protection
 
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
-import 'pii_detection_service.dart';
-import 'pii_masking_service.dart';
-import 'models/pii_types.dart' hide MaskingOptions;
+import 'package:my_app/services/lumara/pii_scrub.dart';
 
-enum PrivacyLevel {
-  /// Maximum privacy: Strict detection, full masking, no data retention
-  maximum('Maximum Privacy', 'Strict detection, full masking, blocks all PII'),
+import 'privacy_settings_types.dart';
 
-  /// Balanced privacy: Normal detection, smart masking, utility preserved
-  balanced('Balanced Privacy', 'Smart detection, preserves readability and utility'),
+export 'privacy_settings_types.dart';
 
-  /// Minimal privacy: Relaxed detection, structure preservation, performance focused
-  minimal('Minimal Privacy', 'Basic protection, optimized for speed and utility'),
-
-  /// Custom: User-defined settings
-  custom('Custom Settings', 'Configure individual privacy preferences');
-
-  const PrivacyLevel(this.displayName, this.description);
-
-  final String displayName;
-  final String description;
-}
-
-class PrivacySettings {
-  // Detection settings
-  final SensitivityLevel detectionSensitivity;
-  final Set<PIIType> enabledPIITypes;
-
-  // Masking settings
-  final bool preserveStructure;
-  final bool consistentMapping;
-  final bool hashEmails;
-  final bool reversibleMasking;
-
-  // Guardrail settings
-  final bool enableInterceptor;
-  final bool blockOnViolation;
-  final bool auditLogging;
-
-  // Performance settings
-  final bool enableRealTimeScanning;
-  final int maxProcessingTime; // milliseconds
-
-  const PrivacySettings({
-    this.detectionSensitivity = SensitivityLevel.normal,
-    this.enabledPIITypes = const {
-      PIIType.name,
-      PIIType.email,
-      PIIType.phone,
-      PIIType.address,
-      PIIType.ssn,
-      PIIType.creditCard,
-    },
-    this.preserveStructure = true,
-    this.consistentMapping = true,
-    this.hashEmails = true,
-    this.reversibleMasking = false,
-    this.enableInterceptor = true,
-    this.blockOnViolation = true,
-    this.auditLogging = true,
-    this.enableRealTimeScanning = true,
-    this.maxProcessingTime = 1000,
-  });
-
-  /// Factory for preset privacy levels
-  factory PrivacySettings.fromLevel(PrivacyLevel level) {
-    switch (level) {
-      case PrivacyLevel.maximum:
-        return const PrivacySettings(
-          detectionSensitivity: SensitivityLevel.strict,
-          enabledPIITypes: {
-            PIIType.name,
-            PIIType.email,
-            PIIType.phone,
-            PIIType.address,
-            PIIType.ssn,
-            PIIType.creditCard,
-            PIIType.ipAddress,
-            PIIType.url,
-            PIIType.dateOfBirth,
-            PIIType.other,
-          },
-          preserveStructure: false,
-          consistentMapping: true,
-          hashEmails: true,
-          reversibleMasking: false,
-          enableInterceptor: true,
-          blockOnViolation: true,
-          auditLogging: true,
-          enableRealTimeScanning: true,
-          maxProcessingTime: 2000,
-        );
-
-      case PrivacyLevel.balanced:
-        return const PrivacySettings(
-          detectionSensitivity: SensitivityLevel.normal,
-          enabledPIITypes: {
-            PIIType.name,
-            PIIType.email,
-            PIIType.phone,
-            PIIType.address,
-            PIIType.ssn,
-            PIIType.creditCard,
-          },
-          preserveStructure: true,
-          consistentMapping: true,
-          hashEmails: true,
-          reversibleMasking: false,
-          enableInterceptor: true,
-          blockOnViolation: true,
-          auditLogging: true,
-          enableRealTimeScanning: true,
-          maxProcessingTime: 1000,
-        );
-
-      case PrivacyLevel.minimal:
-        return const PrivacySettings(
-          detectionSensitivity: SensitivityLevel.relaxed,
-          enabledPIITypes: {
-            PIIType.ssn,
-            PIIType.creditCard,
-            PIIType.email,
-          },
-          preserveStructure: true,
-          consistentMapping: false,
-          hashEmails: false,
-          reversibleMasking: true,
-          enableInterceptor: false,
-          blockOnViolation: false,
-          auditLogging: false,
-          enableRealTimeScanning: false,
-          maxProcessingTime: 500,
-        );
-
-      case PrivacyLevel.custom:
-        return const PrivacySettings(); // Default settings for customization
-    }
-  }
-
-  PrivacySettings copyWith({
-    SensitivityLevel? detectionSensitivity,
-    Set<PIIType>? enabledPIITypes,
-    bool? preserveStructure,
-    bool? consistentMapping,
-    bool? hashEmails,
-    bool? reversibleMasking,
-    bool? enableInterceptor,
-    bool? blockOnViolation,
-    bool? auditLogging,
-    bool? enableRealTimeScanning,
-    int? maxProcessingTime,
-  }) {
-    return PrivacySettings(
-      detectionSensitivity: detectionSensitivity ?? this.detectionSensitivity,
-      enabledPIITypes: enabledPIITypes ?? this.enabledPIITypes,
-      preserveStructure: preserveStructure ?? this.preserveStructure,
-      consistentMapping: consistentMapping ?? this.consistentMapping,
-      hashEmails: hashEmails ?? this.hashEmails,
-      reversibleMasking: reversibleMasking ?? this.reversibleMasking,
-      enableInterceptor: enableInterceptor ?? this.enableInterceptor,
-      blockOnViolation: blockOnViolation ?? this.blockOnViolation,
-      auditLogging: auditLogging ?? this.auditLogging,
-      enableRealTimeScanning: enableRealTimeScanning ?? this.enableRealTimeScanning,
-      maxProcessingTime: maxProcessingTime ?? this.maxProcessingTime,
-    );
-  }
-
-  /// Convert to masking options
-  MaskingOptions toMaskingOptions() {
-    return MaskingOptions(
-      preserveStructure: preserveStructure,
-      consistentMapping: consistentMapping,
-      reversibleMasking: reversibleMasking,
-      hashEmails: hashEmails,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-    'detectionSensitivity': detectionSensitivity.index,
-    'enabledPIITypes': enabledPIITypes.map((e) => e.index).toList(),
-    'preserveStructure': preserveStructure,
-    'consistentMapping': consistentMapping,
-    'hashEmails': hashEmails,
-    'reversibleMasking': reversibleMasking,
-    'enableInterceptor': enableInterceptor,
-    'blockOnViolation': blockOnViolation,
-    'auditLogging': auditLogging,
-    'enableRealTimeScanning': enableRealTimeScanning,
-    'maxProcessingTime': maxProcessingTime,
-  };
-
-  factory PrivacySettings.fromJson(Map<String, dynamic> json) {
-    return PrivacySettings(
-      detectionSensitivity: SensitivityLevel.values[json['detectionSensitivity'] ?? 1],
-      enabledPIITypes: (json['enabledPIITypes'] as List?)
-          ?.map((i) => PIIType.values[i])
-          .toSet() ?? const {PIIType.name, PIIType.email, PIIType.phone},
-      preserveStructure: json['preserveStructure'] ?? true,
-      consistentMapping: json['consistentMapping'] ?? true,
-      hashEmails: json['hashEmails'] ?? true,
-      reversibleMasking: json['reversibleMasking'] ?? false,
-      enableInterceptor: json['enableInterceptor'] ?? true,
-      blockOnViolation: json['blockOnViolation'] ?? true,
-      auditLogging: json['auditLogging'] ?? true,
-      enableRealTimeScanning: json['enableRealTimeScanning'] ?? true,
-      maxProcessingTime: json['maxProcessingTime'] ?? 1000,
-    );
-  }
-}
-
-/// Service for managing privacy settings
+/// Service for managing privacy settings (singleton). Syncs to [PiiScrubber] for LUMARA egress.
 class PrivacySettingsService {
+  PrivacySettingsService._();
+  static final PrivacySettingsService instance = PrivacySettingsService._();
+  factory PrivacySettingsService() => instance;
+
   static const String _keyPrivacyLevel = 'privacy_level';
   static const String _keyPrivacySettings = 'privacy_settings';
   static const String _keyFirstTimeSetup = 'privacy_first_time_setup';
@@ -226,36 +27,37 @@ class PrivacySettingsService {
   PrivacySettings get currentSettings => _currentSettings;
   bool get isFirstTimeSetup => _isFirstTimeSetup;
 
+  void _syncLumaraEgress() {
+    PiiScrubber.applyEgressPrivacySettings(_currentSettings);
+  }
+
   /// Initialize privacy settings from storage
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Load privacy level
     final levelIndex = prefs.getInt(_keyPrivacyLevel);
-    if (levelIndex != null && levelIndex < PrivacyLevel.values.length) {
+    if (levelIndex != null && levelIndex >= 0 && levelIndex < PrivacyLevel.values.length) {
       _currentLevel = PrivacyLevel.values[levelIndex];
     }
 
-    // Load custom settings
     final settingsJson = prefs.getString(_keyPrivacySettings);
-    if (settingsJson != null) {
+    if (settingsJson != null && settingsJson.trim().isNotEmpty && settingsJson.trim() != '{}') {
       try {
-        final Map<String, dynamic> json = Map<String, dynamic>.from(
-          // In a real app, you'd use proper JSON parsing
-          {}
-        );
-        _currentSettings = PrivacySettings.fromJson(json);
+        final decoded = jsonDecode(settingsJson);
+        if (decoded is Map<String, dynamic>) {
+          _currentSettings = PrivacySettings.fromJson(decoded);
+        } else {
+          _currentSettings = PrivacySettings.fromLevel(_currentLevel);
+        }
       } catch (e) {
-        print('Error loading privacy settings: $e');
-        // Fall back to level-based settings
         _currentSettings = PrivacySettings.fromLevel(_currentLevel);
       }
     } else {
       _currentSettings = PrivacySettings.fromLevel(_currentLevel);
     }
 
-    // Check if first time setup
     _isFirstTimeSetup = !(prefs.getBool(_keyFirstTimeSetup) ?? false);
+    _syncLumaraEgress();
   }
 
   /// Set privacy level and update settings
@@ -287,10 +89,8 @@ class PrivacySettingsService {
   Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_keyPrivacyLevel, _currentLevel.index);
-
-    // In a real implementation, you'd properly serialize the settings
-    // For now, we'll just save the level
-    await prefs.setString(_keyPrivacySettings, '{}');
+    await prefs.setString(_keyPrivacySettings, jsonEncode(_currentSettings.toJson()));
+    _syncLumaraEgress();
   }
 
   /// Get privacy impact description

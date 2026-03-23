@@ -469,7 +469,7 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     }
     
     // If no existing entry, create a temporary entry from draft state
-    if (_entryState.text.trim().isNotEmpty) {
+    if (_entryState.text.trim().isNotEmpty || _entryState.attachments.isNotEmpty) {
       final now = DateTime.now();
       final entryDate = _editableDate ?? now;
       final entryTime = _editableTime ?? TimeOfDay.fromDateTime(now);
@@ -1151,17 +1151,52 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
   }
 
+  /// True when file attachments carry extracted reference text (not shown in the main editor).
+  bool _hasAttachmentReferenceText() {
+    for (final a in _entryState.attachments) {
+      if (a is FileAttachment) {
+        final t = a.extractedText?.trim();
+        if (t != null && t.isNotEmpty) return true;
+      }
+    }
+    return false;
+  }
+
+  /// Appends stored document text for LUMARA; keeps the main text field free of bulk paste.
+  static const int _maxAttachedDocumentCharsPerFile = 100000;
+
+  String _appendAttachedDocumentsForLumara(String baseEntryText) {
+    final files = _entryState.attachments
+        .whereType<FileAttachment>()
+        .where((f) => f.extractedText != null && f.extractedText!.trim().isNotEmpty)
+        .toList();
+    if (files.isEmpty) return baseEntryText;
+    final buf = StringBuffer();
+    buf.writeln('\n\n=== ATTACHED DOCUMENTS (reference for reflection) ===');
+    for (final f in files) {
+      buf.writeln('\n--- "${f.fileName}" ---');
+      var t = f.extractedText!.trim();
+      final total = t.length;
+      if (total > _maxAttachedDocumentCharsPerFile) {
+        t =
+            '${t.substring(0, _maxAttachedDocumentCharsPerFile)}\n\n[...truncated for API context; $total characters total]';
+      }
+      buf.writeln(t);
+    }
+    return baseEntryText + buf.toString();
+  }
+
   Future<void> _generateLumaraReflection() async {
     // Declare newBlockIndex outside try block so it's accessible in catch
     int? newBlockIndex;
     
     try {
-      // Check if there's text to reflect on
-      if (_entryState.text.trim().isEmpty) {
+      // Need either your own writing or attached reference text to reflect on
+      if (_entryState.text.trim().isEmpty && !_hasAttachmentReferenceText()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Please write something first before asking LUMARA to reflect'),
+              content: const Text('Write something or attach a document with text before asking LUMARA to reflect'),
               backgroundColor: Theme.of(context).colorScheme.primary,
             ),
           );
@@ -2168,6 +2203,15 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                           const SizedBox(height: 16),
                         ],
 
+                        if (_entryState.attachments.whereType<FileAttachment>().any(
+                              (f) =>
+                                  f.extractedText != null &&
+                                  f.extractedText!.trim().isNotEmpty,
+                            )) ...[
+                          _buildJournalAttachedReferencePanels(theme),
+                          const SizedBox(height: 16),
+                        ],
+
                         // Always show the TextField (handles view-only vs edit mode internally)
                         _buildAITextField(theme),
                         const SizedBox(height: 16),
@@ -2303,7 +2347,11 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
                               // Continue button
                               // Enable if entry has user text OR LUMARA blocks (allow entries that start with reflections)
                               ElevatedButton(
-                                onPressed: (_entryState.text.trim().isNotEmpty || _entryState.blocks.isNotEmpty) ? _onContinue : null,
+                                onPressed: (_entryState.text.trim().isNotEmpty ||
+                                        _entryState.blocks.isNotEmpty ||
+                                        _hasAttachmentReferenceText())
+                                    ? _onContinue
+                                    : null,
                                 style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   minimumSize: const Size(0, 28),
@@ -2919,6 +2967,80 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
         }
       },
       onLongPressFile: (i) => _showFileContextMenu(fileList[i], _entryState.attachments.indexOf(fileList[i])),
+    );
+  }
+
+  /// Collapsible panels for extracted PDF/doc text — keeps the main draft field light while LUMARA still sees full text via [_appendAttachedDocumentsForLumara].
+  Widget _buildJournalAttachedReferencePanels(ThemeData theme) {
+    final files = _entryState.attachments
+        .whereType<FileAttachment>()
+        .where((f) => f.extractedText != null && f.extractedText!.trim().isNotEmpty)
+        .toList();
+    if (files.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Icon(Icons.folder_special_outlined, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Reference text',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...files.map((f) => _buildOneAttachedReferenceTile(theme, f)),
+      ],
+    );
+  }
+
+  Widget _buildOneAttachedReferenceTile(ThemeData theme, FileAttachment f) {
+    final text = f.extractedText!.trim();
+    final len = text.length;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.35),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2)),
+      ),
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        title: Text(
+          f.fileName,
+          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          '$len characters',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.65),
+          ),
+        ),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    text,
+                    style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -4754,6 +4876,8 @@ $originalEntryTextToInclude
       
       print('Journal: Included $currentBlockIndex previous blocks with decreasing weights (most recent: 1.0, original entry: ${originalEntryWeight.toStringAsFixed(2)})');
     }
+
+    baseEntryText = _appendAttachedDocumentsForLumara(baseEntryText);
     
     context['entryText'] = baseEntryText;
     
@@ -5676,8 +5800,8 @@ $originalEntryTextToInclude
   }
 
   /// Handle file selection (PDF, .md, .txt, Doc, Docx).
-  /// Extracts text and inserts it into the reflection entry with label [Extracted text from "Document title"].
-  /// No extracted text is stored on attachments; LUMARA sees content only from the entry body.
+  /// Extracted text is stored on [FileAttachment.extractedText] and shown in collapsible reference panels;
+  /// the main entry field stays clear. LUMARA receives text via [_appendAttachedDocumentsForLumara].
   Future<void> _handleFile() async {
     try {
       _analytics.logJournalEvent('file_button_pressed');
@@ -5772,12 +5896,7 @@ $originalEntryTextToInclude
             } catch (_) {}
           }
 
-          // Insert extracted text into the reflection entry with label (single source of truth for LUMARA)
-          if (extractedText != null && extractedText.trim().isNotEmpty && mounted) {
-            final block = '[Extracted text from "$documentTitle"]\n\n${extractedText.trim()}';
-            _insertTextIntoEntry(block);
-          }
-
+          final trimmedExtract = extractedText?.trim();
           final fileAttachment = FileAttachment(
             type: 'file',
             filePath: path,
@@ -5785,7 +5904,9 @@ $originalEntryTextToInclude
             mimeType: mimeType,
             timestamp: DateTime.now().millisecondsSinceEpoch,
             fileId: 'file_${DateTime.now().millisecondsSinceEpoch}_${fileName.hashCode}',
-            extractedText: null,
+            extractedText: (trimmedExtract != null && trimmedExtract.isNotEmpty)
+                ? '[Extracted text from "$documentTitle"]\n\n$trimmedExtract'
+                : null,
           );
           if (mounted) {
             setState(() {
@@ -5804,13 +5925,13 @@ $originalEntryTextToInclude
                   Expanded(
                     child: Text(
                       added == 1
-                          ? 'File attached. Text added to entry.'
-                          : '$added files attached. Text added to entry.',
+                          ? 'File attached. Expand “Reference text” above the draft to view extracted text.'
+                          : '$added files attached. Expand “Reference text” to view extracted text.',
                     ),
                   ),
                 ],
               ),
-              duration: const Duration(seconds: 3),
+              duration: const Duration(seconds: 4),
             ),
           );
         }
