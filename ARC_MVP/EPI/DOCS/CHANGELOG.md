@@ -1,7 +1,21 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.82
-**Last Updated:** March 23, 2026
+**Version:** 3.3.83
+**Last Updated:** March 24, 2026
+
+---
+
+## [3.3.83] - March 24, 2026
+
+### Doc-config-git-backup run; Cloudflare worker secret setup note; docs sync
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup). Commit, push `main`, merge `main` -> `test`.
+
+**Updated (sync with repo):**
+- **Docs:** Added `DOCS/Cloudflare_Setup.md` with quick commands for Worker secrets (`RESEND_API_KEY`, `RESEND_AUDIENCE_ID`).
+- **Documentation heartbeat:** Required run updates applied to `CHANGELOG.md`, `CONFIGURATION_MANAGEMENT.md`, `PROMPT_TRACKER.md`, and `bugtracker/bug_tracker.md`.
+
+**Prompt audit:** No new prompt definitions detected; `PROMPT_REFERENCES.md` remains v2.9.2.
 
 ---
 
