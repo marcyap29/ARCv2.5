@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
 **Version:** 3.5.1  
-**Last Updated:** 2026-03-24  
+**Last Updated:** 2026-03-24 (v3.3.84 sync)  
 **Record count:** 40 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
@@ -103,6 +103,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 
 | Fix / change | Version | Bug record | Notes |
 |--------------|---------|------------|--------|
+| Agents/Outputs + Cloudflare workflows integration | v3.3.84 | — | 2026-03-24: Added app feature surfaces (`lib/features/agents`, `lib/features/outputs`) and worker workflow backend (`workers/workflows`) with SSE and prompt-driven research/writing/competitor/plugin flows. |
 | Cloudflare worker secret setup note (`Cloudflare_Setup.md`) | v3.3.83 | — | 2026-03-24: Added quick setup commands for Worker secrets (`wrangler secret put RESEND_API_KEY`, `RESEND_AUDIENCE_ID`). |
 | Doc-config-git-backup heartbeat sync (no code drift) | v3.3.82 | — | 2026-03-23: Required docs sync run executed; no new code changes since v3.3.81; CHANGELOG/CONFIGURATION_MANAGEMENT/PROMPT_TRACKER/bug_tracker refreshed. |
 | LUMARA mode binding preamble; privacy egress ↔ PiiScrubber; journal attachment reflection | v3.3.81 | — | 2026-03-22: `lumaraModeBindingPreamble` + Mode 1 long-attachment rules; `privacy_settings_types` + service sync to scrub; PRISM `containsBlockingPiiForEgress`; journal_screen attachment text for LUMARA; see CHANGELOG [3.3.81]. |

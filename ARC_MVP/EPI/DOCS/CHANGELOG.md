@@ -1,7 +1,24 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.83
+**Version:** 3.3.84
 **Last Updated:** March 24, 2026
+
+---
+
+## [3.3.84] - March 24, 2026
+
+### Doc-config-git-backup run; Agents/Outputs + Cloudflare workflows integration
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup). Commit, push `main`, merge `main` -> `test`.
+
+**Updated (sync with repo):**
+- **App routing/UI:** Added `/agents` route and updated Home wiring for new feature surfaces.
+- **Agents + outputs:** Added `lib/features/agents/*` and `lib/features/outputs/*` with workflow streaming, plugin discovery, competitor/research/writing handling, and output persistence/view.
+- **Worker backend:** Added `workers/workflows` Cloudflare Worker workflow stack (`research`, `writing`, `competitor`, `plugins`) with SSE progress/result events and LLM/tool orchestration.
+- **Config/deps:** Updated app/worker dependencies and config files (`pubspec`, lockfiles, `.gitignore`, workflow package config).
+- **Docs:** Updated run-required artifacts (`CHANGELOG`, `CONFIGURATION_MANAGEMENT`, `PROMPT_TRACKER`, `bug_tracker`) and backend/architecture/features references.
+
+**Prompt audit:** New worker prompt definitions detected; `PROMPT_REFERENCES.md` bumped to v2.10.0.
 
 ---
 

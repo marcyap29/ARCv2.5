@@ -42,14 +42,14 @@ import 'package:my_app/core/feature_flags.dart' as core_flags;
 import 'package:my_app/arc/unified_feed/widgets/unified_feed_screen.dart';
 import 'package:my_app/core/models/entry_mode.dart';
 import 'package:my_app/shared/ui/settings/settings_view.dart';
-import 'package:my_app/lumara/agents/screens/agents_screen.dart';
+import 'package:my_app/features/agents/agents_page.dart';
 import 'package:my_app/chronicle/dual/services/dual_chronicle_services.dart';
 import 'package:my_app/chronicle/integration/veil_chronicle_factory.dart';
 import 'package:my_app/chronicle/scheduling/synthesis_scheduler.dart' show SynthesisTier;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/services/scheduled_local_backup_service.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
-import 'package:my_app/arc/outputs/outputs_tab_screen.dart';
+import 'package:my_app/features/outputs/outputs_screen.dart';
 
 // Debug flag for showing RIVET engineering labels
 const bool kShowRivetDebugLabels = false;
@@ -83,9 +83,9 @@ class _HomeViewState extends State<HomeView> {
     if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
       return const [
         TabItem(icon: Icons.auto_awesome, text: 'LUMARA'),
-        TabItem(icon: Icons.smart_toy_outlined, text: 'Agents'),
-        TabItem(icon: Icons.folder_outlined, text: 'Outputs'),
-        TabItem(icon: Icons.settings_outlined, text: 'Settings'),
+        TabItem(icon: Icons.smart_toy, text: 'Agents'),
+        TabItem(icon: Icons.folder, text: 'Outputs'),
+        TabItem(icon: Icons.settings, text: 'Settings'),
       ];
     }
     return const [
@@ -132,6 +132,7 @@ class _HomeViewState extends State<HomeView> {
           final backupEnabled = prefs.getBool('local_backup_enabled') ?? false;
           final scheduleEnabled = prefs.getBool('local_backup_schedule_enabled') ?? false;
           if (!backupEnabled || !scheduleEnabled) return;
+          if (!mounted) return;
           final journalRepo = context.read<JournalRepository>();
           final phaseRegimeService = await PhaseServiceRegistry.phaseRegimeService;
           final chatRepo = ChatRepoImpl.instance;
@@ -142,11 +143,13 @@ class _HomeViewState extends State<HomeView> {
             phaseRegimeService: phaseRegimeService,
           );
           if (kDebugMode) {
-            print('✅ Scheduled backup service started (nightly backup + optional Drive upload)');
+            debugPrint(
+              '✅ Scheduled backup service started (nightly backup + optional Drive upload)',
+            );
           }
         } catch (e) {
           if (kDebugMode) {
-            print('⚠️ Scheduled backup service failed to start: $e');
+            debugPrint('⚠️ Scheduled backup service failed to start: $e');
           }
         }
       });
@@ -203,17 +206,17 @@ class _HomeViewState extends State<HomeView> {
       final shakeService = ShakeDetectorService();
       shakeService.startListening();
       _shakeSubscription = shakeService.onShake.listen((_) {
-        print('DEBUG: HomeView received shake event!');
+        debugPrint('DEBUG: HomeView received shake event!');
         if (mounted) {
-          print('DEBUG: HomeView is mounted, showing bug report dialog');
+          debugPrint('DEBUG: HomeView is mounted, showing bug report dialog');
           BugReportDialog.show(context);
         } else {
-          print('DEBUG: HomeView is not mounted, cannot show dialog');
+          debugPrint('DEBUG: HomeView is not mounted, cannot show dialog');
         }
       });
-      print('DEBUG: Shake detection initialized and listening');
+      debugPrint('DEBUG: Shake detection initialized and listening');
     } catch (e) {
-      print('DEBUG: Error initializing shake detection: $e');
+      debugPrint('DEBUG: Error initializing shake detection: $e');
     }
   }
 
@@ -249,17 +252,16 @@ class _HomeViewState extends State<HomeView> {
   /// Check photo permissions and refresh timeline if granted
   Future<void> _checkPhotoPermissionsAndRefresh() async {
     try {
-      print('DEBUG: Checking photo permissions...');
       final hasPermissions = await PhotoLibraryService.requestPermissions();
+      if (!mounted) return;
       if (hasPermissions) {
-        print('DEBUG: Photo permissions granted, refreshing timeline...');
         // Refresh timeline to reload photo references
         context.read<TimelineCubit>().refreshEntries();
       } else {
-        print('DEBUG: Photo permissions not granted');
+        debugPrint('DEBUG: Photo permissions not granted');
       }
     } catch (e) {
-      print('ERROR: Failed to check photo permissions: $e');
+      debugPrint('ERROR: Failed to check photo permissions: $e');
     }
   }
 
@@ -296,12 +298,12 @@ class _HomeViewState extends State<HomeView> {
     await prefs.setBool(_keyOnboardingNudgeShown, true);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
+      const SnackBar(
+        content: Text(
           'You can complete your profile anytime in Settings → Subscription and Account → My Profile.',
         ),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
+        duration: Duration(seconds: 4),
       ),
     );
   }
@@ -447,6 +449,7 @@ class _HomeViewState extends State<HomeView> {
                       },
                       onNewJournalPressed: () async {
                         await JournalSessionCache.clearSession();
+                        if (!context.mounted) return;
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -486,9 +489,9 @@ class _HomeViewState extends State<HomeView> {
             },
           );
         case 1:
-          return const AgentsScreen();
+          return const AgentsPage();
         case 2:
-          return const OutputsTabScreen();
+          return const OutputsScreen();
         case 3:
           return const SettingsView();
         default:
@@ -575,8 +578,8 @@ class _HomeViewState extends State<HomeView> {
     // Request microphone (and speech recognition) before opening voice so the system
     // prompt appears and the user can grant access before any capture or STT runs.
     final permState = await VoicePermissions.request();
+    if (!context.mounted) return;
     if (permState == VoicePermState.permanentlyDenied) {
-      if (!mounted) return;
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -602,7 +605,6 @@ class _HomeViewState extends State<HomeView> {
       return;
     }
     if (permState != VoicePermState.allGranted) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Voice mode needs microphone access to continue'),
@@ -1306,7 +1308,13 @@ class MiniRadialPainter extends CustomPainter {
       canvas.drawLine(startPoint, endPoint, paint);
 
       // Draw small circles at the end of each spoke
-      canvas.drawCircle(endPoint, 1.5, Paint()..color = kcPrimaryTextColor.withOpacity(0.7)..style = PaintingStyle.fill);
+      canvas.drawCircle(
+        endPoint,
+        1.5,
+        Paint()
+          ..color = kcPrimaryTextColor.withValues(alpha: 0.7)
+          ..style = PaintingStyle.fill,
+      );
     }
   }
 

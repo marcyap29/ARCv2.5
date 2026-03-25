@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.81
-**Last Updated:** March 22, 2026
+**Version:** 3.3.84
+**Last Updated:** March 24, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA (GPT-OSS 120B primary), LUMARA Vision Reposition (phases de-emphasized in UI), streamlined onboarding (standalone personality setup screens removed v3.3.80), Dual Prompt Mode, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration (HealthKit removed on iOS in v3.3.67), AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Timeline Pagination, repo-root Firebase Functions `proxyGroq` module (v3.3.80), SwarmSpace social-publisher Cloudflare worker (Bluesky/LinkedIn paths)
 
 ---

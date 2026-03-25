@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 24, 2026 (doc sync 2026-03-24, v3.3.83)  
+**Last Updated:** March 24, 2026 (doc sync 2026-03-24, v3.3.84)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -46,12 +46,12 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
 | ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-24 | ✅ Synced | No structural changes since v3.3.81; unchanged this run |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-24 | ✅ Synced | v3.3.83 - doc-config-git-backup run + Cloudflare setup note |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-24 | ✅ Synced | v2.9.2 unchanged - no new prompt definitions detected |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-24 | ✅ Synced | v1.32.0 - Doc sync 2026-03-24 (v3.3.83) row |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-24 | ✅ Synced | v3.3.84 - agents/outputs + workflows doc sync |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-24 | ✅ Synced | v2.10.0 - new worker workflow prompt sources |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-24 | ✅ Synced | v1.33.0 - Doc sync 2026-03-24 (v3.3.84) row |
 | bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-24 | ✅ Synced | v3.5.1 - 40 records; Last Updated 2026-03-24 |
 | FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-24 | ✅ Synced | v3.3.81 unchanged this run |
-| README.md | `/DOCS/README.md` | 2026-03-24 | ✅ Synced | Key docs table; see CHANGELOG v3.3.83 |
+| README.md | `/DOCS/README.md` | 2026-03-24 | ✅ Synced | Key docs table; see CHANGELOG v3.3.84 |
 | claude.md | `/DOCS/claude.md` | 2026-03-24 | ✅ Synced | Doc/Config/Git Backup prompt |
 | backend.md | `/DOCS/backend.md` | 2026-03-20 | ✅ Synced | v3.3.80 - proxyGroq.ts module, rateLimiter/authGuard |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
@@ -121,6 +121,20 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-24 - Documentation & Git Backup run (v3.3.84; doc sync 2026-03-24)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md). Trigger: user request. Commit, push `main`, merge `main` -> `test`.
+
+**PROMPT REFERENCES AUDIT:** New prompt source files under `workers/workflows/src/workflows/` (`research.ts`, `writing.ts`, `competitor.ts`, `plugins.ts`). `PROMPT_REFERENCES.md` bumped to v2.10.0 and `PROMPT_TRACKER.md` updated.
+
+**Git Backup — Identify what changed (since v3.3.83):** Large feature delta including new app surfaces (`lib/features/agents/*`, `lib/features/outputs/*`), app routing/home wiring updates, and new Cloudflare Worker workflow backend (`workers/workflows/*`) with SSE and tool-orchestrated LLM flows.
+
+**Updates:** `CHANGELOG.md` v3.3.84; `CONFIGURATION_MANAGEMENT.md` this entry + inventory refresh; `PROMPT_REFERENCES.md` v2.10.0; `PROMPT_TRACKER.md` v1.33.0; `bug_tracker.md` Recent code changes + Last Updated; architecture/features/backend/README references refreshed.
+
+**Status:** ✅ Doc updates applied with repo state; commit, push, merge to `test`.
+
+---
 
 ### 2026-03-24 - Documentation & Git Backup run (v3.3.83; doc sync 2026-03-24)
 

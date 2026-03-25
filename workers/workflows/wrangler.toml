@@ -1,0 +1,15 @@
+name = "lumara-workflows"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+JINA_BASE_URL = "https://r.jina.ai"
+GEMINI_MODEL = "gemini-3.1-pro-preview"
+GROQ_FAST_MODEL = "llama-3.1-8b-instant"
+GROQ_SMART_MODEL = "llama-3.3-70b-versatile"
+GROQ_SYNTH_MODEL = "openai/gpt-oss-120b"
+
+# Secrets (set via `wrangler secret put`):
+#   GEMINI_API_KEY
+#   GROQ_API_KEY
+#   BRAVE_API_KEY

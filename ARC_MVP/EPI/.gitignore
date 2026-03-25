@@ -569,3 +569,4 @@ ios/Runner/moonshine_models/
 *.log
 *.synctex.gz
 DOCS/*.pdf
+.dev.vars

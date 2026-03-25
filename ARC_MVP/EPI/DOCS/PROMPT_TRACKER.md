@@ -1,6 +1,6 @@
 # Prompt Tracker
 
-**Version:** 1.32.0  
+**Version:** 1.33.0  
 **Last Updated:** March 24, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-03-24 | Doc sync v3.3.84: Doc-config-git-backup run; added worker workflow prompt sources (`research`, `writing`, `competitor`, `plugins`); `PROMPT_REFERENCES` bumped to v2.10.0 | CHANGELOG v3.3.84 |
 | 2026-03-24 | Doc sync v3.3.83: Doc-config-git-backup run; no new prompt definitions found; `PROMPT_REFERENCES` remains v2.9.2 | CHANGELOG v3.3.83 |
 | 2026-03-23 | Doc sync v3.3.82: Doc-config-git-backup run; no new prompt definitions found; PROMPT_REFERENCES remains v2.9.2 | CHANGELOG v3.3.82 |
 | 2026-03-22 | Doc sync v3.3.81: Doc-config-git-backup run; `lumaraModeBindingPreamble` + Mode 1 attachment guidance (`lumara_mode_definition.dart`); PROMPT_REFERENCES v2.9.2 (§26, version history) | CHANGELOG v3.3.81 |

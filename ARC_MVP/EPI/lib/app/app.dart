@@ -29,6 +29,7 @@ import 'package:my_app/core/services/app_lifecycle_manager.dart';
 import 'package:my_app/shared/ui/settings/settings_cubit.dart';
 import 'package:my_app/services/pending_conversation_service.dart';
 import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
+import 'package:my_app/features/agents/agents_page.dart';
 
 // Global navigator key for deep linking from notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -196,6 +197,11 @@ class _AppState extends State<App> {
               case '/sign-in':
                 return MaterialPageRoute(
                   builder: (context) => const SignInScreen(),
+                  settings: settings,
+                );
+              case '/agents':
+                return MaterialPageRoute(
+                  builder: (context) => const AgentsPage(),
                   settings: settings,
                 );
               default:
