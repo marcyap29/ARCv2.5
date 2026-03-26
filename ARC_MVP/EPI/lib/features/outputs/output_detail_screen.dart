@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:my_app/arc/chat/ui/writing_screen.dart';
+import 'package:my_app/lumara/agents/models/research_models.dart';
+import 'package:my_app/lumara/agents/services/report_export_service.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'output_model.dart';
+import 'outputs_storage.dart';
 
 class OutputDetailScreen extends StatefulWidget {
   const OutputDetailScreen({super.key, required this.output});
@@ -16,6 +22,30 @@ class OutputDetailScreen extends StatefulWidget {
 
 class _OutputDetailScreenState extends State<OutputDetailScreen> {
   int _selectedTab = 0;
+  late WorkflowOutput _output;
+  TextEditingController? _researchReportController;
+  bool _researchEditing = false;
+  bool _researchSaving = false;
+
+  bool get _isResearchLikeOutput =>
+      _output.type != 'competitor' && _output.type != 'writing';
+
+  @override
+  void initState() {
+    super.initState();
+    _output = widget.output;
+    if (_isResearchLikeOutput) {
+      _researchReportController = TextEditingController(
+        text: _output.data['report'] as String? ?? _output.input,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _researchReportController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,9 +65,9 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
                   children: [
                     _buildHeader(),
                     const Divider(color: Color(0xFF1C1C30), height: 1),
-                    if (widget.output.type == 'competitor')
+                    if (_output.type == 'competitor')
                       _buildCompetitorBody()
-                    else if (widget.output.type == 'writing')
+                    else if (_output.type == 'writing')
                       _buildWritingBody()
                     else
                       _buildResearchBody(),
@@ -55,7 +85,7 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
     return SafeArea(
       bottom: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+        padding: const EdgeInsets.fromLTRB(8, 14, 8, 14),
         child: Row(
           children: [
             TextButton(
@@ -71,7 +101,7 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
             ),
             Expanded(
               child: Text(
-                widget.output.typeLabel,
+                _output.typeLabel,
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 style: GoogleFonts.inter(
@@ -81,8 +111,31 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
                 ),
               ),
             ),
+            if (_isResearchLikeOutput) ...[
+              if (_researchEditing)
+                IconButton(
+                  icon: _researchSaving
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF5B5BD6),
+                          ),
+                        )
+                      : const Icon(Icons.check_rounded, color: Color(0xFF34D399)),
+                  tooltip: 'Save',
+                  onPressed: _researchSaving ? null : _saveResearchEdits,
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, color: Color(0xFF7A7A9A)),
+                  tooltip: 'Edit report',
+                  onPressed: () => setState(() => _researchEditing = true),
+                ),
+            ],
             IconButton(
-              onPressed: () {},
+              onPressed: _onSharePressed,
               icon: const Icon(Icons.share_outlined, color: Color(0xFF7A7A9A)),
               tooltip: 'Share',
             ),
@@ -99,7 +152,7 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.output.title,
+            _output.title,
             style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 20,
@@ -113,9 +166,9 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _chip(widget.output.typeEmoji, const Color(0xFF14142A)),
-              _chip(_formatDate(widget.output.createdAt), const Color(0xFF14142A)),
-              ...widget.output.steps.map(
+              _chip(_output.typeEmoji, const Color(0xFF14142A)),
+              _chip(_formatDate(_output.createdAt), const Color(0xFF14142A)),
+              ..._output.steps.map(
                 (s) => _chip(s.split(' ').first, const Color(0xFF0F0F20)),
               ),
             ],
@@ -152,16 +205,147 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
     return '${dt.day}/${dt.month}/${dt.year}';
   }
 
+  MarkdownStyleSheet _researchMarkdownStyle() {
+    return MarkdownStyleSheet(
+      p: GoogleFonts.inter(
+        fontSize: 14,
+        height: 1.6,
+        color: const Color(0xFFB0B0D0),
+      ),
+      h1: GoogleFonts.inter(
+        fontSize: 22,
+        fontWeight: FontWeight.w800,
+        color: Colors.white,
+      ),
+      h2: GoogleFonts.inter(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF8888FF),
+      ),
+      h3: GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFFC8C8FF),
+      ),
+      h4: GoogleFonts.inter(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: const Color(0xFFB0B0D0),
+      ),
+      strong: GoogleFonts.inter(
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFFE8E8F8),
+      ),
+      em: GoogleFonts.inter(
+        fontStyle: FontStyle.italic,
+        color: const Color(0xFFB0B0D0),
+      ),
+      code: GoogleFonts.robotoMono(
+        fontSize: 13,
+        color: const Color(0xFFE0E0F0),
+        backgroundColor: const Color(0xFF0C0C1A),
+      ),
+      blockquote: GoogleFonts.inter(
+        fontSize: 14,
+        height: 1.55,
+        color: const Color(0xFF9090B0),
+        fontStyle: FontStyle.italic,
+      ),
+      listBullet: GoogleFonts.inter(
+        color: const Color(0xFFB0B0D0),
+        fontSize: 14,
+      ),
+      a: GoogleFonts.inter(
+        color: const Color(0xFF5B5BD6),
+        decoration: TextDecoration.underline,
+      ),
+      blockSpacing: 10,
+      listIndent: 22,
+      horizontalRuleDecoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: const Color(0xFF1C1C30).withValues(alpha: 0.8)),
+        ),
+      ),
+    );
+  }
+
   Widget _buildResearchBody() {
-    final report = widget.output.data['report'] as String? ?? widget.output.input;
-    final sources = widget.output.data['sources'];
+    final c = _researchReportController!;
+    final sources = _output.data['sources'];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ..._buildSectionedText(report),
-          if (sources is List) ...[
+          if (_researchEditing) ...[
+            Text(
+              'Edit (Markdown)',
+              style: GoogleFonts.robotoMono(
+                color: const Color(0xFF33334A),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: c,
+              maxLines: null,
+              minLines: 14,
+              style: GoogleFonts.robotoMono(
+                fontSize: 13,
+                height: 1.5,
+                color: const Color(0xFFE0E0F0),
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF0C0C1A),
+                hintText: 'Report markdown…',
+                hintStyle: GoogleFonts.robotoMono(
+                  color: const Color(0xFF44445A),
+                  fontSize: 13,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1C1C30)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1C1C30)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF5B5BD6)),
+                ),
+                contentPadding: const EdgeInsets.all(14),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ] else ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF14142A),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF1C1C30)),
+              ),
+              child: MarkdownBody(
+                data: c.text.trim().isEmpty ? '_No report body._' : c.text,
+                styleSheet: _researchMarkdownStyle(),
+                selectable: true,
+                shrinkWrap: true,
+                fitContent: true,
+                onTapLink: (text, href, title) async {
+                  if (href == null || href.isEmpty) return;
+                  final uri = Uri.tryParse(href);
+                  if (uri == null) return;
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                },
+              ),
+            ),
+          ],
+          if (sources is List && sources.isNotEmpty) ...[
             const SizedBox(height: 22),
             Text(
               'Sources',
@@ -174,14 +358,327 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
             const SizedBox(height: 10),
             ...sources.map((s) => _sourceRow(s)),
           ],
+          _buildResearchExportFooter(),
         ],
       ),
     );
   }
 
+  Widget _buildResearchExportFooter() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 28),
+        Text(
+          'EXPORT & NEXT STEP',
+          style: GoogleFonts.robotoMono(
+            color: const Color(0xFF33334A),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: _researchSaving ? null : _exportResearchPdf,
+            icon: const Icon(Icons.picture_as_pdf_outlined, color: Color(0xFF5B5BD6), size: 20),
+            label: Text(
+              'Export as PDF',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF5B5BD6),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF1C1C30)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: _researchSaving ? null : _exportResearchDocx,
+            icon: const Icon(Icons.description_outlined, color: Color(0xFF5B5BD6), size: 20),
+            label: Text(
+              'Export as Word (.docx)',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF5B5BD6),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF1C1C30)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 50,
+          child: ElevatedButton.icon(
+            onPressed: _openCreateContentFromResearch,
+            icon: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+            label: Text(
+              'Create content',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF5B5BD6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _saveResearchEdits() async {
+    final c = _researchReportController;
+    if (c == null) return;
+    setState(() => _researchSaving = true);
+    try {
+      final newData = Map<String, dynamic>.from(_output.data);
+      newData['report'] = c.text;
+      final updated = WorkflowOutput(
+        id: _output.id,
+        type: _output.type,
+        title: _output.title,
+        input: _output.input,
+        createdAt: _output.createdAt,
+        data: newData,
+        steps: _output.steps,
+      );
+      await OutputsStorage.upsert(updated);
+      if (!mounted) return;
+      setState(() {
+        _output = updated;
+        _researchEditing = false;
+        _researchSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Saved',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: const Color(0xFF1A3A1A),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _researchSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Save failed: $e'),
+            backgroundColor: const Color(0xFF3A1515),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportResearchPdf() async {
+    final path = await ReportExportService.instance.exportWorkflowMarkdownToFile(
+      title: _output.title,
+      markdown: _researchReportController!.text,
+      format: ReportExportFormat.pdf,
+      createdAt: _output.createdAt,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          path != null
+              ? 'Saved PDF: ${path.split('/').last}'
+              : 'Export failed',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: path != null ? const Color(0xFF1A3A1A) : const Color(0xFF3A1515),
+      ),
+    );
+  }
+
+  Future<void> _exportResearchDocx() async {
+    final path = await ReportExportService.instance.exportWorkflowMarkdownToFile(
+      title: _output.title,
+      markdown: _researchReportController!.text,
+      format: ReportExportFormat.docx,
+      createdAt: _output.createdAt,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          path != null
+              ? 'Saved Word file: ${path.split('/').last}'
+              : 'Export failed',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: path != null ? const Color(0xFF1A3A1A) : const Color(0xFF3A1515),
+      ),
+    );
+  }
+
+  void _openCreateContentFromResearch() {
+    final markdown = _researchReportController!.text;
+    final report = ResearchReport(
+      id: _output.id,
+      query: _output.title,
+      summary: '',
+      detailedFindings: markdown,
+      generatedAt: _output.createdAt,
+    );
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => const WritingScreen(),
+        settings: RouteSettings(
+          arguments: <String, dynamic>{'researchContext': report},
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onSharePressed() async {
+    if (_isResearchLikeOutput) {
+      await _showResearchShareSheet();
+      return;
+    }
+    if (_output.type == 'writing') {
+      await _shareWritingOutput();
+      return;
+    }
+    final brief = _output.data['brief'] as String? ?? _output.input;
+    await SharePlus.instance.share(
+      ShareParams(text: brief, subject: _output.title),
+    );
+  }
+
+  Future<void> _shareWritingOutput() async {
+    final platformsRaw = _output.data['platforms'];
+    final labelsRaw = _output.data['platform_labels'];
+    final platforms = platformsRaw is Map
+        ? Map<String, dynamic>.from(platformsRaw)
+        : <String, dynamic>{};
+    final labels =
+        labelsRaw is Map ? Map<String, dynamic>.from(labelsRaw) : <String, dynamic>{};
+    final tabIds = platforms.keys.where((k) => labels.containsKey(k)).toList();
+    String text;
+    if (tabIds.isEmpty) {
+      text = _output.input;
+    } else {
+      final selectedIdx = _selectedTab.clamp(0, tabIds.length - 1);
+      final selectedId = tabIds[selectedIdx];
+      text = platforms[selectedId]?.toString() ?? _output.input;
+    }
+    await SharePlus.instance.share(
+      ShareParams(text: text, subject: _output.title),
+    );
+  }
+
+  Future<void> _showResearchShareSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF14142A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.article_outlined, color: Color(0xFF5B5BD6)),
+                title: Text('Share Markdown (.md)', style: GoogleFonts.inter(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _shareResearchFile(ReportExportFormat.markdown);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf_outlined, color: Color(0xFF5B5BD6)),
+                title: Text('Share PDF', style: GoogleFonts.inter(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _shareResearchFile(ReportExportFormat.pdf);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.description_outlined, color: Color(0xFF5B5BD6)),
+                title: Text('Share Word (.docx)', style: GoogleFonts.inter(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _shareResearchFile(ReportExportFormat.docx);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.copy_outlined, color: Color(0xFF7A7A9A)),
+                title: Text('Copy full text', style: GoogleFonts.inter(color: Colors.white)),
+                onTap: () async {
+                  await Clipboard.setData(ClipboardData(text: _researchReportController!.text));
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Copied', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                        backgroundColor: const Color(0xFF1A3A1A),
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.ios_share_outlined, color: Color(0xFF7A7A9A)),
+                title: Text('Share as plain text', style: GoogleFonts.inter(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  SharePlus.instance.share(
+                    ShareParams(
+                      text: _researchReportController!.text,
+                      subject: _output.title,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _shareResearchFile(ReportExportFormat format) async {
+    final ok = await ReportExportService.instance.shareWorkflowMarkdown(
+      title: _output.title,
+      markdown: _researchReportController!.text,
+      format: format,
+      createdAt: _output.createdAt,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? 'Share sheet opened' : 'Share failed',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: ok ? const Color(0xFF1A3A1A) : const Color(0xFF3A1515),
+      ),
+    );
+  }
+
   Widget _buildCompetitorBody() {
-    final card = widget.output.data['card'];
-    final brief = widget.output.data['brief'] as String? ?? widget.output.input;
+    final card = _output.data['card'];
+    final brief = _output.data['brief'] as String? ?? _output.input;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       child: Column(
@@ -321,8 +818,8 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
   }
 
   Widget _buildWritingBody() {
-    final platformsRaw = widget.output.data['platforms'];
-    final labelsRaw = widget.output.data['platform_labels'];
+    final platformsRaw = _output.data['platforms'];
+    final labelsRaw = _output.data['platform_labels'];
 
     final platforms = platformsRaw is Map
         ? Map<String, dynamic>.from(platformsRaw)
@@ -332,11 +829,16 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
 
     final tabIds = platforms.keys.where((k) => labels.containsKey(k)).toList();
     if (tabIds.isEmpty) {
+      final report = _output.data['report'] as String? ?? '';
+      final body = report.trim().isNotEmpty ? report : _output.input;
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(
-          widget.output.input,
-          style: GoogleFonts.inter(color: const Color(0xFFB0B0D0), fontSize: 14, height: 1.6),
+        child: MarkdownBody(
+          data: body.trim().isEmpty ? '_No content._' : body,
+          styleSheet: _researchMarkdownStyle(),
+          selectable: true,
+          shrinkWrap: true,
+          fitContent: true,
         ),
       );
     }

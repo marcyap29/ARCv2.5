@@ -371,8 +371,6 @@ class _AgentConnectionCard extends StatelessWidget {
     final serviceConnected = state?.isConnected ?? false;
     final isConnected = serviceConnected || userToggleOn;
 
-    final connectGrayed = !isConnected && !userToggleOn;
-
     return Card(
       margin: EdgeInsets.zero,
       color: kcSurfaceAltColor,
@@ -454,12 +452,12 @@ class _AgentConnectionCard extends StatelessWidget {
                   )
                 else
                   OutlinedButton.icon(
-                    onPressed: connectGrayed ? null : onConnect,
-                    icon: Icon(Icons.settings, size: 18, color: connectGrayed ? Colors.grey : kcPrimaryColor),
+                    onPressed: onConnect,
+                    icon: Icon(Icons.settings, size: 18, color: kcPrimaryColor),
                     label: const Text('Connect'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: connectGrayed ? Colors.grey : kcPrimaryColor,
-                      side: BorderSide(color: connectGrayed ? Colors.grey : kcPrimaryColor),
+                      foregroundColor: kcPrimaryColor,
+                      side: BorderSide(color: kcPrimaryColor),
                     ),
                   ),
               ],

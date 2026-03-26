@@ -1,7 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:my_app/app/app.dart' show navigatorKey;
+import 'package:my_app/features/outputs/output_detail_screen.dart';
+import 'package:my_app/shared/ui/home/home_cubit.dart';
 import 'package:uuid/uuid.dart';
 
 import 'agents_data.dart';
@@ -20,6 +24,8 @@ class RunScreen extends StatefulWidget {
     required this.personaKey,
     required this.useChronicle,
     required this.enabledAgentIds,
+    this.writingFormatId = 'article',
+    this.researchPaperSpecs = '',
   });
 
   final WorkflowChain chain;
@@ -33,8 +39,32 @@ class RunScreen extends StatefulWidget {
   /// Agent and plugin ids that were toggled on when the run started (orchestrator input).
   final List<String> enabledAgentIds;
 
+  /// Passed to Worker as `writing_preferences.format` / `research_paper_specs`.
+  final String writingFormatId;
+  final String researchPaperSpecs;
+
   @override
   State<RunScreen> createState() => _RunScreenState();
+}
+
+void _applyWritingFormatPlatformDefaults(
+  String formatId,
+  Map<String, bool> selections,
+) {
+  switch (formatId) {
+    case 'substack':
+      if (selections.containsKey('orbital_ai')) {
+        selections['orbital_ai'] = true;
+      }
+      break;
+    case 'linkedin_article':
+      if (selections.containsKey('linkedin')) {
+        selections['linkedin'] = true;
+      }
+      break;
+    default:
+      break;
+  }
 }
 
 class _RunScreenState extends State<RunScreen> {
@@ -46,7 +76,12 @@ class _RunScreenState extends State<RunScreen> {
   Map<String, dynamic>? _result;
   String _errorMessage = '';
   StreamSubscription<Map<String, dynamic>>? _streamSub;
+  /// Set when a run completes and the output is persisted (for "View report").
+  WorkflowOutput? _savedWorkflowOutput;
   Map<String, bool> _platformSelections = {};
+  /// Latest status line per chain step index (keeps completed steps visible).
+  final Map<int, String> _stepStatusByIndex = {};
+  final List<String> _activityLog = [];
 
   @override
   void initState() {
@@ -61,6 +96,7 @@ class _RunScreenState extends State<RunScreen> {
         _platformSelections[p.id] = ids.contains(p.id);
       }
     }
+    _applyWritingFormatPlatformDefaults(widget.writingFormatId, _platformSelections);
   }
 
   @override
@@ -122,6 +158,10 @@ class _RunScreenState extends State<RunScreen> {
                       const SizedBox(height: 12),
                     ],
                     _buildChainCard(),
+                    if (_phase == 'running' && _activityLog.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildActivityLogCard(),
+                    ],
                     const SizedBox(height: 14),
                     if (_phase == 'error') ...[
                       _buildErrorCard(),
@@ -542,7 +582,7 @@ class _RunScreenState extends State<RunScreen> {
             ),
             if (_showBundle) ...[
               const SizedBox(height: 12),
-              _bundleRow('PROFILE', '${persona.name} · ${persona.role}'),
+              _bundleRow('PROFILE', persona.role),
               _bundleRow('TAGS', persona.tags.take(3).join(', ')),
               _bundleRow('RECENT', persona.recentEntries[0]),
               _bundleRow('MATCHED', persona.recentEntries.take(2).join('; ')),
@@ -709,6 +749,74 @@ class _RunScreenState extends State<RunScreen> {
     );
   }
 
+  void _pushActivityLogLine(String line) {
+    final ts = TimeOfDay.now().format(context);
+    _activityLog.add('[$ts] $line');
+    const maxLines = 40;
+    while (_activityLog.length > maxLines) {
+      _activityLog.removeAt(0);
+    }
+  }
+
+  String _subtitleForStep({
+    required int index,
+    required bool isComplete,
+    required bool isActive,
+  }) {
+    if (isComplete) {
+      final s = _stepStatusByIndex[index];
+      if (s != null && s.trim().isNotEmpty) {
+        return 'Done · ${s.length > 120 ? '${s.substring(0, 120)}…' : s}';
+      }
+      return 'Complete';
+    }
+    if (isActive) {
+      return _currentMessage.isNotEmpty ? _currentMessage : 'Running...';
+    }
+    if (_phase == 'confirm') return 'Queued';
+    return 'Waiting';
+  }
+
+  Widget _buildActivityLogCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C0C18),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1C1C30)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ACTIVITY LOG',
+            style: GoogleFonts.robotoMono(
+              color: const Color(0xFF33334A),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._activityLog.map(
+            (line) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                line,
+                style: GoogleFonts.robotoMono(
+                  color: const Color(0xFF6A6A8A),
+                  fontSize: 10,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildChainCard() {
     return Container(
       width: double.infinity,
@@ -829,15 +937,11 @@ class _RunScreenState extends State<RunScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            isComplete
-                                ? 'Complete'
-                                : isActive
-                                    ? (_currentMessage.isNotEmpty
-                                        ? _currentMessage
-                                        : 'Running...')
-                                    : _phase == 'confirm'
-                                        ? 'Queued'
-                                        : 'Waiting',
+                            _subtitleForStep(
+                              index: index,
+                              isComplete: isComplete,
+                              isActive: isActive,
+                            ),
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               color: isComplete
@@ -991,7 +1095,19 @@ class _RunScreenState extends State<RunScreen> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _primaryButton('View report →', () {}),
+                child: _primaryButton('View report →', () {
+                  final o = _savedWorkflowOutput;
+                  if (o == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Output is still saving. Try again in a moment.'),
+                        backgroundColor: Color(0xFF2A2A3E),
+                      ),
+                    );
+                    return;
+                  }
+                  _navigateToSavedOutput(o);
+                }),
               ),
             ],
           ),
@@ -1184,8 +1300,72 @@ class _RunScreenState extends State<RunScreen> {
     );
   }
 
+  void _navigateToSavedOutput(WorkflowOutput o) {
+    HomeCubit? homeCubit;
+    try {
+      homeCubit = context.read<HomeCubit>();
+    } catch (_) {
+      homeCubit = null;
+    }
+    if (homeCubit != null) {
+      Navigator.of(context).pop();
+      homeCubit.changeTab(2);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          Navigator.of(ctx).push<void>(
+            MaterialPageRoute<void>(
+              builder: (_) => OutputDetailScreen(output: o),
+            ),
+          );
+        }
+      });
+      return;
+    }
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => OutputDetailScreen(output: o),
+      ),
+    );
+  }
+
   void _startRun() {
     unawaited(_startRunAsync());
+  }
+
+  Future<void> _onWorkflowResult(Map<String, dynamic> event) async {
+    if (!mounted) return;
+    final data = event['data'];
+    Map<String, dynamic>? resultMap;
+    if (data is Map) {
+      resultMap = Map<String, dynamic>.from(data);
+    }
+    setState(() {
+      for (var i = 0; i < _partDone.length; i++) {
+        _partDone[i] = true;
+      }
+      _result = resultMap;
+    });
+    final output = WorkflowOutput(
+      id: const Uuid().v4(),
+      type: WorkflowOutput.typeFromSteps(widget.chain.steps),
+      title: widget.input.length > 60
+          ? '${widget.input.substring(0, 60)}...'
+          : widget.input,
+      input: widget.input,
+      createdAt: DateTime.now(),
+      data: resultMap ?? <String, dynamic>{},
+      steps: widget.chain.steps,
+    );
+    await OutputsStorage.save(output);
+    if (!mounted) return;
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
+    setState(() {
+      _phase = 'done';
+      _savedWorkflowOutput = output;
+    });
   }
 
   Future<void> _startRunAsync() async {
@@ -1199,6 +1379,9 @@ class _RunScreenState extends State<RunScreen> {
       _currentMessage = '';
       _errorMessage = '';
       _result = null;
+      _savedWorkflowOutput = null;
+      _stepStatusByIndex.clear();
+      _activityLog.clear();
     });
 
     final endpoint = WorkerService.resolveEndpoint(widget.chain);
@@ -1208,7 +1391,7 @@ class _RunScreenState extends State<RunScreen> {
       final persona = AgentsData.personas[widget.personaKey];
       if (persona != null) {
         bundle = ChronicleBundle(
-          profile: '${persona.name} · ${persona.role}',
+          profile: persona.role,
           tags: persona.tags.join(', '),
           recent: persona.recentEntries.isNotEmpty
               ? persona.recentEntries[0]
@@ -1218,6 +1401,15 @@ class _RunScreenState extends State<RunScreen> {
       }
     }
 
+    Map<String, dynamic>? writingPrefs;
+    if (_chainHasWriting) {
+      writingPrefs = {
+        'format': widget.writingFormatId,
+        if (widget.researchPaperSpecs.isNotEmpty)
+          'research_paper_specs': widget.researchPaperSpecs,
+      };
+    }
+
     try {
       _streamSub = WorkerService.streamWorkflow(
         endpoint: endpoint,
@@ -1225,6 +1417,7 @@ class _RunScreenState extends State<RunScreen> {
         useChronicle: widget.useChronicle,
         chronicle: bundle,
         platforms: _chainHasWriting ? _selectedPlatformIds : null,
+        writingPreferences: writingPrefs,
       ).listen(
         (event) {
           if (!mounted) return;
@@ -1242,13 +1435,34 @@ class _RunScreenState extends State<RunScreen> {
                 setState(() {
                   _stepIdx = idx;
                   _currentMessage = message;
+                  if (message.isNotEmpty) {
+                    _stepStatusByIndex[idx] = message;
+                    _pushActivityLogLine('${widget.chain.steps[idx]} — $message');
+                  } else {
+                    _pushActivityLogLine('${widget.chain.steps[idx]} — started');
+                  }
                 });
               } else {
-                setState(() => _currentMessage = message);
+                setState(() {
+                  _currentMessage = message;
+                  _pushActivityLogLine(
+                    step.isNotEmpty ? '$step — $message' : message,
+                  );
+                });
               }
               break;
             case 'progress':
-              setState(() => _currentMessage = message);
+              setState(() {
+                _currentMessage = message;
+                if (_stepIdx >= 0 &&
+                    _stepIdx < widget.chain.steps.length &&
+                    message.isNotEmpty) {
+                  _stepStatusByIndex[_stepIdx] = message;
+                }
+                if (message.isNotEmpty) {
+                  _pushActivityLogLine(message);
+                }
+              });
               break;
             case 'step_complete':
               final idx = widget.chain.steps.indexWhere(
@@ -1256,6 +1470,14 @@ class _RunScreenState extends State<RunScreen> {
               );
               if (idx >= 0) {
                 setState(() {
+                  if (message.isNotEmpty) {
+                    _stepStatusByIndex[idx] = message;
+                    _pushActivityLogLine(
+                      '${widget.chain.steps[idx]} complete — $message',
+                    );
+                  } else {
+                    _pushActivityLogLine('${widget.chain.steps[idx]} complete');
+                  }
                   if (idx + 1 < widget.chain.steps.length) {
                     _stepIdx = idx + 1;
                   } else {
@@ -1266,38 +1488,7 @@ class _RunScreenState extends State<RunScreen> {
               }
               break;
             case 'result':
-              final data = event['data'];
-              setState(() {
-                for (var i = 0; i < _partDone.length; i++) {
-                  _partDone[i] = true;
-                }
-                if (data is Map) {
-                  _result = Map<String, dynamic>.from(data);
-                } else {
-                  _result = null;
-                }
-              });
-              Future.delayed(const Duration(milliseconds: 600), () {
-                if (mounted) {
-                  setState(() => _phase = 'done');
-                  Future(() async {
-                    final output = WorkflowOutput(
-                      id: const Uuid().v4(),
-                      type: WorkflowOutput.typeFromSteps(widget.chain.steps),
-                      title: widget.input.length > 60
-                          ? '${widget.input.substring(0, 60)}...'
-                          : widget.input,
-                      input: widget.input,
-                      createdAt: DateTime.now(),
-                      data: (event['data'] is Map)
-                          ? Map<String, dynamic>.from(event['data'] as Map)
-                          : <String, dynamic>{},
-                      steps: widget.chain.steps,
-                    );
-                    await OutputsStorage.save(output);
-                  });
-                }
-              });
+              unawaited(_onWorkflowResult(event));
               break;
             case 'error':
               setState(() {

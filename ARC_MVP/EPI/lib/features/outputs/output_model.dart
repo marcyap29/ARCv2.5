@@ -24,8 +24,8 @@ class WorkflowOutput {
     final lower = steps.map((s) => s.toLowerCase()).toList();
     if (lower.contains('competitor intel')) return 'competitor';
     if (lower.contains('plugin discovery')) return 'plugins';
-    if (lower.contains('writing') && !lower.contains('research')) return 'writing';
-    if (lower.contains('writing')) return 'research'; // research + writing = research report
+    if (lower.contains('writing')) return 'writing';
+    if (lower.contains('research')) return 'research';
     return 'research';
   }
 

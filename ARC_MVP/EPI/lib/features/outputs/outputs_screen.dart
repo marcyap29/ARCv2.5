@@ -6,7 +6,10 @@ import 'output_model.dart';
 import 'outputs_storage.dart';
 
 class OutputsScreen extends StatefulWidget {
-  const OutputsScreen({super.key});
+  const OutputsScreen({super.key, this.initialDetailOutput});
+
+  /// When set (e.g. after a workflow run), opens this item’s detail on top of the list.
+  final WorkflowOutput? initialDetailOutput;
 
   @override
   State<OutputsScreen> createState() => _OutputsScreenState();
@@ -15,6 +18,7 @@ class OutputsScreen extends StatefulWidget {
 class _OutputsScreenState extends State<OutputsScreen> {
   List<WorkflowOutput> _outputs = [];
   bool _loading = true;
+  bool _openedInitialDetail = false;
 
   @override
   void initState() {
@@ -85,6 +89,22 @@ class _OutputsScreenState extends State<OutputsScreen> {
     setState(() {
       _outputs = outputs;
       _loading = false;
+    });
+    _maybeOpenInitialDetail();
+  }
+
+  void _maybeOpenInitialDetail() {
+    final initial = widget.initialDetailOutput;
+    if (initial == null || _openedInitialDetail || !mounted) return;
+    _openedInitialDetail = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => OutputDetailScreen(output: initial),
+        ),
+      );
     });
   }
 

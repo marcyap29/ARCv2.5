@@ -156,6 +156,81 @@ String _coreXml(ResearchReport report) {
 </cp:coreProperties>''';
 }
 
+String _coreXmlForTitle(String title, DateTime createdAt) {
+  final created = createdAt.toUtc().toIso8601String();
+  return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties">
+<dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">${_xmlEscape(title)}</dc:title>
+<dcterms:created xmlns:dcterms="http://purl.org/dc/terms/">$created</dcterms:created>
+</cp:coreProperties>''';
+}
+
+String _stripInlineMd(String s) {
+  var o = s;
+  o = o.replaceAllMapped(RegExp(r'\*\*([^*]+)\*\*'), (m) => m.group(1)!);
+  o = o.replaceAllMapped(RegExp(r'\*([^*]+)\*'), (m) => m.group(1)!);
+  o = o.replaceAllMapped(RegExp(r'`([^`]+)`'), (m) => m.group(1)!);
+  return o;
+}
+
+/// Map markdown-ish lines to Word paragraphs/headings (## / ### / bullets).
+String _documentBodyFromMarkdown(String markdown) {
+  final buf = StringBuffer();
+  final heading = RegExp(r'^(#{1,6})\s+(.+)$');
+  for (final rawLine in markdown.split('\n')) {
+    final line = rawLine.trimRight();
+    final t = _stripInlineMd(line.trimLeft());
+    if (t.isEmpty) {
+      buf.write(_paragraph(''));
+      continue;
+    }
+    final m = heading.firstMatch(t);
+    if (m != null) {
+      final level = m.group(1)!.length;
+      final text = _stripInlineMd(m.group(2)!.trim());
+      final h = level <= 1 ? 1 : (level == 2 ? 2 : 3);
+      buf.write(_heading(text, h));
+      continue;
+    }
+    if (t.startsWith('- ') || t.startsWith('* ')) {
+      buf.write(_paragraph('• ${_stripInlineMd(t.substring(2).trim())}'));
+      continue;
+    }
+    buf.write(_paragraph(t));
+  }
+  return buf.toString();
+}
+
+/// DOCX from a workflow research markdown body (headings and bullets preserved).
+List<int> buildDocxFromMarkdownExport({
+  required String title,
+  required DateTime createdAt,
+  required String markdown,
+}) {
+  final body = StringBuffer();
+  body.write(_heading(title, 1));
+  body.write(_paragraph(_formatDate(createdAt)));
+  body.write(_paragraph(''));
+  body.write(_documentBodyFromMarkdown(markdown));
+
+  final archive = Archive();
+
+  void addFile(String path, String content) {
+    final bytes = utf8.encode(content);
+    archive.addFile(ArchiveFile(path, bytes.length, bytes));
+  }
+
+  addFile('[Content_Types].xml', _contentTypes);
+  addFile('_rels/.rels', _rels);
+  addFile('word/_rels/document.xml.rels', _documentRels);
+  addFile('word/document.xml', _documentXml(body.toString()));
+  addFile('docProps/core.xml', _coreXmlForTitle(title, createdAt));
+  addFile('docProps/app.xml', _appXml);
+  addFile('word/styles.xml', _stylesXml);
+
+  return ZipEncoder().encode(archive) ?? [];
+}
+
 const String _appXml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
 <Application>LUMARA</Application>

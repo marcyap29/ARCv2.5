@@ -126,6 +126,32 @@ class ReportExportService {
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
+  /// Prepare workflow markdown for export (matches on-screen Markdown preview more closely).
+  String normalizeWorkflowMarkdownForExport(String markdown) {
+    var t = markdown.trim();
+    t = t.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
+    t = t.replaceAll(RegExp(r'</p>\s*<p[^>]*>', caseSensitive: false), '\n\n');
+    t = t.replaceAll(RegExp(r'<[^>]+>'), '');
+    final fence = RegExp(
+      r'^```(?:\w+)?\s*\r?\n([\s\S]*?)\r?\n```\s*$',
+      multiLine: false,
+    );
+    final m = fence.firstMatch(t);
+    if (m != null) {
+      t = m.group(1)!.trim();
+    }
+    return t;
+  }
+
+  /// Remove common inline markdown markers for PDF/DOCX plain rendering.
+  String stripInlineMarkdownForExportLine(String line) {
+    var s = line;
+    s = s.replaceAllMapped(RegExp(r'\*\*([^*]+)\*\*'), (m) => m.group(1)!);
+    s = s.replaceAllMapped(RegExp(r'\*([^*]+)\*'), (m) => m.group(1)!);
+    s = s.replaceAllMapped(RegExp(r'`([^`]+)`'), (m) => m.group(1)!);
+    return s;
+  }
+
   /// Sanitize filename (remove invalid chars).
   String _safeFileName(String name) {
     return name.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_').replaceAll(RegExp(r'\s+'), '_');
@@ -149,6 +175,77 @@ class ReportExportService {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
         build: (context) => body,
+      ),
+    );
+    return doc.save();
+  }
+
+  /// Renders workflow research markdown (## headings, bullets) into PDF widgets.
+  List<pw.Widget> _pdfWidgetsFromMarkdown(String markdown) {
+    final out = <pw.Widget>[];
+    final heading = RegExp(r'^(#{1,6})\s+(.+)$');
+    for (final rawLine in markdown.split('\n')) {
+      final t = stripInlineMarkdownForExportLine(rawLine.trimLeft());
+      if (t.isEmpty) {
+        out.add(pw.SizedBox(height: 6));
+        continue;
+      }
+      final m = heading.firstMatch(t);
+      if (m != null) {
+        final level = m.group(1)!.length;
+        final text = stripInlineMarkdownForExportLine(m.group(2)!.trim());
+        final int pdfLevel = level <= 1 ? 0 : (level == 2 ? 1 : 2);
+        out.add(
+          pw.Header(
+            level: pdfLevel,
+            child: pw.Text(
+              text,
+              style: pw.TextStyle(
+                fontSize: level <= 2 ? 14.0 : 12.0,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+        continue;
+      }
+      if (t.startsWith('- ') || (t.startsWith('* ') && t.length > 2)) {
+        out.add(pw.Paragraph(
+          text: '• ${stripInlineMarkdownForExportLine(t.substring(2).trim())}',
+        ));
+        continue;
+      }
+      out.add(pw.Paragraph(text: t));
+    }
+    return out;
+  }
+
+  /// PDF from a raw markdown body (e.g. Agents workflow research output).
+  Future<List<int>> toPdfBytesFromMarkdown({
+    required String title,
+    required DateTime createdAt,
+    required String markdown,
+  }) async {
+    final doc = pw.Document();
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Text(
+              title,
+              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+          pw.Paragraph(
+            text: _formatDate(createdAt),
+            style: const pw.TextStyle(fontSize: 10),
+          ),
+          pw.SizedBox(height: 12),
+          ..._pdfWidgetsFromMarkdown(markdown),
+        ],
       ),
     );
     return doc.save();
@@ -280,6 +377,102 @@ class ReportExportService {
       return null;
     }
     return null;
+  }
+
+  /// Save workflow research markdown to LUMARA_Backups/LUMARA_Outputs as .md / .pdf / .docx.
+  Future<String?> exportWorkflowMarkdownToFile({
+    required String title,
+    required String markdown,
+    required ReportExportFormat format,
+    required DateTime createdAt,
+  }) async {
+    try {
+      final md = normalizeWorkflowMarkdownForExport(markdown);
+      final base = _safeFileName(title);
+      final baseName = base.length > 60 ? base.substring(0, 57) : base;
+      final lumaraDir = await getLumaraOutputsDirectory();
+      if (format == ReportExportFormat.markdown) {
+        final dest = File(path.join(lumaraDir.path, '$baseName.md'));
+        await dest.writeAsString(md, encoding: utf8);
+        return dest.path;
+      }
+      if (format == ReportExportFormat.pdf) {
+        final bytes = await toPdfBytesFromMarkdown(
+          title: title,
+          createdAt: createdAt,
+          markdown: md,
+        );
+        final dest = File(path.join(lumaraDir.path, '$baseName.pdf'));
+        await dest.writeAsBytes(bytes);
+        return dest.path;
+      }
+      if (format == ReportExportFormat.docx) {
+        final bytes = buildDocxFromMarkdownExport(
+          title: title,
+          createdAt: createdAt,
+          markdown: md,
+        );
+        final dest = File(path.join(lumaraDir.path, '$baseName.docx'));
+        await dest.writeAsBytes(bytes);
+        return dest.path;
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
+  /// Share workflow research via system sheet; optionally copies to LUMARA_Outputs.
+  Future<bool> shareWorkflowMarkdown({
+    required String title,
+    required String markdown,
+    required ReportExportFormat format,
+    required DateTime createdAt,
+    bool alsoSaveToLumaraOutputs = true,
+  }) async {
+    try {
+      final base = _safeFileName(title);
+      final baseName = base.length > 60 ? base.substring(0, 57) : base;
+      final tmpDir = await getTemporaryDirectory();
+      late final File file;
+      if (format == ReportExportFormat.markdown) {
+        file = File(path.join(tmpDir.path, '$baseName.md'));
+        await file.writeAsString(markdown, encoding: utf8);
+      } else if (format == ReportExportFormat.pdf) {
+        final bytes = await toPdfBytesFromMarkdown(
+          title: title,
+          createdAt: createdAt,
+          markdown: markdown,
+        );
+        file = File(path.join(tmpDir.path, '$baseName.pdf'));
+        await file.writeAsBytes(bytes);
+      } else if (format == ReportExportFormat.docx) {
+        final bytes = buildDocxFromMarkdownExport(
+          title: title,
+          createdAt: createdAt,
+          markdown: markdown,
+        );
+        file = File(path.join(tmpDir.path, '$baseName.docx'));
+        await file.writeAsBytes(bytes);
+      } else {
+        file = File(path.join(tmpDir.path, '$baseName.txt'));
+        await file.writeAsString(markdown, encoding: utf8);
+      }
+      if (!await file.exists()) return false;
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: title,
+      );
+      if (alsoSaveToLumaraOutputs) {
+        try {
+          final lumaraDir = await getLumaraOutputsDirectory();
+          await file.copy(path.join(lumaraDir.path, path.basename(file.path)));
+        } catch (_) {}
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Plain text version (no markdown); used for .txt export.

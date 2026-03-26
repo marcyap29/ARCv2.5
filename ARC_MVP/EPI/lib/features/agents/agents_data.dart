@@ -216,6 +216,18 @@ class AgentsData {
       inputPlaceholder:
           'e.g. I want to launch my spring programme and get content out...',
     ),
+    'artist': const Persona(
+      name: 'Riley',
+      role: 'Independent artist & creator',
+      tags: ['studio', 'portfolio', 'commissions', 'social'],
+      recentEntries: [
+        'Opening reception next month',
+        'New series in progress',
+        'Newsletter going out Friday',
+      ],
+      inputPlaceholder:
+          'e.g. I need a clear artist statement and social posts for my upcoming show...',
+    ),
   };
 
   static final Map<String, List<GoalCard>> goalCards = {
@@ -330,6 +342,43 @@ class AgentsData {
             'Identify likely places to find new wellness coaching clients and draft warm outreach messages.',
       ),
     ],
+    'artist': const [
+      GoalCard(
+        id: 'artist_show_statement',
+        emoji: '🖼️',
+        label: 'Show statement & press',
+        fillText:
+            'Draft a concise artist statement and short press blurb for my upcoming exhibition.',
+      ),
+      GoalCard(
+        id: 'artist_social_week',
+        emoji: '📱',
+        label: 'Week of social content',
+        fillText:
+            'Plan a week of Instagram and Bluesky posts teasing my new body of work.',
+      ),
+      GoalCard(
+        id: 'artist_grant_research',
+        emoji: '📝',
+        label: 'Grant / residency research',
+        fillText:
+            'Research open calls and residencies that fit my practice and summarize deadlines and fit.',
+      ),
+      GoalCard(
+        id: 'artist_newsletter',
+        emoji: '✉️',
+        label: 'Newsletter draft',
+        fillText:
+            'Write a warm studio newsletter update for subscribers about process and behind-the-scenes.',
+      ),
+      GoalCard(
+        id: 'artist_collab_outreach',
+        emoji: '🤝',
+        label: 'Collaboration outreach',
+        fillText:
+            'Identify galleries or curators aligned with my work and draft thoughtful outreach emails.',
+      ),
+    ],
   };
 
   static const List<AgentItem> agents = [
@@ -375,7 +424,7 @@ class AgentsData {
       iconBg: Color(0xFF1E3D2F),
       label: 'Plugin Discovery',
       description: 'Discovers tools and integration options.',
-      connected: false,
+      connected: true,
       enabledByDefault: false,
       workerEndpoint: 'https://lumara-workflows.orbitalai.workers.dev/workflows/plugins',
       swarmspaceSlug: 'lumara-plugins',
@@ -539,6 +588,21 @@ class AgentsData {
     return _filterEnabledSteps(raw, enabledAgentIds);
   }
 
+  static bool _wantsCompetitiveLayer(String src) {
+    return _containsAny(src, [
+      'competitor',
+      'competitive',
+      'rival',
+      'landscape',
+      'market position',
+      'investor deck',
+      'vc ',
+      ' vc',
+      'due diligence',
+      'benchmark',
+    ]);
+  }
+
   static WorkflowChain _orchestrateRaw(String input, String personaKey) {
     final lower = input.toLowerCase();
 
@@ -550,10 +614,17 @@ class AgentsData {
       'client',
       'session',
     ])) {
+      if (_wantsCompetitiveLayer(lower)) {
+        return const WorkflowChain(
+          label: 'Prep for your meeting',
+          steps: ['Research', 'Competitor Intel', 'Writing'],
+          reason: 'Detected: meeting prep with competitive or investor context in your request',
+        );
+      }
       return const WorkflowChain(
         label: 'Prep for your meeting',
-        steps: ['Research', 'Competitor Intel', 'Writing'],
-        reason: 'Detected: preparation for a meeting or presentation',
+        steps: ['Research', 'Writing'],
+        reason: 'Detected: meeting or presentation prep (research + writing)',
       );
     }
 
@@ -564,9 +635,16 @@ class AgentsData {
       'program',
       'release',
     ])) {
+      if (_wantsCompetitiveLayer(lower)) {
+        return const WorkflowChain(
+          label: 'Plan and announce your launch',
+          steps: ['Research', 'Competitor Intel', 'Writing'],
+          reason: 'Detected: launch with competitive or market positioning in your request',
+        );
+      }
       return const WorkflowChain(
         label: 'Plan and announce your launch',
-        steps: ['Research', 'Competitor Intel', 'Writing'],
+        steps: ['Research', 'Writing'],
         reason: 'Detected: product or programme launch',
       );
     }

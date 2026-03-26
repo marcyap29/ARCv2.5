@@ -1,11 +1,15 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:my_app/lumara/agents/screens/plugin_activity_screen.dart';
+import 'package:my_app/lumara/agents/screens/plugin_catalog_screen.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'agents_data.dart';
+import 'agents_persona_resolver.dart';
 import 'run_screen.dart';
 
 class AgentsScreen extends StatefulWidget {
@@ -16,16 +20,21 @@ class AgentsScreen extends StatefulWidget {
 }
 
 class _AgentsScreenState extends State<AgentsScreen> {
-  String _personaKey = 'founder';
+  static const _prefsAgentTogglesKey = 'lumara_agents_enabled_ids';
+
+  late String _personaKey;
   String _input = '';
   bool _useChronicle = true;
   bool _dismissedGreeting = false;
   late final Map<String, bool> _agentToggles;
   late final TextEditingController _inputController;
+  late final TextEditingController _researchPaperSpecsController;
   late final FocusNode _inputFocusNode;
   late final ScrollController _scrollController;
   final List<_PartEntry> _partEntries = [];
   final List<AgentAttachment> _attachments = [];
+  /// article | research_paper | substack | linkedin_article
+  String _writingFormatId = 'article';
 
   bool get _canSubmit {
     final hasText = _input.trim().isNotEmpty;
@@ -40,13 +49,51 @@ class _AgentsScreenState extends State<AgentsScreen> {
   @override
   void initState() {
     super.initState();
+    _personaKey = AgentsPersonaResolver.resolvePersonaKey();
     _inputController = TextEditingController();
+    _researchPaperSpecsController = TextEditingController();
     _inputFocusNode = FocusNode();
     _scrollController = ScrollController();
     _agentToggles = {
       for (final a in [...AgentsData.agents, ...AgentsData.swarmspacePlugins])
         a.id: a.enabledByDefault,
     };
+    _loadPersistedAgentToggles();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshPersonaKey());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshPersonaKey());
+  }
+
+  Future<void> _refreshPersonaKey() async {
+    final k = await AgentsPersonaResolver.resolvePersonaKeyResolved();
+    if (mounted && k != _personaKey) {
+      setState(() => _personaKey = k);
+    }
+  }
+
+  Future<void> _loadPersistedAgentToggles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList(_prefsAgentTogglesKey);
+    if (saved == null || !mounted) return;
+    final on = saved.toSet();
+    setState(() {
+      for (final a in [...AgentsData.agents, ...AgentsData.swarmspacePlugins]) {
+        _agentToggles[a.id] = on.contains(a.id);
+      }
+    });
+  }
+
+  Future<void> _persistAgentToggles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = _agentToggles.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toList();
+    await prefs.setStringList(_prefsAgentTogglesKey, ids);
   }
 
   @override
@@ -56,6 +103,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
       e.detailController.dispose();
     }
     _inputController.dispose();
+    _researchPaperSpecsController.dispose();
     _inputFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -72,49 +120,53 @@ class _AgentsScreenState extends State<AgentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        textTheme: GoogleFonts.interTextTheme(Theme.of(context).textTheme),
-      ),
-      child: Scaffold(
-        backgroundColor: kcBackgroundColor,
-        appBar: AppBar(
-          backgroundColor: kcBackgroundColor,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          surfaceTintColor: Colors.transparent,
-          centerTitle: true,
-          title: Text(
-            'Agents',
-            style: heading1Style(context).copyWith(
-              color: kcPrimaryTextColor,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          actions: [
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _input = '';
-                  _inputController.clear();
-                  _dismissedGreeting = false;
-                  _clearPartsAndAttachments();
-                });
-              },
-              icon: Icon(
-                Icons.refresh_rounded,
-                color: kcSecondaryTextColor.withValues(alpha: 0.7),
-              ),
-              tooltip: 'Reset',
-            ),
-          ],
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          textTheme: GoogleFonts.interTextTheme(Theme.of(context).textTheme),
         ),
-        body: SafeArea(
-          bottom: false,
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _buildBody(),
+        child: Scaffold(
+          backgroundColor: kcBackgroundColor,
+          appBar: AppBar(
+            backgroundColor: kcBackgroundColor,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            surfaceTintColor: Colors.transparent,
+            centerTitle: true,
+            title: Text(
+              'Agents',
+              style: heading1Style(context).copyWith(
+                color: kcPrimaryTextColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            actions: [
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _input = '';
+                    _inputController.clear();
+                    _dismissedGreeting = false;
+                    _clearPartsAndAttachments();
+                  });
+                },
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  color: kcSecondaryTextColor.withValues(alpha: 0.7),
+                ),
+                tooltip: 'Reset',
+              ),
+            ],
+          ),
+          body: SafeArea(
+            bottom: false,
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildBody(),
+            ),
           ),
         ),
       ),
@@ -127,8 +179,9 @@ class _AgentsScreenState extends State<AgentsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildPersonaSwitcher(),
           _buildFreeformCard(),
+          const SizedBox(height: 20),
+          _buildWritingFormatSection(),
           const SizedBox(height: 24),
           _buildSectionLabel('NEED INSPIRATION?'),
           const SizedBox(height: 4),
@@ -162,75 +215,116 @@ class _AgentsScreenState extends State<AgentsScreen> {
     );
   }
 
-  Widget _buildPersonaSwitcher() {
-    final items = <MapEntry<String, String>>[
-      const MapEntry('founder', 'Marc'),
-      const MapEntry('student', 'Aisha'),
-      const MapEntry('coach', 'Jordan'),
+  Widget _buildWritingFormatSection() {
+    final formats = <MapEntry<String, String>>[
+      const MapEntry('article', 'Article'),
+      const MapEntry('research_paper', 'Research paper'),
+      const MapEntry('substack', 'Substack'),
+      const MapEntry('linkedin_article', 'LinkedIn long-form'),
     ];
-
-    return Column(
-      children: [
-        Row(
-          children: items.map((entry) {
-            final isActive = _personaKey == entry.key;
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: BorderSide(
-                        color: isActive
-                            ? const Color(0xFF5B5BD6)
-                            : const Color(0xFF1E1E35),
-                      ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14142A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1C1C30)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'WRITING FORMAT',
+            style: GoogleFonts.robotoMono(
+              color: const Color(0xFF33334A),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Used when your run includes Writing. Research paper is broader than a short article; pair with publishing platforms on the run screen.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF5A5A7A),
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: formats.map((e) {
+              final active = _writingFormatId == e.key;
+              return GestureDetector(
+                onTap: () => setState(() => _writingFormatId = e.key),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: active
+                        ? const Color(0xFF5B5BD6).withValues(alpha: 0.15)
+                        : const Color(0xFF0F0F1E),
+                    border: Border.all(
+                      color: active ? const Color(0xFF5B5BD6) : const Color(0xFF1A1A2C),
                     ),
-                    backgroundColor: isActive
-                        ? const Color(0xFF5B5BD6).withValues(alpha: 0.12)
-                        : const Color(0xFF13131F),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _personaKey = entry.key;
-                      _input = '';
-                      _inputController.clear();
-                      _clearPartsAndAttachments();
-                    });
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (_scrollController.hasClients) {
-                        _scrollController.animateTo(
-                          0,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
-                        );
-                      }
-                    });
-                  },
                   child: Text(
-                    entry.value,
+                    e.value,
                     style: GoogleFonts.inter(
-                      color: isActive
-                          ? const Color(0xFF5B5BD6)
-                          : const Color(0xFF44445A),
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
+                      color: active
+                          ? const Color(0xFF8888FF)
+                          : const Color(0xFF55556A),
                     ),
                   ),
                 ),
+              );
+            }).toList(),
+          ),
+          if (_writingFormatId == 'research_paper') ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _researchPaperSpecsController,
+              minLines: 2,
+              maxLines: 5,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: const Color(0xFFE0E0F0),
               ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 16),
-      ],
+              decoration: InputDecoration(
+                hintText:
+                    'Focus, target length/pages, citation style, audience, etc.',
+                hintStyle: GoogleFonts.inter(
+                  color: const Color(0xFF44445A),
+                  fontSize: 12,
+                ),
+                filled: true,
+                fillColor: const Color(0xFF0C0C1A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1C1C30)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1C1C30)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF5B5BD6)),
+                ),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
   Widget _buildFreeformCard() {
-    final persona = AgentsData.personas[_personaKey]!;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -251,7 +345,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hi ${persona.name}',
+                        'Hi there',
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 14,
@@ -259,7 +353,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
                         ),
                       ),
                       Text(
-                        persona.role,
+                        'Chronicle context is matched to your saved profile — not shown here.',
                         style: GoogleFonts.inter(
                           color: const Color(0xFF7A7A9A),
                           fontSize: 12,
@@ -296,7 +390,8 @@ class _AgentsScreenState extends State<AgentsScreen> {
             decoration: InputDecoration(
               filled: true,
               fillColor: const Color(0xFF0C0C1A),
-              hintText: persona.inputPlaceholder,
+              hintText:
+                  'What should we research, compare, or write for you? Be specific.',
               hintStyle: GoogleFonts.inter(
                 color: const Color(0xFF44445A),
                 fontSize: 14,
@@ -461,11 +556,61 @@ class _AgentsScreenState extends State<AgentsScreen> {
     );
   }
 
+  void _openPluginCatalog() {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const PluginCatalogScreen(),
+      ),
+    );
+  }
+
+  void _openPluginActivity() {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const PluginActivityScreen(),
+      ),
+    );
+  }
+
+  void _onAgentOpenTap(AgentItem agent, bool isEnabled) {
+    if (!isEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Enable ${agent.label} first.',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: const Color(0xFF2A2A3E),
+        ),
+      );
+      return;
+    }
+    if (agent.id == 'plugin_discovery') {
+      _openPluginCatalog();
+      return;
+    }
+    if (agent.id == 'plugin_activity') {
+      _openPluginActivity();
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${agent.label} runs inside a workflow from your request above.',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: const Color(0xFF2A2A3E),
+      ),
+    );
+  }
+
   Widget _buildAgentsList() {
     return Column(
       children: AgentsData.agents.map((agent) {
         final isEnabled = _agentToggles[agent.id] ?? false;
-        return Container(
+        final card = Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -536,9 +681,12 @@ class _AgentsScreenState extends State<AgentsScreen> {
                     const Spacer(),
                     _buildToggle(
                       isEnabled,
-                      () => setState(() {
-                        _agentToggles[agent.id] = !isEnabled;
-                      }),
+                      () {
+                        setState(() {
+                          _agentToggles[agent.id] = !isEnabled;
+                        });
+                        _persistAgentToggles();
+                      },
                     ),
                   ],
                 ),
@@ -554,9 +702,11 @@ class _AgentsScreenState extends State<AgentsScreen> {
                           borderRadius: BorderRadius.circular(24),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () => _onAgentOpenTap(agent, isEnabled),
                       child: Text(
-                        'Open ${agent.label} →',
+                        agent.id == 'plugin_discovery'
+                            ? 'Browse plugins →'
+                            : 'Open ${agent.label} →',
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 14,
@@ -569,9 +719,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
                 if (!agent.connected) ...[
                   const SizedBox(height: 10),
                   Text(
-                    agent.id == 'plugin_discovery'
-                        ? 'Sign in to enable ${agent.label}. Plugin access is granted when you use LUMARA chat with plugins; there is no separate SwarmSpace row in Settings.'
-                        : 'Sign in to your account to use ${agent.label}.',
+                    'Sign in to your account to use ${agent.label}.',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF33334A),
                       fontSize: 12,
@@ -583,6 +731,15 @@ class _AgentsScreenState extends State<AgentsScreen> {
             ],
           ),
         );
+
+        if (agent.isNav) {
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _openPluginActivity,
+            child: card,
+          );
+        }
+        return card;
       }).toList(),
     );
   }
@@ -664,9 +821,12 @@ class _AgentsScreenState extends State<AgentsScreen> {
                       const SizedBox(height: 4),
                       _buildToggle(
                         isEnabled,
-                        () => setState(() {
-                          _agentToggles[plugin.id] = !isEnabled;
-                        }),
+                        () {
+                          setState(() {
+                            _agentToggles[plugin.id] = !isEnabled;
+                          });
+                          _persistAgentToggles();
+                        },
                       ),
                     ],
                   ),
@@ -1106,6 +1266,8 @@ class _AgentsScreenState extends State<AgentsScreen> {
           personaKey: _personaKey,
           useChronicle: _useChronicle,
           enabledAgentIds: enabledIds,
+          writingFormatId: _writingFormatId,
+          researchPaperSpecs: _researchPaperSpecsController.text.trim(),
         ),
       ),
     );

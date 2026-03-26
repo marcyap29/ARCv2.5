@@ -1,7 +1,24 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.84
-**Last Updated:** March 24, 2026
+**Version:** 3.3.85
+**Last Updated:** March 25, 2026
+
+---
+
+## [3.3.85] - March 25, 2026
+
+### Doc-config-git-backup run; Agents persona resolver, outputs UX, report export, profile fields
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup). Commit, push `main`, merge `main` → `test`.
+
+**Updated (sync with repo):**
+- **Agents (`lib/features/agents/`):** `agents_persona_resolver.dart` — maps Chronicle/profile preferences to internal persona keys (`founder` | `student` | `coach` | `artist`); updates across `agents_data`, `agents_screen`, `run_screen`, `worker_service`.
+- **Outputs (`lib/features/outputs/`):** Expanded detail screen, model, list, and storage refinements.
+- **LUMARA agents:** `lumara/agents/screens/agents_screen.dart`; `docx_export_helper.dart` and `report_export_service.dart` export/report pipeline extensions.
+- **Profile:** `profile_fields_screen.dart` — secure profile form alignment with Agents persona routing.
+- **Repo:** Root `.gitignore` — ignore `workers/workflows/.dev.vars` (local Wrangler secrets).
+
+**Prompt audit:** No new LLM prompt definitions in this delta; `PROMPT_REFERENCES.md` remains v2.10.0.
 
 ---
 

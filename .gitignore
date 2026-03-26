@@ -152,6 +152,7 @@ sentry.properties
 .env
 .env.local
 .env.*.local
+workers/workflows/.dev.vars
 
 # Third party large dependencies
 third_party/llama.cpp/

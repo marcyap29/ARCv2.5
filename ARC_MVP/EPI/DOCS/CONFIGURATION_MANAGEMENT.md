@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 24, 2026 (doc sync 2026-03-24, v3.3.84)  
+**Last Updated:** March 25, 2026 (doc sync 2026-03-25, v3.3.85)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -45,14 +45,14 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-24 | ✅ Synced | No structural changes since v3.3.81; unchanged this run |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-24 | ✅ Synced | v3.3.84 - agents/outputs + workflows doc sync |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-24 | ✅ Synced | v2.10.0 - new worker workflow prompt sources |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-24 | ✅ Synced | v1.33.0 - Doc sync 2026-03-24 (v3.3.84) row |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-24 | ✅ Synced | v3.5.1 - 40 records; Last Updated 2026-03-24 |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-24 | ✅ Synced | v3.3.81 unchanged this run |
-| README.md | `/DOCS/README.md` | 2026-03-24 | ✅ Synced | Key docs table; see CHANGELOG v3.3.84 |
-| claude.md | `/DOCS/claude.md` | 2026-03-24 | ✅ Synced | Doc/Config/Git Backup prompt |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-25 | ✅ Synced | v3.3.85 - Agents persona + outputs/export/profile delta |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-25 | ✅ Synced | v3.3.85 - doc-config-git-backup + agents/outputs/profile |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-25 | ✅ Synced | v2.10.0 unchanged — no new prompts this run |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-25 | ✅ Synced | v1.34.0 - Doc sync 2026-03-25 (v3.3.85) row |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-25 | ✅ Synced | v3.5.1 - 40 records; Last Updated 2026-03-25 |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-25 | ✅ Synced | v3.3.85 - Agents persona + outputs note |
+| README.md | `/DOCS/README.md` | 2026-03-25 | ✅ Synced | Key docs table; see CHANGELOG v3.3.85 |
+| claude.md | `/DOCS/claude.md` | 2026-03-25 | ✅ Synced | Doc/Config/Git Backup prompt |
 | backend.md | `/DOCS/backend.md` | 2026-03-20 | ✅ Synced | v3.3.80 - proxyGroq.ts module, rateLimiter/authGuard |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
@@ -121,6 +121,20 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-25 - Documentation & Git Backup run (v3.3.85; doc sync 2026-03-25)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md). Trigger: user request. Commit, push `main`, merge `main` → `test`.
+
+**PROMPT REFERENCES AUDIT:** No new LLM prompt definitions in the changed files; `PROMPT_REFERENCES.md` unchanged at v2.10.0 (sync date refreshed in catalog header).
+
+**Git Backup — Identify what changed (since v3.3.84):** `agents_persona_resolver.dart` and Agents UI/data/run/worker updates; outputs feature refinements; LUMARA agents screen + DOCX/report export services; profile fields screen; root `.gitignore` entry for `workers/workflows/.dev.vars`.
+
+**Updates:** `CHANGELOG.md` v3.3.85; `CONFIGURATION_MANAGEMENT.md` this entry + inventory; `PROMPT_TRACKER.md` v1.34.0; `bug_tracker.md` Recent code changes + Last Updated; `FEATURES.md` / `ARCHITECTURE.md` / `backend.md` / `README.md` / `PROMPT_REFERENCES.md` header sync.
+
+**Status:** ✅ Doc updates applied with repo state; commit, push, merge to `test`.
+
+---
 
 ### 2026-03-24 - Documentation & Git Backup run (v3.3.84; doc sync 2026-03-24)
 

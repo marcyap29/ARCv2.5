@@ -1,7 +1,7 @@
 # Backend Architecture & Setup
 
-**Version:** 3.3.84
-**Last Updated:** March 24, 2026
+**Version:** 3.3.85
+**Last Updated:** March 25, 2026
 **Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration (web), RevenueCat (in-app purchases), Local Backup Services, and Groq API Proxy (GPT-OSS 120B primary). OpenAI provider and adapter removed (v3.3.67).
 
 ---

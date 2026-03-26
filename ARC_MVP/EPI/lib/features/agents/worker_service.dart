@@ -136,6 +136,7 @@ class WorkerService {
     required bool useChronicle,
     ChronicleBundle? chronicle,
     List<String>? platforms,
+    Map<String, dynamic>? writingPreferences,
   }) async* {
     final client = http.Client();
     try {
@@ -148,6 +149,9 @@ class WorkerService {
       }
       if (platforms != null && platforms.isNotEmpty) {
         body['platforms'] = platforms;
+      }
+      if (writingPreferences != null && writingPreferences.isNotEmpty) {
+        body['writing_preferences'] = writingPreferences;
       }
 
       final request = http.Request('POST', Uri.parse(endpoint));
