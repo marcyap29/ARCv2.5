@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:my_app/arc/chat/ui/writing_screen.dart';
 import 'package:my_app/lumara/agents/models/research_models.dart';
 import 'package:my_app/lumara/agents/services/report_export_service.dart';
+import 'package:my_app/shared/ui/lumara_bottom_tab_bar.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -36,7 +37,7 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
     _output = widget.output;
     if (_isResearchLikeOutput) {
       _researchReportController = TextEditingController(
-        text: _output.data['report'] as String? ?? _output.input,
+        text: (_output.data['report'] as String?) ?? '',
       );
     }
   }
@@ -55,6 +56,7 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFF0F0F1A),
+        bottomNavigationBar: const LumaraUnifiedBottomBar(currentIndex: 2),
         body: Column(
           children: [
             _buildTopBar(),
@@ -146,13 +148,14 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
   }
 
   Widget _buildHeader() {
+    final headline = _isResearchLikeOutput ? 'Research report' : _output.title;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _output.title,
+            headline,
             style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 20,
@@ -277,6 +280,44 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'YOUR QUESTION',
+            style: GoogleFonts.robotoMono(
+              color: const Color(0xFF33334A),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C0C1A),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF1C1C30)),
+            ),
+            child: SelectableText(
+              _output.input.trim().isEmpty ? '—' : _output.input.trim(),
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                height: 1.45,
+                color: const Color(0xFFC8C8E0),
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'REPORT',
+            style: GoogleFonts.robotoMono(
+              color: const Color(0xFF33334A),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
           if (_researchEditing) ...[
             Text(
               'Edit (Markdown)',
@@ -485,12 +526,34 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
     }
   }
 
+  String _researchExportFileStem() {
+    final d = _output.createdAt;
+    final ymd =
+        '${d.year}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}';
+    final short = _output.id.length >= 8 ? _output.id.substring(0, 8) : _output.id;
+    return 'Research_${ymd}_$short';
+  }
+
+  String _researchSharePlainBody() {
+    final q = _output.input.trim();
+    final r = _researchReportController!.text.trim();
+    final buf = StringBuffer();
+    buf.writeln('YOUR QUESTION');
+    buf.writeln(q.isEmpty ? '—' : q);
+    buf.writeln();
+    buf.writeln('REPORT');
+    buf.writeln(r.isEmpty ? '—' : r);
+    return buf.toString();
+  }
+
   Future<void> _exportResearchPdf() async {
     final path = await ReportExportService.instance.exportWorkflowMarkdownToFile(
       title: _output.title,
       markdown: _researchReportController!.text,
       format: ReportExportFormat.pdf,
       createdAt: _output.createdAt,
+      userQuestion: _output.input,
+      fileBaseName: _researchExportFileStem(),
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -512,6 +575,8 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
       markdown: _researchReportController!.text,
       format: ReportExportFormat.docx,
       createdAt: _output.createdAt,
+      userQuestion: _output.input,
+      fileBaseName: _researchExportFileStem(),
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -531,7 +596,7 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
     final markdown = _researchReportController!.text;
     final report = ResearchReport(
       id: _output.id,
-      query: _output.title,
+      query: _output.input.trim().isNotEmpty ? _output.input.trim() : _output.title,
       summary: '',
       detailedFindings: markdown,
       generatedAt: _output.createdAt,
@@ -625,7 +690,7 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
                 leading: const Icon(Icons.copy_outlined, color: Color(0xFF7A7A9A)),
                 title: Text('Copy full text', style: GoogleFonts.inter(color: Colors.white)),
                 onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: _researchReportController!.text));
+                  await Clipboard.setData(ClipboardData(text: _researchSharePlainBody()));
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -644,10 +709,18 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
                   Navigator.pop(ctx);
                   SharePlus.instance.share(
                     ShareParams(
-                      text: _researchReportController!.text,
-                      subject: _output.title,
+                      text: _researchSharePlainBody(),
+                      subject: 'Research report',
                     ),
                   );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.auto_awesome, color: Color(0xFF5B5BD6)),
+                title: Text('Create content', style: GoogleFonts.inter(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openCreateContentFromResearch();
                 },
               ),
             ],
@@ -663,6 +736,8 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
       markdown: _researchReportController!.text,
       format: format,
       createdAt: _output.createdAt,
+      userQuestion: _output.input,
+      fileBaseName: _researchExportFileStem(),
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

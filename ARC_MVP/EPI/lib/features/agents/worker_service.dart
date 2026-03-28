@@ -106,6 +106,14 @@ class WorkerService {
 
   static const String _base = 'https://lumara-workflows.orbitalai.workers.dev';
 
+  /// Prepended to `input` when `writing_preferences.task` is `revise_in_place`.
+  static const String reviseInPlacePreamble = '[LUMARA TASK: REVISE_IN_PLACE]\n'
+      'The user pasted SOURCE TEXT below. Edit that text in place per their instructions. '
+      'Preserve the same topic, product names, and narrative unless they explicitly ask to change direction. '
+      'Do not replace their draft with unrelated generic content (e.g. a different essay theme). '
+      'Output only the revised text they asked for.\n'
+      '---\n';
+
   /// Picks the Worker route for this [chain] (single POST covers the whole run).
   static String resolveEndpoint(WorkflowChain chain) {
     final steps = chain.steps.map((s) => s.toLowerCase()).toList();
@@ -140,8 +148,14 @@ class WorkerService {
   }) async* {
     final client = http.Client();
     try {
+      var effectiveInput = input;
+      if (writingPreferences != null &&
+          writingPreferences['task'] == 'revise_in_place') {
+        effectiveInput = '$reviseInPlacePreamble$effectiveInput';
+      }
+
       final body = <String, dynamic>{
-        'input': input,
+        'input': effectiveInput,
         'use_chronicle': useChronicle,
       };
       if (useChronicle && chronicle != null) {

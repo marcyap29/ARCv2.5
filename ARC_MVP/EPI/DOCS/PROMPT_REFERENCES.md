@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-03-25. Document version: 2.10.0 (no new prompt sources since v3.3.84 worker workflows catalog).
+- **Last synced with codebase:** 2026-03-27. Document version: 2.10.1 (§21 Phase 5b writing-screen user prompt builder expanded in `writing_prompts.dart`).
 
 ---
 
@@ -1984,6 +1984,16 @@ User-customizable block prepended to Research and Writing agent system prompts w
 
 **Output format:** Full draft, then "Context signals used" block (recurring theme, prior framing, phase), then metadata block (Voice Match %, Theme Match %, Timeline References, Phase Alignment).
 
+### Phase 5b writing screen (split system + user prompt)
+
+**Location:** `lib/lumara/agents/writing/writing_prompts.dart` — `buildPhase5bWritingPrompt`, `phase5bFormatInstructions`.
+
+**Used by:** `lib/arc/chat/ui/writing_screen.dart` (in-app LUMARA Writing flow; not the Cloudflare worker writing template).
+
+**System prompt (fixed):** `You are a writing assistant. Follow the user instructions exactly. Return only the requested draft text.`
+
+**User prompt (assembled):** Topic, tone, optional style excerpt (capped), optional structured brief, optional **display format name** and **user format specs** lines, optional **revise-in-place** guardrails when the user pasted existing text (keep subject/names/story; avoid unrelated generic replacement), then format instructions from `phase5bFormatInstructions` (e.g. LinkedIn/Reddit-style social copy, X/Threads short form, Substack section, Bluesky length cap, article defaults). **Branches:** when the chosen display name implies a **white paper** (article + name contains “white”) or **research paper**, the user prompt switches to formal sectioned / literature-style guidance instead of casual article defaults. Optional tail: labeled **Sources** section when `includeSourcesList` is true.
+
 ---
 
 ## 22. Chat Intent Classifier
@@ -2095,6 +2105,7 @@ These prompts are new source categories in repo-root worker code, separate from 
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.10.1 | 2026-03-27 | **v3.3.86:** §21 — Documented Phase 5b writing-screen builder (`buildPhase5bWritingPrompt`, `phase5bFormatInstructions`): optional format display name/specs, revise-in-place intent, white-paper/research-paper branches, optional Sources tail; platform copy guidance updates (LinkedIn/Reddit, X/Threads). |
 | 2.10.0 | 2026-03-24 | **v3.3.84:** Added §27 Worker Workflow Prompts covering new prompt definitions in `workers/workflows/src/workflows/{research,writing,competitor,plugins}.ts` (planning/extraction/synthesis, platform writing, competitor intel card/brief, plugin scoring/manifest generation). |
 | 2.9.2 | 2026-03-22 | **v3.3.81:** New §26 — `lumaraModeBindingPreamble` in `lumara_mode_definition.dart`; session-start / reflection injection in `lumara_assistant_cubit.dart`, `enhanced_lumara_api.dart`. Mode 1 text extended for long attachments (stay Personal; no Mode 3 dossier unless requested). |
 | 2.9.1 | 2026-03-20 | **Doc sync (v3.3.80):** Backend table — `proxyGroq` / `proxyGemini` canonical paths under repo-root `functions/src/functions/` (deploy bundle), with note on legacy `ARC_MVP/EPI/functions/index.js` Groq inline. Ongoing prompt text updates in `lumara_master_prompt.dart`, `lumara_mode_definition.dart`; callable prompt alignment in `sendChatMessage.ts`, `generateJournalReflection.ts`, `generateJournalPrompts.ts`, `analyzeJournalEntry.ts` (no new prompt categories). |

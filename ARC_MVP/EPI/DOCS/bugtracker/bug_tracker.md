@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.5.1  
-**Last Updated:** 2026-03-25  
+**Version:** 3.5.2  
+**Last Updated:** 2026-03-27  
 **Record count:** 40 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
@@ -103,6 +103,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 
 | Fix / change | Version | Bug record | Notes |
 |--------------|---------|------------|--------|
+| Writing screen + Phase5b prompts; CHRONICLE bundle for agents; format card; unified bottom bar; exports; RevenueCat | v3.3.86 | — | 2026-03-27: `writing_screen`, `writing_prompts` (Phase 5b), `chronicle_bundle_builder`, `lumara_writing_format_card`, `lumara_bottom_tab_bar`, `output_detail_screen`, `report_export_service` / `docx_export_helper`, `profile_fields_screen`, `revenuecat_service`, pubspec/iOS. |
 | Agents persona resolver; outputs + report export; profile fields; `.dev.vars` gitignore | v3.3.85 | — | 2026-03-25: `agents_persona_resolver`, `features/agents/*`, `features/outputs/*`, LUMARA `docx_export_helper` / `report_export_service`, `profile_fields_screen`; root `.gitignore` for `workers/workflows/.dev.vars`. |
 | Agents/Outputs + Cloudflare workflows integration | v3.3.84 | — | 2026-03-24: Added app feature surfaces (`lib/features/agents`, `lib/features/outputs`) and worker workflow backend (`workers/workflows`) with SSE and prompt-driven research/writing/competitor/plugin flows. |
 | Cloudflare worker secret setup note (`Cloudflare_Setup.md`) | v3.3.83 | — | 2026-03-24: Added quick setup commands for Worker secrets (`wrangler secret put RESEND_API_KEY`, `RESEND_AUDIENCE_ID`). |

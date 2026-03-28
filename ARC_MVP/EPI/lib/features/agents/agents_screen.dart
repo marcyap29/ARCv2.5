@@ -2,7 +2,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_app/lumara/agents/screens/plugin_activity_screen.dart';
+import 'package:my_app/lumara/agents/widgets/lumara_writing_format_card.dart';
 import 'package:my_app/lumara/agents/screens/plugin_catalog_screen.dart';
+import 'package:my_app/lumara/profile/user_profile_service.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +13,7 @@ import 'package:uuid/uuid.dart';
 import 'agents_data.dart';
 import 'agents_persona_resolver.dart';
 import 'run_screen.dart';
+import 'worker_service.dart';
 
 class AgentsScreen extends StatefulWidget {
   const AgentsScreen({super.key});
@@ -28,13 +31,18 @@ class _AgentsScreenState extends State<AgentsScreen> {
   bool _dismissedGreeting = false;
   late final Map<String, bool> _agentToggles;
   late final TextEditingController _inputController;
+  late final TextEditingController _writingFormatSpecsController;
   late final TextEditingController _researchPaperSpecsController;
   late final FocusNode _inputFocusNode;
   late final ScrollController _scrollController;
   final List<_PartEntry> _partEntries = [];
   final List<AgentAttachment> _attachments = [];
-  /// article | research_paper | substack | linkedin_article
-  String _writingFormatId = 'article';
+  /// See [LumaraWritingFormatIds]; legacy ids still accepted by Run screen defaults.
+  String _writingFormatId = LumaraWritingFormatIds.mediumSocial;
+
+  bool _includeWritingSources = false;
+  late Map<String, bool> _formatSocialSelections;
+  String _profileContextHint = '';
 
   bool get _canSubmit {
     final hasText = _input.trim().isNotEmpty;
@@ -51,15 +59,25 @@ class _AgentsScreenState extends State<AgentsScreen> {
     super.initState();
     _personaKey = AgentsPersonaResolver.resolvePersonaKey();
     _inputController = TextEditingController();
+    _writingFormatSpecsController = TextEditingController();
     _researchPaperSpecsController = TextEditingController();
     _inputFocusNode = FocusNode();
+    _formatSocialSelections = {
+      for (final p in WritingPlatforms.all) p.id: p.defaultSelected,
+    };
+    _inputController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _scrollController = ScrollController();
     _agentToggles = {
       for (final a in [...AgentsData.agents, ...AgentsData.swarmspacePlugins])
         a.id: a.enabledByDefault,
     };
     _loadPersistedAgentToggles();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshPersonaKey());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _refreshPersonaKey();
+      await _loadProfileContextHint();
+    });
   }
 
   @override
@@ -73,6 +91,42 @@ class _AgentsScreenState extends State<AgentsScreen> {
     if (mounted && k != _personaKey) {
       setState(() => _personaKey = k);
     }
+  }
+
+  Future<void> _loadProfileContextHint() async {
+    try {
+      final p = await UserProfileService.instance.getProfile();
+      final line =
+          p[AgentsPersonaResolver.schoolOrProfessionFormKey]?.trim() ?? '';
+      if (mounted && line.isNotEmpty) {
+        setState(() => _profileContextHint = line);
+      }
+    } catch (_) {}
+  }
+
+  List<String>? _platformIdsForRun() {
+    switch (_writingFormatId) {
+      case LumaraWritingFormatIds.shortThreads:
+      case LumaraWritingFormatIds.mediumSocial:
+        final ids = _formatSocialSelections.entries
+            .where((e) => e.value)
+            .map((e) => e.key)
+            .toList();
+        return ids.isEmpty ? null : ids;
+      default:
+        return null;
+    }
+  }
+
+  String _specsForRun() {
+    if (_writingFormatId == LumaraWritingFormatIds.researchPaper) {
+      final rp = _researchPaperSpecsController.text.trim();
+      final gen = _writingFormatSpecsController.text.trim();
+      if (rp.isNotEmpty) return rp;
+      if (gen.isNotEmpty) return gen;
+      return '';
+    }
+    return _writingFormatSpecsController.text.trim();
   }
 
   Future<void> _loadPersistedAgentToggles() async {
@@ -103,6 +157,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
       e.detailController.dispose();
     }
     _inputController.dispose();
+    _writingFormatSpecsController.dispose();
     _researchPaperSpecsController.dispose();
     _inputFocusNode.dispose();
     _scrollController.dispose();
@@ -186,7 +241,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
           _buildSectionLabel('NEED INSPIRATION?'),
           const SizedBox(height: 4),
           Text(
-            'Tap a goal to fill in the box above.',
+            'Suggestions adjust from your profile text and what you type above — tap to fill the box.',
             style: GoogleFonts.inter(
               color: const Color(0xFF33334A),
               fontSize: 12,
@@ -216,111 +271,17 @@ class _AgentsScreenState extends State<AgentsScreen> {
   }
 
   Widget _buildWritingFormatSection() {
-    final formats = <MapEntry<String, String>>[
-      const MapEntry('article', 'Article'),
-      const MapEntry('research_paper', 'Research paper'),
-      const MapEntry('substack', 'Substack'),
-      const MapEntry('linkedin_article', 'LinkedIn long-form'),
-    ];
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF14142A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1C1C30)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'WRITING FORMAT',
-            style: GoogleFonts.robotoMono(
-              color: const Color(0xFF33334A),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Used when your run includes Writing. Research paper is broader than a short article; pair with publishing platforms on the run screen.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF5A5A7A),
-              fontSize: 12,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: formats.map((e) {
-              final active = _writingFormatId == e.key;
-              return GestureDetector(
-                onTap: () => setState(() => _writingFormatId = e.key),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: active
-                        ? const Color(0xFF5B5BD6).withValues(alpha: 0.15)
-                        : const Color(0xFF0F0F1E),
-                    border: Border.all(
-                      color: active ? const Color(0xFF5B5BD6) : const Color(0xFF1A1A2C),
-                    ),
-                  ),
-                  child: Text(
-                    e.value,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: active
-                          ? const Color(0xFF8888FF)
-                          : const Color(0xFF55556A),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          if (_writingFormatId == 'research_paper') ...[
-            const SizedBox(height: 12),
-            TextField(
-              controller: _researchPaperSpecsController,
-              minLines: 2,
-              maxLines: 5,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: const Color(0xFFE0E0F0),
-              ),
-              decoration: InputDecoration(
-                hintText:
-                    'Focus, target length/pages, citation style, audience, etc.',
-                hintStyle: GoogleFonts.inter(
-                  color: const Color(0xFF44445A),
-                  fontSize: 12,
-                ),
-                filled: true,
-                fillColor: const Color(0xFF0C0C1A),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF1C1C30)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF1C1C30)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF5B5BD6)),
-                ),
-                contentPadding: const EdgeInsets.all(12),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return LumaraWritingFormatCard(
+      selectedId: _writingFormatId,
+      onSelect: (id) => setState(() => _writingFormatId = id),
+      specsController: _writingFormatSpecsController,
+      researchPaperSpecsController: _researchPaperSpecsController,
+      includeSources: _includeWritingSources,
+      onIncludeSourcesChanged: (v) =>
+          setState(() => _includeWritingSources = v),
+      socialSelections: _formatSocialSelections,
+      onSocialSelectionsChanged: (m) =>
+          setState(() => _formatSocialSelections = m),
     );
   }
 
@@ -470,7 +431,9 @@ class _AgentsScreenState extends State<AgentsScreen> {
   }
 
   Widget _buildGoalCards() {
-    final cards = AgentsData.goalCards[_personaKey] ?? const <GoalCard>[];
+    final cards = AgentsData.goalCardsForFreeText(
+      '$_profileContextHint ${_inputController.text}',
+    );
     return Column(
       children: [
         ...cards.map((card) {
@@ -1263,11 +1226,13 @@ class _AgentsScreenState extends State<AgentsScreen> {
           input: _input.trim(),
           requestParts: parts,
           attachments: List<AgentAttachment>.from(_attachments),
+          platforms: _platformIdsForRun(),
           personaKey: _personaKey,
           useChronicle: _useChronicle,
           enabledAgentIds: enabledIds,
           writingFormatId: _writingFormatId,
-          researchPaperSpecs: _researchPaperSpecsController.text.trim(),
+          researchPaperSpecs: _specsForRun(),
+          includeWritingSources: _includeWritingSources,
         ),
       ),
     );

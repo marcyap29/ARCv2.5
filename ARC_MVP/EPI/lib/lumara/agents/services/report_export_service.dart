@@ -6,6 +6,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -143,6 +144,55 @@ class ReportExportService {
     return t;
   }
 
+  /// Structured markdown: original question (blockquote) + normalized report — for .md / PDF / DOCX / share.
+  String composeResearchWorkflowMarkdown({
+    required String userQuestion,
+    required String reportMarkdown,
+    required DateTime createdAt,
+  }) {
+    final report = normalizeWorkflowMarkdownForExport(reportMarkdown);
+    final qLines = userQuestion.trim().split('\n');
+    final buf = StringBuffer();
+    buf.writeln('# Research report');
+    buf.writeln();
+    buf.writeln('*${_formatDate(createdAt)}*');
+    buf.writeln();
+    buf.writeln('## Your question');
+    buf.writeln();
+    if (qLines.isEmpty || (qLines.length == 1 && qLines.first.trim().isEmpty)) {
+      buf.writeln('> _No question text._');
+    } else {
+      for (final line in qLines) {
+        buf.writeln('> $line');
+      }
+    }
+    buf.writeln();
+    buf.writeln('## Report');
+    buf.writeln();
+    buf.writeln(report.isEmpty ? '_No report body._' : report);
+    return buf.toString();
+  }
+
+  /// Inserts soft breaks in very long tokens (URLs) so PDF layout does not overflow.
+  String softBreakLongWords(String s, int maxChunk) {
+    final words = s.split(RegExp(r'\s+'));
+    final out = StringBuffer();
+    for (final w in words) {
+      if (w.isEmpty) continue;
+      if (w.length <= maxChunk) {
+        out.write('$w ');
+        continue;
+      }
+      for (var i = 0; i < w.length; i += maxChunk) {
+        final end = math.min(i + maxChunk, w.length);
+        out.write(w.substring(i, end));
+        if (end < w.length) out.write('\u200B');
+      }
+      out.write(' ');
+    }
+    return out.toString().trim();
+  }
+
   /// Remove common inline markdown markers for PDF/DOCX plain rendering.
   String stripInlineMarkdownForExportLine(String line) {
     var s = line;
@@ -180,14 +230,41 @@ class ReportExportService {
     return doc.save();
   }
 
-  /// Renders workflow research markdown (## headings, bullets) into PDF widgets.
+  pw.Widget _pdfBulletBlock(List<String> items) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: items.map((text) {
+        return pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 5),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.SizedBox(
+                width: 14,
+                child: pw.Text('•', style: const pw.TextStyle(fontSize: 11)),
+              ),
+              pw.Expanded(
+                child: pw.Text(text, style: const pw.TextStyle(fontSize: 11)),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Renders workflow research markdown (## headings, bullets, blockquotes) into PDF widgets.
   List<pw.Widget> _pdfWidgetsFromMarkdown(String markdown) {
     final out = <pw.Widget>[];
+    final lines = markdown.split('\n');
     final heading = RegExp(r'^(#{1,6})\s+(.+)$');
-    for (final rawLine in markdown.split('\n')) {
+    var i = 0;
+    while (i < lines.length) {
+      final rawLine = lines[i];
       final t = stripInlineMarkdownForExportLine(rawLine.trimLeft());
       if (t.isEmpty) {
         out.add(pw.SizedBox(height: 6));
+        i++;
         continue;
       }
       final m = heading.firstMatch(t);
@@ -207,45 +284,113 @@ class ReportExportService {
             ),
           ),
         );
+        i++;
+        continue;
+      }
+      if (t.startsWith('> ')) {
+        final quoteLines = <String>[];
+        while (i < lines.length) {
+          final lt = stripInlineMarkdownForExportLine(lines[i].trimLeft());
+          if (lt.startsWith('> ')) {
+            quoteLines.add(stripInlineMarkdownForExportLine(lt.substring(2).trim()));
+            i++;
+          } else if (lt.isEmpty) {
+            i++;
+            break;
+          } else {
+            break;
+          }
+        }
+        out.add(
+          pw.Container(
+            padding: const pw.EdgeInsets.only(left: 10, top: 2, bottom: 6),
+            decoration: pw.BoxDecoration(
+              border: pw.Border(
+                left: pw.BorderSide(color: PdfColors.grey700, width: 2),
+              ),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: quoteLines
+                  .map(
+                    (q) => pw.Text(
+                      q,
+                      style: pw.TextStyle(
+                        fontSize: 10.5,
+                        fontStyle: pw.FontStyle.italic,
+                        color: PdfColors.grey800,
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        );
         continue;
       }
       if (t.startsWith('- ') || (t.startsWith('* ') && t.length > 2)) {
-        out.add(pw.Paragraph(
-          text: '• ${stripInlineMarkdownForExportLine(t.substring(2).trim())}',
-        ));
+        final bullets = <String>[];
+        while (i < lines.length) {
+          final lt = stripInlineMarkdownForExportLine(lines[i].trimLeft());
+          if (lt.startsWith('- ') || (lt.startsWith('* ') && lt.length > 2)) {
+            bullets.add(stripInlineMarkdownForExportLine(lt.substring(2).trim()));
+            i++;
+          } else if (lt.isEmpty) {
+            i++;
+            break;
+          } else {
+            break;
+          }
+        }
+        out.add(_pdfBulletBlock(bullets));
         continue;
       }
-      out.add(pw.Paragraph(text: t));
+      out.add(
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 5),
+          child: pw.Text(
+            softBreakLongWords(t, 80),
+            style: const pw.TextStyle(fontSize: 11, lineSpacing: 1.25),
+          ),
+        ),
+      );
+      i++;
     }
     return out;
   }
 
-  /// PDF from a raw markdown body (e.g. Agents workflow research output).
+  /// PDF from markdown. If [markdownContainsFullDocument] is true, [markdown] includes title and date (e.g. from [composeResearchWorkflowMarkdown]).
   Future<List<int>> toPdfBytesFromMarkdown({
-    required String title,
-    required DateTime createdAt,
     required String markdown,
+    String? title,
+    DateTime? createdAt,
+    bool markdownContainsFullDocument = false,
   }) async {
     final doc = pw.Document();
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
-        build: (context) => [
-          pw.Header(
-            level: 0,
-            child: pw.Text(
-              title,
-              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-            ),
-          ),
-          pw.Paragraph(
-            text: _formatDate(createdAt),
-            style: const pw.TextStyle(fontSize: 10),
-          ),
-          pw.SizedBox(height: 12),
-          ..._pdfWidgetsFromMarkdown(markdown),
-        ],
+        build: (context) => markdownContainsFullDocument
+            ? _pdfWidgetsFromMarkdown(markdown)
+            : [
+                if (title != null && title.isNotEmpty) ...[
+                  pw.Header(
+                    level: 0,
+                    child: pw.Text(
+                      title,
+                      style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+                    ),
+                  ),
+                  if (createdAt != null)
+                    pw.Paragraph(
+                      text: _formatDate(createdAt),
+                      style: const pw.TextStyle(fontSize: 10),
+                    ),
+                  pw.SizedBox(height: 12),
+                ],
+                ..._pdfWidgetsFromMarkdown(markdown),
+              ],
       ),
     );
     return doc.save();
@@ -316,7 +461,7 @@ class ReportExportService {
 
   /// Parent folder for LUMARA backups (same as .arcx and .zip backups).
   static const String lumaraBackupsFolderName = 'LUMARA_Backups';
-  /// Subfolder for research and writing outputs under LUMARA_Backups.
+  /// Folder for research and writing exports at app documents root (no LUMARA_Backups wrapper).
   static const String lumaraOutputsFolderName = 'LUMARA_Outputs';
 
   /// Returns the LUMARA Backups directory (same folder as .arcx/.zip), creating it if needed.
@@ -327,10 +472,10 @@ class ReportExportService {
     return dir;
   }
 
-  /// Returns the LUMARA Outputs directory (research and writing) under LUMARA_Backups.
+  /// Returns [lumaraOutputsFolderName] under the app documents directory (not nested in backups).
   Future<Directory> getLumaraOutputsDirectory() async {
-    final backupsDir = await getLumaraBackupsDirectory();
-    final dir = Directory(path.join(backupsDir.path, lumaraOutputsFolderName));
+    final appDir = await getApplicationDocumentsDirectory();
+    final dir = Directory(path.join(appDir.path, lumaraOutputsFolderName));
     if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
   }
@@ -379,16 +524,27 @@ class ReportExportService {
     return null;
   }
 
-  /// Save workflow research markdown to LUMARA_Backups/LUMARA_Outputs as .md / .pdf / .docx.
+  /// Save workflow research markdown to `LUMARA_Outputs` as .md / .pdf / .docx.
+  /// When [userQuestion] is set, builds structured markdown (question + report) for all formats.
   Future<String?> exportWorkflowMarkdownToFile({
     required String title,
     required String markdown,
     required ReportExportFormat format,
     required DateTime createdAt,
+    String? userQuestion,
+    String? fileBaseName,
   }) async {
     try {
-      final md = normalizeWorkflowMarkdownForExport(markdown);
-      final base = _safeFileName(title);
+      final qTrim = userQuestion?.trim() ?? '';
+      final structured = qTrim.isNotEmpty;
+      final md = structured
+          ? composeResearchWorkflowMarkdown(
+              userQuestion: qTrim,
+              reportMarkdown: markdown,
+              createdAt: createdAt,
+            )
+          : normalizeWorkflowMarkdownForExport(markdown);
+      final base = _safeFileName(fileBaseName ?? title);
       final baseName = base.length > 60 ? base.substring(0, 57) : base;
       final lumaraDir = await getLumaraOutputsDirectory();
       if (format == ReportExportFormat.markdown) {
@@ -398,9 +554,10 @@ class ReportExportService {
       }
       if (format == ReportExportFormat.pdf) {
         final bytes = await toPdfBytesFromMarkdown(
-          title: title,
-          createdAt: createdAt,
           markdown: md,
+          markdownContainsFullDocument: structured,
+          title: structured ? null : title,
+          createdAt: structured ? null : createdAt,
         );
         final dest = File(path.join(lumaraDir.path, '$baseName.pdf'));
         await dest.writeAsBytes(bytes);
@@ -408,9 +565,10 @@ class ReportExportService {
       }
       if (format == ReportExportFormat.docx) {
         final bytes = buildDocxFromMarkdownExport(
-          title: title,
+          title: 'Research report',
           createdAt: createdAt,
           markdown: md,
+          prependTitleAndDate: !structured,
         );
         final dest = File(path.join(lumaraDir.path, '$baseName.docx'));
         await dest.writeAsBytes(bytes);
@@ -428,40 +586,55 @@ class ReportExportService {
     required String markdown,
     required ReportExportFormat format,
     required DateTime createdAt,
+    String? userQuestion,
+    String? fileBaseName,
     bool alsoSaveToLumaraOutputs = true,
   }) async {
     try {
-      final base = _safeFileName(title);
+      final qTrim = userQuestion?.trim() ?? '';
+      final structured = qTrim.isNotEmpty;
+      final md = structured
+          ? composeResearchWorkflowMarkdown(
+              userQuestion: qTrim,
+              reportMarkdown: markdown,
+              createdAt: createdAt,
+            )
+          : normalizeWorkflowMarkdownForExport(markdown);
+      final base = _safeFileName(fileBaseName ?? title);
       final baseName = base.length > 60 ? base.substring(0, 57) : base;
       final tmpDir = await getTemporaryDirectory();
       late final File file;
       if (format == ReportExportFormat.markdown) {
         file = File(path.join(tmpDir.path, '$baseName.md'));
-        await file.writeAsString(markdown, encoding: utf8);
+        await file.writeAsString(md, encoding: utf8);
       } else if (format == ReportExportFormat.pdf) {
         final bytes = await toPdfBytesFromMarkdown(
-          title: title,
-          createdAt: createdAt,
-          markdown: markdown,
+          markdown: md,
+          markdownContainsFullDocument: structured,
+          title: structured ? null : title,
+          createdAt: structured ? null : createdAt,
         );
         file = File(path.join(tmpDir.path, '$baseName.pdf'));
         await file.writeAsBytes(bytes);
       } else if (format == ReportExportFormat.docx) {
         final bytes = buildDocxFromMarkdownExport(
-          title: title,
+          title: 'Research report',
           createdAt: createdAt,
-          markdown: markdown,
+          markdown: md,
+          prependTitleAndDate: !structured,
         );
         file = File(path.join(tmpDir.path, '$baseName.docx'));
         await file.writeAsBytes(bytes);
       } else {
         file = File(path.join(tmpDir.path, '$baseName.txt'));
-        await file.writeAsString(markdown, encoding: utf8);
+        await file.writeAsString(md, encoding: utf8);
       }
       if (!await file.exists()) return false;
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        subject: title,
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          subject: structured ? 'Research report' : title,
+        ),
       );
       if (alsoSaveToLumaraOutputs) {
         try {
@@ -567,10 +740,12 @@ class ReportExportService {
 
       if (!await file.exists()) return false;
 
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: report.query,
-        subject: 'Research Report: ${report.query}',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: report.query,
+          subject: 'Research Report: ${report.query}',
+        ),
       );
 
       if (alsoSaveToLumaraOutputs) {

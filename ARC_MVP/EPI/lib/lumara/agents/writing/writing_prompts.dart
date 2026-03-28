@@ -488,13 +488,13 @@ String phase5bFormatInstructions(WritingFormat format) {
     case WritingFormat.article:
       return 'Structure with a headline, 3–5 paragraphs, and a closing thought. Approximately 600–900 words.';
     case WritingFormat.linkedin:
-      return 'Write as a professional LinkedIn post. 150–300 words. First line must be a hook. Use short paragraphs. End with a question or call to action.';
+      return 'Write for LinkedIn or Reddit: clear hook, scannable paragraphs, substantive but readable. Roughly 200–400 words unless the user specifies otherwise. End with a question or invitation to comment.';
     case WritingFormat.substack:
       return 'Write as a Substack newsletter section. 400–700 words. Conversational but substantive. Include a clear opening and a closing that invites reply.';
     case WritingFormat.bluesky:
       return 'Write as a Bluesky post. Maximum 300 characters. Direct and punchy.';
     case WritingFormat.threads:
-      return 'Write as a Threads post. 150–500 characters. Casual and engaging.';
+      return 'Write for X (Twitter) or Threads: punchy, thread-friendly if needed; prefer under ~500 characters per unit unless the user asks for a short thread outline.';
   }
 }
 
@@ -507,12 +507,26 @@ Phase5bPromptResult buildPhase5bWritingPrompt({
   required WritingTone tone,
   String? styleExcerpt,
   ContentBrief? brief,
+  String? formatDisplayName,
+  String? formatSpecs,
+  bool includeSourcesList = false,
+  bool reviseInPlaceIntent = false,
 }) {
-  final formatStr = format.name.replaceFirst(format.name[0], format.name[0].toUpperCase());
+  final rawName = format.name.replaceFirst(format.name[0], format.name[0].toUpperCase());
+  final formatStr = (formatDisplayName != null && formatDisplayName.trim().isNotEmpty)
+      ? formatDisplayName.trim()
+      : rawName;
   final toneStr = tone.name.replaceFirst(tone.name[0], tone.name[0].toUpperCase());
   final sb = StringBuffer();
   sb.writeln('You are a writing assistant helping the user create a $formatStr piece.');
   sb.writeln('Tone: $toneStr.');
+  if (reviseInPlaceIntent) {
+    sb.writeln(
+      'The user pasted existing text to revise. Keep the same subject, names, and story unless they explicitly ask to pivot. '
+      'Do not replace their draft with unrelated generic content.',
+    );
+    sb.writeln();
+  }
   if (styleExcerpt != null && styleExcerpt.trim().isNotEmpty) {
     final excerpt = styleExcerpt.length > 1200 ? '${styleExcerpt.substring(0, 1200)}...' : styleExcerpt;
     sb.writeln('Write in the following personal voice and style:');
@@ -530,10 +544,35 @@ Phase5bPromptResult buildPhase5bWritingPrompt({
     }
     sb.writeln();
   }
+  if (formatSpecs != null && formatSpecs.trim().isNotEmpty) {
+    sb.writeln('Additional format requirements from the user:');
+    sb.writeln(formatSpecs.trim());
+    sb.writeln();
+  }
   sb.writeln('Write a complete $formatStr draft on the topic: $topic');
   sb.writeln('Return only the draft text. No preamble, no meta-commentary.');
   sb.writeln();
-  sb.writeln(phase5bFormatInstructions(format));
+  final nameLower = (formatDisplayName ?? '').toLowerCase();
+  final isWhitePaper = format == WritingFormat.article &&
+      formatDisplayName != null &&
+      nameLower.contains('white');
+  final isResearchPaper = nameLower.contains('research paper');
+  if (isResearchPaper) {
+    sb.writeln(
+      'Treat as a rigorous research paper: abstract, clear sections, literature-style synthesis, and depth appropriate to the user’s length/page notes. Prefer structured argument and evidence over casual tone.',
+    );
+  } else {
+    sb.writeln(
+      isWhitePaper
+          ? 'Treat as a formal white paper: executive summary or abstract, clear section headings, evidence-based narrative, and numbered references if appropriate. Approximately 1500–4000 words unless the user specified otherwise above.'
+          : phase5bFormatInstructions(format),
+    );
+  }
+  if (includeSourcesList) {
+    sb.writeln(
+      'At the end, add a clearly labeled "Sources" section listing references or URLs you relied on (or placeholders if none).',
+    );
+  }
   final userPrompt = sb.toString();
   final systemPrompt = 'You are a writing assistant. Follow the user instructions exactly. Return only the requested draft text.';
   return Phase5bPromptResult(systemPrompt: systemPrompt, userPrompt: userPrompt);

@@ -1,7 +1,28 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.85
-**Last Updated:** March 25, 2026
+**Version:** 3.3.86
+**Last Updated:** March 27, 2026
+
+---
+
+## [3.3.86] - March 27, 2026
+
+### Doc-config-git-backup run; Writing screen, Agents CHRONICLE bundle, exports, RevenueCat, shell tab bar
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup). Commit, push `main`, merge `main` → `test` when applicable.
+
+**Updated (sync with repo / working tree):**
+- **Writing (`lib/arc/chat/ui/writing_screen.dart`, `lib/lumara/agents/writing/writing_prompts.dart`):** LUMARA Writing UI and Phase 5b prompt assembly — optional format display name and user specs, revise-in-place guardrails for pasted drafts, white-paper/research-paper branches, optional Sources section; social format copy guidance (LinkedIn/Reddit, X/Threads).
+- **Agents (`lib/features/agents/`):** `chronicle_bundle_builder.dart` builds real `ChronicleBundle` from `TimelineContextService` for worker runs; updates to `agents_data`, `agents_screen`, `run_screen`, `worker_service`.
+- **LUMARA widgets:** `lib/lumara/agents/widgets/lumara_writing_format_card.dart` — format selection UX for writing flow.
+- **Navigation:** `lib/shared/ui/lumara_bottom_tab_bar.dart` — `LumaraUnifiedBottomBar` on pushed screens (unified feed flag) so users can jump to LUMARA / Agents / Outputs / Settings without being trapped.
+- **Outputs:** `output_detail_screen.dart` refinements.
+- **Export:** `report_export_service.dart`, `docx_export_helper.dart` — report/DOCX pipeline extensions.
+- **Profile:** `profile_fields_screen.dart` alignment with writing/agents inputs.
+- **Subscriptions:** `revenuecat_service.dart` updates.
+- **Build:** `pubspec.yaml` (app version `1.0.2+3`), `ios/Runner.xcodeproj/project.pbxproj` as needed for release builds.
+
+**Prompt audit:** Phase 5b writing-screen strings expanded; `PROMPT_REFERENCES.md` bumped to **v2.10.1** (§21 Phase 5b subsection).
 
 ---
 

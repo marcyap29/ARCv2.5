@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.85
-**Last Updated:** March 25, 2026
+**Version:** 3.3.86
+**Last Updated:** March 27, 2026
 
 ---
 
@@ -209,6 +209,9 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **LUMARA Agents Expansion (v3.3.39–v3.3.40)**: Research/writing prompt expansion (research_prompts.dart, writing_prompts.dart); Agent OS prefix, Chat Intent Classifier, Research Query Planner, Dual Chronicle Intelligence Summary generator added to orchestration layer.
 - **SwarmSpace Research Web Search (v3.3.60)**: Research Agent uses real web search via SwarmSpace — SwarmSpaceClient and SwarmSpaceWebSearchTool replace StubWebSearchTool; swarmspaceRouter Cloud Function routes to tier-appropriate plugins (brave-search, tavily-search, semantic-scholar, wikipedia, url-reader); agents_connection_service removed.
 - **Research Report Editor & Outputs Tab (v3.3.61)**: Report editor screen, report export service, expanded research_report_detail_screen; Outputs tab (outputs_tab_screen); media_pick_and_analyze_service; chat/feed/CHRONICLE refinements.
+- **Writing screen + Phase 5b prompts (v3.3.86)**: In-app LUMARA Writing (`writing_screen.dart`) with richer format UX (`lumara_writing_format_card.dart`); `buildPhase5bWritingPrompt` supports display format names, user format specs, revise-in-place behavior, white-paper/research-paper branches, optional Sources section; `phase5bFormatInstructions` updated for LinkedIn/Reddit and X/Threads style copy.
+- **Agents CHRONICLE context for workflows (v3.3.86)**: `chronicle_bundle_builder.dart` supplies real timeline/theme context via `TimelineContextService.getWritingContext` for Cloudflare agent runs (replaces demo-only bundles where wired).
+- **Unified shell navigation on pushed routes (v3.3.86)**: `LumaraUnifiedBottomBar` (`lumara_bottom_tab_bar.dart`) when `USE_UNIFIED_FEED` is on — bottom tabs match main shell (LUMARA, Agents, Outputs, Settings) from output detail and writing flows.
 - **Agents persona + outputs stack (v3.3.85)**: `AgentsPersonaResolver` maps profile/Chronicle preferences to workflow personas; expanded `lib/features/agents` run UI and worker client; richer `lib/features/outputs` detail/list/storage; LUMARA report DOCX/export service extensions tied to profile fields.
 - **Per-User LLM Model Configuration (v3.3.62)**: updateUserModelConfig Cloud Function; users can configure provider (groq, openai, anthropic, gemini, cloudflare, swarmspace), model ID, and optional API key via Settings or in-chat flow; llmRouter, groqClient, saveUserModelConfig; MODEL_CONFIG_SETUP.md.
 - **Phase Check-In Removal; SwarmSpace Plugin Catalog (v3.3.63)**: Phase check-in module removed; SwarmSpace plugin catalog screen; CHRONICLE reviews module; DOCX export helper; swarmspacePluginStatus callable.

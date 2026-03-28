@@ -192,6 +192,11 @@ String _documentBodyFromMarkdown(String markdown) {
       buf.write(_heading(text, h));
       continue;
     }
+    if (t.startsWith('> ')) {
+      final quoted = _stripInlineMd(t.substring(2).trim());
+      buf.write(_paragraph(quoted));
+      continue;
+    }
     if (t.startsWith('- ') || t.startsWith('* ')) {
       buf.write(_paragraph('• ${_stripInlineMd(t.substring(2).trim())}'));
       continue;
@@ -202,15 +207,19 @@ String _documentBodyFromMarkdown(String markdown) {
 }
 
 /// DOCX from a workflow research markdown body (headings and bullets preserved).
+/// When [prependTitleAndDate] is false, [markdown] should include its own title (e.g. `# Research report`).
 List<int> buildDocxFromMarkdownExport({
   required String title,
   required DateTime createdAt,
   required String markdown,
+  bool prependTitleAndDate = true,
 }) {
   final body = StringBuffer();
-  body.write(_heading(title, 1));
-  body.write(_paragraph(_formatDate(createdAt)));
-  body.write(_paragraph(''));
+  if (prependTitleAndDate) {
+    body.write(_heading(title, 1));
+    body.write(_paragraph(_formatDate(createdAt)));
+    body.write(_paragraph(''));
+  }
   body.write(_documentBodyFromMarkdown(markdown));
 
   final archive = Archive();

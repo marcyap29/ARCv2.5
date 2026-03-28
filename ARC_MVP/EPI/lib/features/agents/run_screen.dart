@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_app/app/app.dart' show navigatorKey;
+import 'package:my_app/features/agents/chronicle_bundle_builder.dart';
 import 'package:my_app/features/outputs/output_detail_screen.dart';
+import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
+import 'package:my_app/lumara/agents/widgets/lumara_writing_format_card.dart';
 import 'package:my_app/shared/ui/home/home_cubit.dart';
+import 'package:my_app/shared/ui/lumara_bottom_tab_bar.dart';
 import 'package:uuid/uuid.dart';
 
 import 'agents_data.dart';
@@ -24,8 +28,9 @@ class RunScreen extends StatefulWidget {
     required this.personaKey,
     required this.useChronicle,
     required this.enabledAgentIds,
-    this.writingFormatId = 'article',
+    this.writingFormatId = LumaraWritingFormatIds.mediumSocial,
     this.researchPaperSpecs = '',
+    this.includeWritingSources = false,
   });
 
   final WorkflowChain chain;
@@ -43,6 +48,9 @@ class RunScreen extends StatefulWidget {
   final String writingFormatId;
   final String researchPaperSpecs;
 
+  /// When true, `writing_preferences.include_sources` is set for long-form exports.
+  final bool includeWritingSources;
+
   @override
   State<RunScreen> createState() => _RunScreenState();
 }
@@ -52,15 +60,34 @@ void _applyWritingFormatPlatformDefaults(
   Map<String, bool> selections,
 ) {
   switch (formatId) {
+    case LumaraWritingFormatIds.shortThreads:
+      if (selections.containsKey('twitter')) {
+        selections['twitter'] = true;
+      }
+      break;
+    case LumaraWritingFormatIds.mediumSocial:
+      if (selections.containsKey('linkedin')) {
+        selections['linkedin'] = true;
+      }
+      if (selections.containsKey('reddit')) {
+        selections['reddit'] = true;
+      }
+      break;
+    case LumaraWritingFormatIds.largeSubstack:
+      if (selections.containsKey('orbital_ai')) {
+        selections['orbital_ai'] = true;
+      }
+      break;
+    case LumaraWritingFormatIds.xlWhitePaper:
+      break;
     case 'substack':
       if (selections.containsKey('orbital_ai')) {
         selections['orbital_ai'] = true;
       }
       break;
     case 'linkedin_article':
-      if (selections.containsKey('linkedin')) {
-        selections['linkedin'] = true;
-      }
+    case 'article':
+    case LumaraWritingFormatIds.researchPaper:
       break;
     default:
       break;
@@ -81,7 +108,12 @@ class _RunScreenState extends State<RunScreen> {
   Map<String, bool> _platformSelections = {};
   /// Latest status line per chain step index (keeps completed steps visible).
   final Map<int, String> _stepStatusByIndex = {};
+  /// Append-only trace per step (API progress lines; not overwritten by the next line).
+  final Map<int, List<String>> _stepTraces = {};
   final List<String> _activityLog = [];
+
+  ChronicleBundle? _liveChronicleBundle;
+  bool _chroniclePreviewLoading = false;
 
   @override
   void initState() {
@@ -97,6 +129,28 @@ class _RunScreenState extends State<RunScreen> {
       }
     }
     _applyWritingFormatPlatformDefaults(widget.writingFormatId, _platformSelections);
+    if (widget.useChronicle) {
+      _chroniclePreviewLoading = true;
+      Future<void>.microtask(() async {
+        try {
+          final uid = await AgentsChronicleService.instance.getCurrentUserId();
+          final bundle = await buildChronicleBundleForWorkflow(
+            userId: uid,
+            contentTopic: widget.input,
+          );
+          if (mounted) {
+            setState(() {
+              _liveChronicleBundle = bundle;
+              _chroniclePreviewLoading = false;
+            });
+          }
+        } catch (_) {
+          if (mounted) {
+            setState(() => _chroniclePreviewLoading = false);
+          }
+        }
+      });
+    }
   }
 
   @override
@@ -130,6 +184,7 @@ class _RunScreenState extends State<RunScreen> {
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFF0F0F1A),
+        bottomNavigationBar: const LumaraUnifiedBottomBar(currentIndex: 1),
         body: Column(
           children: [
             _buildTopBar(),
@@ -456,7 +511,6 @@ class _RunScreenState extends State<RunScreen> {
   }
 
   Widget _buildOrchestratorCard() {
-    final persona = AgentsData.personas[widget.personaKey]!;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -493,22 +547,38 @@ class _RunScreenState extends State<RunScreen> {
           ),
           if (widget.useChronicle) ...[
             const SizedBox(height: 8),
-            Text(
-              '+ CHRONICLE context: ${persona.recentEntries[0]}',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF444464),
-                fontSize: 12,
-                height: 1.4,
+            if (_chroniclePreviewLoading)
+              Text(
+                '+ CHRONICLE: loading your journal context…',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF444464),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              )
+            else if (_liveChronicleBundle != null)
+              Text(
+                '+ CHRONICLE preview: ${_clipChronicleSnippet(_liveChronicleBundle!.recent, 140)}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF444464),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
               ),
-            ),
           ],
         ],
       ),
     );
   }
 
+  String _clipChronicleSnippet(String s, int max) {
+    final t = s.trim();
+    if (t.isEmpty) return '—';
+    return t.length > max ? '${t.substring(0, max)}…' : t;
+  }
+
   Widget _buildChronicleCard() {
-    final persona = AgentsData.personas[widget.personaKey]!;
+    final bundle = _liveChronicleBundle;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -582,13 +652,30 @@ class _RunScreenState extends State<RunScreen> {
             ),
             if (_showBundle) ...[
               const SizedBox(height: 12),
-              _bundleRow('PROFILE', persona.role),
-              _bundleRow('TAGS', persona.tags.take(3).join(', ')),
-              _bundleRow('RECENT', persona.recentEntries[0]),
-              _bundleRow('MATCHED', persona.recentEntries.take(2).join('; ')),
+              if (_chroniclePreviewLoading)
+                Text(
+                  'Loading CHRONICLE…',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7070A0),
+                    fontSize: 12,
+                  ),
+                )
+              else if (bundle != null) ...[
+                _bundleRow('PROFILE / PHASE', bundle.profile),
+                _bundleRow('TAGS / THEMES', bundle.tags),
+                _bundleRow('RECENT ENTRIES', _clipChronicleSnippet(bundle.recent, 900)),
+                _bundleRow('TOPICAL', _clipChronicleSnippet(bundle.topical, 700)),
+              ] else
+                Text(
+                  'CHRONICLE preview unavailable. The run will still use live CHRONICLE when you start.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7070A0),
+                    fontSize: 12,
+                  ),
+                ),
               const SizedBox(height: 8),
               Text(
-                'Injected as user_context block into every Worker synthesis prompt.',
+                'Sent to the Worker as chronicle_context (real journal timeline — not a demo persona).',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF2A2A40),
                   fontSize: 11,
@@ -763,14 +850,34 @@ class _RunScreenState extends State<RunScreen> {
     required bool isComplete,
     required bool isActive,
   }) {
+    final traces = _stepTraces[index] ?? const <String>[];
+    String tailTrace() {
+      if (traces.isEmpty) return '';
+      final last = traces.length > 4 ? traces.sublist(traces.length - 4) : traces;
+      return last.join('\n');
+    }
+
     if (isComplete) {
       final s = _stepStatusByIndex[index];
+      final trace = tailTrace();
+      if (trace.isNotEmpty) {
+        final cap = trace.length > 280 ? '${trace.substring(0, 280)}…' : trace;
+        return 'Done.\n$cap';
+      }
       if (s != null && s.trim().isNotEmpty) {
         return 'Done · ${s.length > 120 ? '${s.substring(0, 120)}…' : s}';
       }
       return 'Complete';
     }
     if (isActive) {
+      if (traces.isNotEmpty) {
+        final cap = tailTrace();
+        if (_currentMessage.isNotEmpty &&
+            !traces.contains(_currentMessage)) {
+          return '$cap\n→ ${_currentMessage.length > 100 ? '${_currentMessage.substring(0, 100)}…' : _currentMessage}';
+        }
+        return cap.length > 320 ? '${cap.substring(0, 320)}…' : cap;
+      }
       return _currentMessage.isNotEmpty ? _currentMessage : 'Running...';
     }
     if (_phase == 'confirm') return 'Queued';
@@ -1381,6 +1488,7 @@ class _RunScreenState extends State<RunScreen> {
       _result = null;
       _savedWorkflowOutput = null;
       _stepStatusByIndex.clear();
+      _stepTraces.clear();
       _activityLog.clear();
     });
 
@@ -1388,16 +1496,14 @@ class _RunScreenState extends State<RunScreen> {
 
     ChronicleBundle? bundle;
     if (widget.useChronicle) {
-      final persona = AgentsData.personas[widget.personaKey];
-      if (persona != null) {
-        bundle = ChronicleBundle(
-          profile: persona.role,
-          tags: persona.tags.join(', '),
-          recent: persona.recentEntries.isNotEmpty
-              ? persona.recentEntries[0]
-              : '',
-          topical: persona.recentEntries.take(2).join('; '),
+      try {
+        final uid = await AgentsChronicleService.instance.getCurrentUserId();
+        bundle = await buildChronicleBundleForWorkflow(
+          userId: uid,
+          contentTopic: widget.input,
         );
+      } catch (_) {
+        bundle = _liveChronicleBundle;
       }
     }
 
@@ -1407,6 +1513,9 @@ class _RunScreenState extends State<RunScreen> {
         'format': widget.writingFormatId,
         if (widget.researchPaperSpecs.isNotEmpty)
           'research_paper_specs': widget.researchPaperSpecs,
+        if (widget.includeWritingSources) 'include_sources': true,
+        if (widget.chain.workerWritingTask != null)
+          'task': widget.chain.workerWritingTask,
       };
     }
 
@@ -1435,6 +1544,14 @@ class _RunScreenState extends State<RunScreen> {
                 setState(() {
                   _stepIdx = idx;
                   _currentMessage = message;
+                  final startLine = message.isNotEmpty
+                      ? '${widget.chain.steps[idx]} — $message'
+                      : '${widget.chain.steps[idx]} — started';
+                  final tl = _stepTraces.putIfAbsent(idx, () => <String>[]);
+                  tl.add(startLine);
+                  while (tl.length > 18) {
+                    tl.removeAt(0);
+                  }
                   if (message.isNotEmpty) {
                     _stepStatusByIndex[idx] = message;
                     _pushActivityLogLine('${widget.chain.steps[idx]} — $message');
@@ -1458,6 +1575,11 @@ class _RunScreenState extends State<RunScreen> {
                     _stepIdx < widget.chain.steps.length &&
                     message.isNotEmpty) {
                   _stepStatusByIndex[_stepIdx] = message;
+                  final list = _stepTraces.putIfAbsent(_stepIdx, () => <String>[]);
+                  list.add(message);
+                  while (list.length > 18) {
+                    list.removeAt(0);
+                  }
                 }
                 if (message.isNotEmpty) {
                   _pushActivityLogLine(message);

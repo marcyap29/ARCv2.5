@@ -1,7 +1,7 @@
 # Prompt Tracker
 
-**Version:** 1.34.0  
-**Last Updated:** March 25, 2026  
+**Version:** 1.35.0  
+**Last Updated:** March 27, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
 ---
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-03-27 | Doc sync v3.3.86: Phase 5b writing-screen user prompt expanded (`buildPhase5bWritingPrompt`, `phase5bFormatInstructions`); `PROMPT_REFERENCES` v2.10.1 (§21 subsection + version history) | CHANGELOG v3.3.86 |
 | 2026-03-25 | Doc sync v3.3.85: Doc-config-git-backup run; Agents persona resolver + outputs/export/profile changes; no new prompts; `PROMPT_REFERENCES` v2.10.0 unchanged | CHANGELOG v3.3.85 |
 | 2026-03-24 | Doc sync v3.3.84: Doc-config-git-backup run; added worker workflow prompt sources (`research`, `writing`, `competitor`, `plugins`); `PROMPT_REFERENCES` bumped to v2.10.0 | CHANGELOG v3.3.84 |
 | 2026-03-24 | Doc sync v3.3.83: Doc-config-git-backup run; no new prompt definitions found; `PROMPT_REFERENCES` remains v2.9.2 | CHANGELOG v3.3.83 |

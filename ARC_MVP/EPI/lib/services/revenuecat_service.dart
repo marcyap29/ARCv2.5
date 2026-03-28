@@ -13,9 +13,14 @@ const String kRevenueCatEntitlementArcPro = 'ARC Pro';
 /// Replace with your own after setup. See DOCS/revenuecat/REVENUECAT_SETUP.md.
 const String kRevenueCatIosApiKeyTest = 'test_bvEOhrZwfzRusfKcJYIFzYghpCK';
 
-/// Live iOS API key for production (RevenueCat → API Keys → Public iOS).
-/// Replace with your production key for release builds. See DOCS/revenuecat/REVENUECAT_SETUP.md.
-const String kRevenueCatIosApiKeyLive = 'test_bvEOhrZwfzRusfKcJYIFzYghpCK'; // TODO: replace with appl_... for production
+/// Live iOS API key for production (RevenueCat → API Keys → Public Apple App Store).
+/// Prefer passing the real key at build time so it is not committed:
+/// `flutter build ipa --dart-define=REVENUECAT_IOS_API_KEY=appl_xxxxx`
+const String kRevenueCatIosApiKeyLive = 'test_bvEOhrZwfzRusfKcJYIFzYghpCK';
+
+/// Non-empty value from `--dart-define=REVENUECAT_IOS_API_KEY=...` overrides [kRevenueCatIosApiKeyLive] / [kRevenueCatIosApiKeyTest].
+const String kRevenueCatIosApiKeyFromEnvironment =
+    String.fromEnvironment('REVENUECAT_IOS_API_KEY', defaultValue: '');
 
 class RevenueCatService {
   RevenueCatService._();
@@ -30,7 +35,16 @@ class RevenueCatService {
     if (kIsWeb) return;
 
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      final apiKey = kReleaseMode ? kRevenueCatIosApiKeyLive : kRevenueCatIosApiKeyTest;
+      final apiKey = _iosPublicApiKey();
+      if (kReleaseMode &&
+          kRevenueCatIosApiKeyFromEnvironment.isEmpty &&
+          apiKey.startsWith('test_')) {
+        debugPrint(
+          'RevenueCat: Release build is using a test_* API key. '
+          'App Store / TestFlight purchases need Public Apple App Store (appl_*). '
+          'Set --dart-define=REVENUECAT_IOS_API_KEY=appl_... or update kRevenueCatIosApiKeyLive.',
+        );
+      }
       await Purchases.configure(
         PurchasesConfiguration(apiKey)..appUserID = appUserId,
       );
@@ -130,11 +144,8 @@ class RevenueCatService {
   Future<bool> areOfferingsAvailable() async {
     if (!_configured) return false;
     try {
-      final offerings = await Purchases.getOfferings();
-      final current = offerings.current;
-      if (current == null) return false;
-      final packages = current.availablePackages;
-      return packages.isNotEmpty;
+      final offering = await _resolveOfferingWithPackages();
+      return offering != null;
     } on PlatformException catch (e) {
       final code = e.code.toString();
       if (code == '22' || code == '23') return false;
@@ -149,14 +160,17 @@ class RevenueCatService {
   /// May throw; use [isConfigurationError] on catch to show a friendly message.
   Future<void> presentPaywall() async {
     if (!_configured) return;
-    await RevenueCatUI.presentPaywall();
+    final offering = await _resolveOfferingWithPackages();
+    await RevenueCatUI.presentPaywall(offering: offering);
   }
 
   /// Present paywall only if user does not have [entitlementId]. Returns true if user has access (no paywall shown).
   Future<bool> presentPaywallIfNeeded({String? entitlementId}) async {
     if (!_configured) return false;
+    final offering = await _resolveOfferingWithPackages();
     final result = await RevenueCatUI.presentPaywallIfNeeded(
       entitlementId ?? kRevenueCatEntitlementArcPro,
+      offering: offering,
     );
     return result == PaywallResult.notPresented ||
         result == PaywallResult.purchased ||
@@ -167,5 +181,41 @@ class RevenueCatService {
   Future<void> presentCustomerCenter() async {
     if (!_configured) return;
     await RevenueCatUI.presentCustomerCenter();
+  }
+
+  String _iosPublicApiKey() {
+    if (kRevenueCatIosApiKeyFromEnvironment.isNotEmpty) {
+      return kRevenueCatIosApiKeyFromEnvironment;
+    }
+    return kReleaseMode ? kRevenueCatIosApiKeyLive : kRevenueCatIosApiKeyTest;
+  }
+
+  /// Prefer [Offerings.current]; if it has no packages, use the first offering in [Offerings.all] that does.
+  /// Fixes empty paywalls when the dashboard offering exists but is not set as **Current**.
+  Future<Offering?> _resolveOfferingWithPackages() async {
+    final offerings = await Purchases.getOfferings();
+    final current = offerings.current;
+    if (current != null && current.availablePackages.isNotEmpty) {
+      return current;
+    }
+    for (final o in offerings.all.values) {
+      if (o.availablePackages.isNotEmpty) {
+        if (kDebugMode) {
+          debugPrint(
+            'RevenueCat: using offering "${o.identifier}" (not Current in dashboard). '
+            'Set it as Current under Offerings for consistency.',
+          );
+        }
+        return o;
+      }
+    }
+    if (kDebugMode) {
+      debugPrint(
+        'RevenueCat: no offering has packages. '
+        'current=${offerings.current?.identifier}, '
+        'all=[${offerings.all.keys.join(', ')}]',
+      );
+    }
+    return null;
   }
 }

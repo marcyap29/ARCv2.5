@@ -36,9 +36,6 @@ class _ProfileFieldsScreenState extends State<ProfileFieldsScreen> {
   bool _addressExpanded = false;
   bool _personalExpanded = false;
   bool _emergencyExpanded = false;
-  /// Matches [AgentsPersonaResolver] roles: founder | student | coach | artist
-  String? _agentsRole;
-
   static const List<({String key, String label})> _basic = [
     (key: 'full_name', label: 'Full name'),
     (key: 'preferred_name', label: 'Preferred name'),
@@ -81,15 +78,6 @@ class _ProfileFieldsScreenState extends State<ProfileFieldsScreen> {
       for (final entry in _controllers.entries) {
         entry.value.text = profile[entry.key] ?? '';
       }
-      var role = profile[AgentsPersonaResolver.agentsRoleFormKey]?.trim();
-      if (role == null || role.isEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        role = prefs
-            .getString(AgentsPersonaResolver.prefsChronicleProfessionKey)
-            ?.trim();
-      }
-      _agentsRole =
-          role != null && role.isNotEmpty ? role.toLowerCase() : null;
       setState(() => _loading = false);
     }
   }
@@ -107,12 +95,7 @@ class _ProfileFieldsScreenState extends State<ProfileFieldsScreen> {
     for (final entry in _controllers.entries) {
       fields[entry.key] = entry.value.text.trim();
     }
-    final r = _agentsRole?.trim().toLowerCase();
-    if (r != null && r.isNotEmpty) {
-      fields[AgentsPersonaResolver.agentsRoleFormKey] = r;
-    } else {
-      fields.remove(AgentsPersonaResolver.agentsRoleFormKey);
-    }
+    fields.remove(AgentsPersonaResolver.agentsRoleFormKey);
     await UserProfileService.instance.saveProfile(fields);
     await AgentsPersonaResolver.syncFormFieldsToHive(fields);
     if (!mounted) return;
@@ -216,12 +199,6 @@ class _ProfileFieldsScreenState extends State<ProfileFieldsScreen> {
   }
 
   Widget _schoolAndProfessionCard(BuildContext context) {
-    const roles = <(String, String)>[
-      ('founder', 'Founder'),
-      ('student', 'Student'),
-      ('coach', 'Coach'),
-      ('artist', 'Artist'),
-    ];
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -230,52 +207,28 @@ class _ProfileFieldsScreenState extends State<ProfileFieldsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'School & profession',
+              'About you',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
             ),
             const SizedBox(height: 6),
             Text(
-              'Used to tailor LUMARA Agents (suggested goals and context). Optional.',
+              'Free text — school, work, goals, or how you introduce yourself. LUMARA uses this to suggest agent prompts (no fixed categories). Optional.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Which best describes you?',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: roles.map((role) {
-                final id = role.$1;
-                final label = role.$2;
-                final selected = _agentsRole == id;
-                return FilterChip(
-                  label: Text(label),
-                  selected: selected,
-                  onSelected: (v) {
-                    setState(() {
-                      _agentsRole = v ? id : null;
-                    });
-                  },
-                );
-              }).toList(),
             ),
             const SizedBox(height: 16),
             TextField(
               controller:
                   _controllers[AgentsPersonaResolver.schoolOrProfessionFormKey],
+              minLines: 2,
+              maxLines: 5,
               decoration: InputDecoration(
-                labelText: 'School, company, or profession (optional)',
+                labelText: 'Context for Agents',
                 helperText:
-                    'e.g. university, employer, studio, or how you introduce yourself',
+                    'e.g. PhD candidate in biology, indie builder, parent returning to study…',
                 border: const OutlineInputBorder(),
               ),
             ),

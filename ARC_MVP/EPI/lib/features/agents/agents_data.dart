@@ -36,11 +36,15 @@ class WorkflowChain {
     required this.label,
     required this.steps,
     required this.reason,
+    this.workerWritingTask,
   });
 
   final String label;
   final List<String> steps;
   final String reason;
+
+  /// Sent to the Worker as `writing_preferences.task` (e.g. `revise_in_place`).
+  final String? workerWritingTask;
 }
 
 /// One segment of a multi-part user request (tracked through the run).
@@ -229,6 +233,38 @@ class AgentsData {
           'e.g. I need a clear artist statement and social posts for my upcoming show...',
     ),
   };
+
+  /// All persona goal cards de-duplicated by [GoalCard.id] (for free-text ranking).
+  static List<GoalCard> get allGoalCardsDistinct {
+    final seen = <String>{};
+    final out = <GoalCard>[];
+    for (final list in goalCards.values) {
+      for (final c in list) {
+        if (seen.add(c.id)) out.add(c);
+      }
+    }
+    return out;
+  }
+
+  /// Ranks inspiration cards using [context] (profile line + main prompt). No narrow persona chips.
+  static List<GoalCard> goalCardsForFreeText(String context) {
+    final ctx = context.toLowerCase().trim();
+    final all = allGoalCardsDistinct;
+    if (ctx.isEmpty) return all.take(8).toList();
+
+    int score(GoalCard c) {
+      var s = 0;
+      final blob = '${c.label} ${c.fillText}'.toLowerCase();
+      for (final w in ctx.split(RegExp(r'\s+'))) {
+        if (w.length < 3) continue;
+        if (blob.contains(w)) s += 2;
+      }
+      return s;
+    }
+
+    final ranked = [...all]..sort((a, b) => score(b).compareTo(score(a)));
+    return ranked.take(8).toList();
+  }
 
   static final Map<String, List<GoalCard>> goalCards = {
     'founder': const [
@@ -576,6 +612,7 @@ class AgentsData {
       label: raw.label,
       steps: filtered,
       reason: raw.reason,
+      workerWritingTask: raw.workerWritingTask,
     );
   }
 
@@ -586,6 +623,65 @@ class AgentsData {
   ) {
     final raw = _orchestrateRaw(input, personaKey);
     return _filterEnabledSteps(raw, enabledAgentIds);
+  }
+
+  /// True when the user is asking to edit pasted copy (Agents routing + Writing screen hint).
+  static bool isReviseCopyIntent(String input) =>
+      _wantsReviseExistingCopy(input.toLowerCase());
+
+  /// User is asking to change *their* pasted draft — not greenfield content or meeting prep.
+  static bool _wantsReviseExistingCopy(String lower) {
+    if (_containsAny(lower, [
+      'improve this text',
+      'improve the text',
+      'improve this',
+      'improve my',
+      'help me improve',
+      'rewrite this',
+      'rewrite the',
+      'rewrite below',
+      'edit this',
+      'edit the',
+      'edit below',
+      'revise this',
+      'revise the',
+      'refine this',
+      'polish this',
+      'tighten this',
+      'fix this',
+      'fix the',
+      'add more detail',
+      'add detail about',
+      'expand this',
+      'shorten this',
+      'text below',
+      'below is my',
+      'pasted below',
+      'following text',
+      'modify this',
+      'modify the',
+      'wordsmith',
+      'punch up',
+      'make this clearer',
+      'make this stronger',
+    ])) {
+      return true;
+    }
+    // Long paste + short edit verbs (common “here’s my draft, improve it” pattern)
+    if (lower.length > 380 &&
+        _containsAny(lower, [
+          'improve',
+          'rewrite',
+          'edit',
+          'revise',
+          'refine',
+          'polish',
+          'expand',
+          'shorten',
+        ])) {
+      return true;
+    }
+    return false;
   }
 
   static bool _wantsCompetitiveLayer(String src) {
@@ -606,14 +702,52 @@ class AgentsData {
   static WorkflowChain _orchestrateRaw(String input, String personaKey) {
     final lower = input.toLowerCase();
 
+    if (_wantsReviseExistingCopy(lower)) {
+      return const WorkflowChain(
+        label: 'Revise your copy',
+        steps: ['Writing'],
+        reason:
+            'Detected: edit or improve existing text — writing only (keep your source, no generic replacement)',
+        workerWritingTask: 'revise_in_place',
+      );
+    }
+
     if (_containsAny(lower, [
-      'meeting',
-      'investor',
-      'vc',
-      'pitch',
-      'client',
-      'session',
+      'plugin',
+      'plugins',
+      'integration',
+      'integrations',
+      'connector',
+      'swarmspace',
+      'api discovery',
+      'find a tool',
+      'third-party',
     ])) {
+      return const WorkflowChain(
+        label: 'Discover plugins & research',
+        steps: ['Plugin Discovery', 'Research'],
+        reason:
+            'Detected: tools, plugins, or integrations — discovery then research',
+      );
+    }
+
+    // Avoid matching tech copy ("session", "client" in API / product text).
+    if (_containsAny(lower, [
+          'meeting',
+          'investor',
+          'vc ',
+          ' vc',
+          'pitch',
+          'pitch deck',
+          'presentation',
+          'demo day',
+        ]) ||
+        _containsAny(lower, [
+          'meet with',
+          'meeting with',
+          'client meeting',
+          'sales call',
+        ])) {
       if (_wantsCompetitiveLayer(lower)) {
         return const WorkflowChain(
           label: 'Prep for your meeting',
