@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/shared/app_colors.dart';
-import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/lumara/profile/profile_fields_screen.dart';
 import 'arc_onboarding_cubit.dart';
 import 'arc_onboarding_state.dart';
@@ -36,13 +35,15 @@ class ArcOnboardingSequenceContent extends StatelessWidget {
     return BlocListener<ArcOnboardingCubit, ArcOnboardingState>(
       listener: (context, state) {
         if (state.currentScreen == OnboardingScreen.complete) {
-          // Navigate to home when onboarding is complete
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => const HomeView(),
-            ),
-            (route) => false,
-          );
+          // Defer + root navigator + named route: avoids cases where synchronous
+          // navigation from the listener does not run on the correct navigator stack.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil(
+              '/home',
+              (route) => false,
+            );
+          });
         }
       },
       child: BlocBuilder<ArcOnboardingCubit, ArcOnboardingState>(

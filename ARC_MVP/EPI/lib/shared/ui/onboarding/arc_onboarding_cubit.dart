@@ -210,25 +210,52 @@ class ArcOnboardingCubit extends Cubit<ArcOnboardingState> {
 
   /// Advance from Profile Fields to complete onboarding (after save or skip).
   /// If user skipped LUMARA prefs or profile fields, set flag so HomeView shows one-time nudge.
-  Future<void> advanceAfterProfileFields() async {
-    final prefs = await SharedPreferences.getInstance();
-    final skippedProfile = prefs.getBool(_keyProfileFieldsSkipped) ?? false;
-    if (skippedProfile) {
-      await prefs.setBool(_keyShowLumaraSetupNudge, true);
+  ///
+  /// Emits [OnboardingScreen.complete] immediately so navigation is never blocked by
+  /// SharedPreferences or Hive. Persists flags after.
+  Future<void> advanceAfterProfileFields({bool markSkipped = false}) async {
+    if (!isClosed) {
+      emit(state.copyWith(currentScreen: OnboardingScreen.complete));
     }
-    await UserPhaseService.setOnboardingCompleted(true);
-    emit(state.copyWith(currentScreen: OnboardingScreen.complete));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (markSkipped) {
+        await prefs.setBool(_keyProfileFieldsSkipped, true);
+      }
+      final skippedProfile = prefs.getBool(_keyProfileFieldsSkipped) ?? false;
+      if (skippedProfile) {
+        await prefs.setBool(_keyShowLumaraSetupNudge, true);
+      }
+      await UserPhaseService.setOnboardingCompleted(true);
+    } catch (e, stackTrace) {
+      _logger.w(
+          'advanceAfterProfileFields: persist failed: $e\n$stackTrace');
+    }
   }
 
   void completeOnboarding() async {
-    await UserPhaseService.setOnboardingCompleted(true);
-    emit(state.copyWith(currentScreen: OnboardingScreen.complete));
+    if (!isClosed) {
+      emit(state.copyWith(currentScreen: OnboardingScreen.complete));
+    }
+    try {
+      await UserPhaseService.setOnboardingCompleted(true);
+    } catch (e, stackTrace) {
+      _logger.w(
+          'completeOnboarding: setOnboardingCompleted failed: $e\n$stackTrace');
+    }
   }
 
   /// Complete onboarding from capabilities screen (no phase flow). Companion reposition.
   Future<void> completeOnboardingFromCapabilities() async {
-    await UserPhaseService.setOnboardingCompleted(true);
-    emit(state.copyWith(currentScreen: OnboardingScreen.complete));
+    if (!isClosed) {
+      emit(state.copyWith(currentScreen: OnboardingScreen.complete));
+    }
+    try {
+      await UserPhaseService.setOnboardingCompleted(true);
+    } catch (e, stackTrace) {
+      _logger.w(
+          'completeOnboardingFromCapabilities: setOnboardingCompleted failed: $e\n$stackTrace');
+    }
   }
 
   /// Skip directly to main page (for users with saved content)

@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.86
-**Last Updated:** March 27, 2026
+**Version:** 3.3.87
+**Last Updated:** March 28, 2026
 
 ---
 
@@ -212,6 +212,10 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Writing screen + Phase 5b prompts (v3.3.86)**: In-app LUMARA Writing (`writing_screen.dart`) with richer format UX (`lumara_writing_format_card.dart`); `buildPhase5bWritingPrompt` supports display format names, user format specs, revise-in-place behavior, white-paper/research-paper branches, optional Sources section; `phase5bFormatInstructions` updated for LinkedIn/Reddit and X/Threads style copy.
 - **Agents CHRONICLE context for workflows (v3.3.86)**: `chronicle_bundle_builder.dart` supplies real timeline/theme context via `TimelineContextService.getWritingContext` for Cloudflare agent runs (replaces demo-only bundles where wired).
 - **Unified shell navigation on pushed routes (v3.3.86)**: `LumaraUnifiedBottomBar` (`lumara_bottom_tab_bar.dart`) when `USE_UNIFIED_FEED` is on — bottom tabs match main shell (LUMARA, Agents, Outputs, Settings) from output detail and writing flows.
+- **Google Sign-In via Firebase provider (v3.3.87)**: Mobile uses `FirebaseAuth.signInWithProvider` / `User.linkWithProvider` with `GoogleAuthProvider` and `prompt=select_account` for account picker; web uses `signInWithPopup`. Sign-in screen adds timeout and clearer errors (see `firebase_auth_service.dart`, `sign_in_screen.dart`).
+- **Onboarding completion ordering (v3.3.87)**: `ArcOnboardingCubit` emits complete before async persistence; sequence navigates via root navigator to `/home` after frame to avoid stack issues; profile-fields save timeout + skip path uses cubit `markSkipped`; `UserPhaseService.setOnboardingCompleted` can create a minimal Hive profile when absent.
+- **RevenueCat bootstrap (v3.3.87)**: iOS configures RevenueCat after Firebase init attempt even if Firebase Auth fails; service adds TestFlight/`appl_` key notes and structured logging (`revenuecat_service.dart`, `bootstrap.dart`).
+- **iOS build — static CocoaPods frameworks (v3.3.87)**: `use_frameworks! :linkage => :static` in `Podfile` to reduce gRPC dynamic-framework simulator codesign failures.
 - **Agents persona + outputs stack (v3.3.85)**: `AgentsPersonaResolver` maps profile/Chronicle preferences to workflow personas; expanded `lib/features/agents` run UI and worker client; richer `lib/features/outputs` detail/list/storage; LUMARA report DOCX/export service extensions tied to profile fields.
 - **Per-User LLM Model Configuration (v3.3.62)**: updateUserModelConfig Cloud Function; users can configure provider (groq, openai, anthropic, gemini, cloudflare, swarmspace), model ID, and optional API key via Settings or in-chat flow; llmRouter, groqClient, saveUserModelConfig; MODEL_CONFIG_SETUP.md.
 - **Phase Check-In Removal; SwarmSpace Plugin Catalog (v3.3.63)**: Phase check-in module removed; SwarmSpace plugin catalog screen; CHRONICLE reviews module; DOCX export helper; swarmspacePluginStatus callable.

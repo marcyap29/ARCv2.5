@@ -255,15 +255,28 @@ class UserPhaseService {
   /// Set onboarding as completed in UserProfile (so splash screen goes to HomeView on next launch).
   static Future<bool> setOnboardingCompleted(bool value) async {
     try {
-      final userProfile = await _getUserProfile();
-      if (userProfile == null) return false;
-      final updatedProfile = userProfile.copyWith(onboardingCompleted: value);
       Box<UserProfile> userBox;
       if (Hive.isBoxOpen('user_profile')) {
         userBox = Hive.box<UserProfile>('user_profile');
       } else {
         userBox = await Hive.openBox<UserProfile>('user_profile');
       }
+      final userProfile = userBox.get('profile');
+      if (userProfile == null) {
+        final created = UserProfile(
+          id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+          name: 'User',
+          email: '',
+          createdAt: DateTime.now(),
+          preferences: const {},
+          onboardingCompleted: value,
+          currentPhase: 'Discovery',
+          lastPhaseChangeAt: DateTime.now(),
+        );
+        await userBox.put('profile', created);
+        return true;
+      }
+      final updatedProfile = userProfile.copyWith(onboardingCompleted: value);
       await userBox.put('profile', updatedProfile);
       return true;
     } catch (e) {

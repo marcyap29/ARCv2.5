@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
@@ -359,6 +360,7 @@ Future<void> bootstrap({
       final hiveInitialized = await _initializeHive();
 
       // Initialize Firebase (uses platform config or dart-define fallback)
+      var firebaseAuthInitialized = false;
       try {
         final firebaseReady = await FirebaseService.instance.initialize();
         logger.d('Firebase initialized (ready: $firebaseReady)');
@@ -367,6 +369,7 @@ Future<void> bootstrap({
         if (firebaseReady) {
           try {
             await FirebaseAuthService.instance.initialize();
+            firebaseAuthInitialized = true;
             logger.d('Firebase Auth initialized successfully');
 
             // If the user is already signed in, warm up the Cloud Functions
@@ -375,21 +378,25 @@ Future<void> bootstrap({
             if (FirebaseAuthService.instance.currentUser != null) {
               FirebaseService.instance.warmUpConnection();
             }
-
-            // RevenueCat for in-app purchases (iOS). Stripe = web (see DOCS/PAYMENTS_CLARIFICATION.md).
-            try {
-              await RevenueCatService.instance.configure(
-                appUserId: FirebaseAuthService.instance.currentUser?.uid,
-              );
-            } catch (rcErr, rcSt) {
-              logger.w('RevenueCat configure failed (non-fatal)', rcErr, rcSt);
-            }
           } catch (authError, authSt) {
             logger.e('Failed to initialize Firebase Auth', authError, authSt);
           }
         }
       } catch (e, st) {
         logger.e('Failed to initialize Firebase', e, st);
+      }
+
+      // RevenueCat / StoreKit: configure on iOS even if Firebase failed (offerings don't require Firebase).
+      // Stripe = web (see DOCS/PAYMENTS_CLARIFICATION.md).
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        try {
+          final uid = firebaseAuthInitialized
+              ? FirebaseAuthService.instance.currentUser?.uid
+              : null;
+          await RevenueCatService.instance.configure(appUserId: uid);
+        } catch (rcErr, rcSt) {
+          logger.w('RevenueCat configure failed (non-fatal)', rcErr, rcSt);
+        }
       }
       
       // === Parallel Initialization of Independent Services (after Hive) ===

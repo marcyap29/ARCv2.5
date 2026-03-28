@@ -1,5 +1,11 @@
 // RevenueCat in-app purchases (iOS / Android).
 // Stripe = web; IAP = in-app. See DOCS/PAYMENTS_CLARIFICATION.md and DOCS/revenuecat/REVENUECAT_INTEGRATION.md.
+//
+// App Store / TestFlight: use Public Apple App Store key (appl_…), e.g.
+//   flutter build ipa --dart-define=REVENUECAT_IOS_API_KEY=appl_xxxxx
+// Release builds still default to [kRevenueCatIosApiKeyLive] below — do not ship with test_* for production.
+
+import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -48,6 +54,9 @@ class RevenueCatService {
       await Purchases.configure(
         PurchasesConfiguration(apiKey)..appUserID = appUserId,
       );
+      if (kDebugMode) {
+        await Purchases.setLogLevel(LogLevel.debug);
+      }
       _configured = true;
       debugPrint('RevenueCat: Configured (iOS)');
     }
@@ -148,10 +157,16 @@ class RevenueCatService {
       return offering != null;
     } on PlatformException catch (e) {
       final code = e.code.toString();
-      if (code == '22' || code == '23') return false;
+      if (code == '22' || code == '23') {
+        developer.log(
+          'RevenueCat offerings failed: code=$code message=${e.message}',
+          name: 'RevenueCat',
+        );
+        return false;
+      }
       rethrow;
     } catch (e) {
-      debugPrint('RevenueCat: areOfferingsAvailable $e');
+      developer.log('RevenueCat: areOfferingsAvailable $e', name: 'RevenueCat');
       return false;
     }
   }
@@ -209,13 +224,12 @@ class RevenueCatService {
         return o;
       }
     }
-    if (kDebugMode) {
-      debugPrint(
+    final msg =
         'RevenueCat: no offering has packages. '
         'current=${offerings.current?.identifier}, '
-        'all=[${offerings.all.keys.join(', ')}]',
-      );
-    }
+        'all=[${offerings.all.keys.join(', ')}]';
+    debugPrint(msg);
+    developer.log(msg, name: 'RevenueCat');
     return null;
   }
 }

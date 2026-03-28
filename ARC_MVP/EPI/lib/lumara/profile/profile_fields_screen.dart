@@ -1,16 +1,15 @@
 // lib/lumara/profile/profile_fields_screen.dart
 // Phase 6: "Help LUMARA fill forms for you" — onboarding or standalone from Settings.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/shared/app_colors.dart';
 import 'package:my_app/shared/text_style.dart';
 import 'package:my_app/features/agents/agents_persona_resolver.dart';
 import 'package:my_app/shared/ui/onboarding/arc_onboarding_cubit.dart';
 import 'user_profile_service.dart';
-
-const String _keyProfileFieldsSkipped = 'profile_fields_skipped';
 
 class ProfileFieldsScreen extends StatefulWidget {
   const ProfileFieldsScreen({
@@ -90,6 +89,41 @@ class _ProfileFieldsScreenState extends State<ProfileFieldsScreen> {
 
   Future<void> _saveAndAdvance() async {
     setState(() => _saving = true);
+    try {
+      await _persistProfileFields().timeout(
+        const Duration(seconds: 25),
+        onTimeout: () {
+          throw TimeoutException('Profile save timed out');
+        },
+      );
+    } on TimeoutException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Saving your profile took too long. Continuing — you can edit it later in Settings → My Profile.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save profile: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+    if (!mounted) return;
+    if (widget.standaloneMode) {
+      widget.onSaveAndComplete?.call();
+    } else {
+      context.read<ArcOnboardingCubit>().advanceAfterProfileFields();
+    }
+  }
+
+  Future<void> _persistProfileFields() async {
     final existing = await UserProfileService.instance.getProfile();
     final fields = Map<String, String>.from(existing);
     for (final entry in _controllers.entries) {
@@ -98,24 +132,16 @@ class _ProfileFieldsScreenState extends State<ProfileFieldsScreen> {
     fields.remove(AgentsPersonaResolver.agentsRoleFormKey);
     await UserProfileService.instance.saveProfile(fields);
     await AgentsPersonaResolver.syncFormFieldsToHive(fields);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    if (widget.standaloneMode) {
-      widget.onSaveAndComplete?.call();
-    } else {
-      context.read<ArcOnboardingCubit>().advanceAfterProfileFields();
-    }
   }
 
-  void _skip() async {
+  void _skip() {
     if (widget.standaloneMode) {
       widget.onSkip?.call();
       return;
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyProfileFieldsSkipped, true);
     if (!mounted) return;
-    context.read<ArcOnboardingCubit>().advanceAfterProfileFields();
+    // Do not await SharedPreferences here — cubit emits complete immediately and persists.
+    context.read<ArcOnboardingCubit>().advanceAfterProfileFields(markSkipped: true);
   }
 
   @override

@@ -1,7 +1,26 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.86
-**Last Updated:** March 27, 2026
+**Version:** 3.3.87
+**Last Updated:** March 28, 2026
+
+---
+
+## [3.3.87] - March 28, 2026
+
+### Google OAuth via Firebase provider; onboarding completion/navigation; RevenueCat bootstrap; iOS static pods; doc sync
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup). User-requested maintenance: prompt tracker, bug tracker, and git backup sync.
+
+**Updated (sync with repo / working tree):**
+- **Auth (`lib/services/firebase_auth_service.dart`, `lib/ui/auth/sign_in_screen.dart`):** Google sign-in uses `FirebaseAuth.signInWithProvider` / `linkWithProvider` (mobile) and `signInWithPopup` (web) with `GoogleAuthProvider` and OAuth `prompt=select_account` so users can pick an account; reduces reliance on `google_sign_in` 7.x token paths. Sign-in screen: 120s timeout and clearer error handling.
+- **Bootstrap (`lib/main/bootstrap.dart`):** RevenueCat configures on iOS after Firebase init attempt even when Firebase Auth fails, so StoreKit offerings can load without a signed-in user.
+- **RevenueCat (`lib/services/revenuecat_service.dart`):** TestFlight / `appl_` API key notes; debug log level; `developer.log` for offerings diagnostics.
+- **Onboarding (`arc_onboarding_cubit.dart`, `arc_onboarding_sequence.dart`, `user_phase_service.dart`, `profile_fields_screen.dart`):** Emit `OnboardingScreen.complete` before async Hive/SharedPreferences work to avoid navigation deadlocks; completion uses root navigator + named `/home` route after frame; `advanceAfterProfileFields(markSkipped:)`; `UserPhaseService.setOnboardingCompleted` creates a minimal Hive profile when missing; profile fields save timeout with user-facing snackbar.
+- **Outputs:** `completed_form_export_service.dart` — `cross_file` import for export path alignment.
+- **iOS (`ios/Podfile`, `Podfile.lock`, `Runner.xcodeproj`, `Info.plist`):** `use_frameworks! :linkage => :static` to avoid gRPC dynamic framework simulator codesign issues.
+- **Dev utility:** `reset_onboarding.dart` — optional `flutter run -t` entry to mark onboarding complete in Hive (development).
+
+**Prompt audit:** No new LLM prompt definitions in this delta; `PROMPT_REFERENCES.md` remains **v2.10.1** (header last-synced refreshed).
 
 ---
 

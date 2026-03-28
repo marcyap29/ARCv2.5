@@ -1,4 +1,6 @@
 // Firebase Auth Sign-In / Sign-Up Screen
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
@@ -50,42 +52,55 @@ class _SignInScreenState extends State<SignInScreen> {
       _errorMessage = null;
     });
 
+    var didNavigate = false;
     try {
-      final userCredential = await FirebaseAuthService.instance.signInWithGoogle();
+      final userCredential = await FirebaseAuthService.instance
+          .signInWithGoogle()
+          .timeout(
+            const Duration(seconds: 120),
+            onTimeout: () => throw TimeoutException('Google Sign-In timed out'),
+          );
 
-      if (userCredential != null && mounted) {
-        // Check if we should return to previous screen or go to home
+      if (!mounted) return;
+      if (userCredential != null) {
         if (widget.returnOnSignIn && Navigator.of(context).canPop()) {
           debugPrint('SignInScreen: Sign-in successful, returning to previous screen');
-          Navigator.of(context).pop(true); // Return true to indicate successful sign-in
+          didNavigate = true;
+          Navigator.of(context).pop(true);
         } else {
+          didNavigate = true;
           Navigator.of(context).pushReplacementNamed('/home');
         }
-      } else if (mounted) {
-        // User cancelled - just reset loading state
+      }
+    } on TimeoutException catch (_) {
+      if (mounted) {
         setState(() {
-          _isLoading = false;
+          _errorMessage =
+              'Google Sign-In timed out. Try again or use email sign-in.';
         });
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() {
           _errorMessage = _getFirebaseErrorMessage(e.code);
-          _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          // Show the actual error message from the auth service
           final message = e.toString();
           if (message.contains('Exception:')) {
             _errorMessage = message.replaceAll('Exception:', '').trim();
           } else {
-            _errorMessage = 'Google Sign-In is not available. Please use Email sign-in.';
+            _errorMessage = message.isNotEmpty
+                ? message
+                : 'Google Sign-In is not available. Please use Email sign-in.';
           }
-          _isLoading = false;
         });
+      }
+    } finally {
+      if (mounted && !didNavigate) {
+        setState(() => _isLoading = false);
       }
     }
   }

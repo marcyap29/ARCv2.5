@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 27, 2026 (doc sync 2026-03-27, v3.3.86)  
+**Last Updated:** March 28, 2026 (doc sync 2026-03-28, v3.3.87)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -45,14 +45,14 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-27 | ✅ Synced | v3.3.86 - Writing screen, CHRONICLE bundle, tab bar, exports |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-27 | ✅ Synced | v3.3.86 - doc-config-git-backup + writing/agents/outputs |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-27 | ✅ Synced | v2.10.1 - §21 Phase 5b writing-screen builder |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-27 | ✅ Synced | v1.35.0 - Doc sync 2026-03-27 (v3.3.86) row |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-27 | ✅ Synced | v3.5.2 - 40 records; Last Updated 2026-03-27 |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-27 | ✅ Synced | v3.3.86 - Writing UX + Agents CHRONICLE bundle + tab bar |
-| README.md | `/DOCS/README.md` | 2026-03-27 | ✅ Synced | Key docs table; see CHANGELOG v3.3.86 |
-| claude.md | `/DOCS/claude.md` | 2026-03-27 | ✅ Synced | Doc/Config/Git Backup prompt; footer sync |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-28 | ✅ Synced | v3.3.87 - Auth bootstrap, onboarding completion order |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-28 | ✅ Synced | v3.3.87 - Google OAuth provider path, onboarding, iOS pods |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-28 | ✅ Synced | v2.10.1 - v3.3.87 audit, header sync |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-28 | ✅ Synced | v1.36.0 - Doc sync 2026-03-28 (v3.3.87) + session prompts table |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-28 | ✅ Synced | v3.5.3 - 40 records; Recent changes v3.3.87 row |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-28 | ✅ Synced | v3.3.87 - Google sign-in + onboarding + RevenueCat notes |
+| README.md | `/DOCS/README.md` | 2026-03-28 | ✅ Synced | Key docs table; see CHANGELOG v3.3.87 |
+| claude.md | `/DOCS/claude.md` | 2026-03-28 | ✅ Synced | Doc/Config/Git Backup prompt; footer sync |
 | backend.md | `/DOCS/backend.md` | 2026-03-20 | ✅ Synced | v3.3.80 - proxyGroq.ts module, rateLimiter/authGuard |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
@@ -121,6 +121,24 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-28 - Documentation & Git Backup run (v3.3.87; doc sync 2026-03-28)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md). Trigger: user request (full role + prompt tracking + bug tracker refresh). Commit and push `main` (and merge `main` → `test` when applicable).
+
+**PROMPT REFERENCES AUDIT:** Scanned delta (auth, onboarding, RevenueCat, bootstrap, iOS project, outputs export). No new LLM prompt definitions; `PROMPT_REFERENCES.md` stays **v2.10.1** with last-synced date updated.
+
+**Session / tasking prompts:** Logged in `PROMPT_TRACKER.md` → "Recent tasking prompts (maintenance sessions)".
+
+**Git Backup — Identify what changed (since v3.3.86):** `firebase_auth_service` / `sign_in_screen` — Google via `signInWithProvider` + account picker; `bootstrap` — RevenueCat on iOS after Firebase attempt; `revenuecat_service` — diagnostics; onboarding cubit/sequence + `user_phase_service` + `profile_fields_screen`; `completed_form_export_service`; iOS Podfile static frameworks; `reset_onboarding.dart` dev entry; `.flutter-plugins-dependencies`.
+
+**Bug tracker:** Recent code changes row for v3.3.87; triage note (no new records — mitigations for Google Sign-In 7.x and onboarding stack). Version **3.5.3**.
+
+**Updates:** `CHANGELOG.md` v3.3.87; `CONFIGURATION_MANAGEMENT.md` this entry + inventory; `PROMPT_REFERENCES.md` header; `PROMPT_TRACKER.md` v1.36.0; `bug_tracker.md`; `FEATURES.md` / `ARCHITECTURE.md` / `README.md` / `claude.md` footer.
+
+**Status:** ✅ Doc updates applied; application changes committed with doc sync.
+
+---
 
 ### 2026-03-27 - Documentation & Git Backup run (v3.3.86; doc sync 2026-03-27)
 

@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-03-27. Document version: 2.10.1 (§21 Phase 5b writing-screen user prompt builder expanded in `writing_prompts.dart`).
+- **Last synced with codebase:** 2026-03-28. Document version: 2.10.1 (§21 Phase 5b writing-screen user prompt builder expanded in `writing_prompts.dart`; v3.3.87 audit — no new prompt sources in auth/onboarding/RevenueCat/iOS delta).
 
 ---
 

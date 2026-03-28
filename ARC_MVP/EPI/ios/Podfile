@@ -39,7 +39,9 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
+  # Static linkage avoids dynamic gRPC/grpc.framework simulator codesign failures
+  # ("internal error in Code Signing subsystem" when re-signing ad hoc for iphonesimulator).
+  use_frameworks! :linkage => :static
 
   # MediaPipe Tasks for Gemma models (temporarily disabled due to linker errors)
   # pod 'MediaPipeTasksGenAI', '~> 0.10.24'

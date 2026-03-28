@@ -121,125 +121,106 @@ class FirebaseAuthService {
   /// Auth state changes stream
   Stream<User?> get authStateChanges => _auth?.authStateChanges() ?? const Stream.empty();
 
-  /// Check if Google Sign-In is properly configured
-  bool get isGoogleSignInConfigured {
-    // Google Sign-In requires CLIENT_ID in GoogleService-Info.plist
-    // If not configured, _googleSignIn will fail
-    return _googleSignIn != null;
+  /// Check if Google Sign-In is available (Firebase Auth must be initialized).
+  bool get isGoogleSignInConfigured => _auth != null;
+
+  /// OAuth params so Google always shows the account picker (otherwise Safari / WebView
+  /// cookies often re-use the last Google session and you cannot switch accounts).
+  GoogleAuthProvider _googleAuthProviderForInteractiveSignIn() {
+    return GoogleAuthProvider()
+      ..addScope('email')
+      ..addScope('profile')
+      ..setCustomParameters(const <String, String>{
+        'prompt': 'select_account',
+      });
   }
 
   /// Sign in with Google
   /// If user is currently anonymous, this will link the accounts
+  ///
+  /// On iOS and Android we use [FirebaseAuth.signInWithProvider] / [User.linkWithProvider],
+  /// which runs Google's OAuth flow through the Firebase iOS/Android SDK (Safari view /
+  /// custom tabs). This avoids `google_sign_in` 7.x issues (missing SERVER_CLIENT_ID,
+  /// stale GID state after email sign-out, UnimplementedError on signOut).
+  ///
+  /// On web, [FirebaseAuth.signInWithPopup] is used.
   Future<UserCredential?> signInWithGoogle() async {
+    if (_auth == null) {
+      throw Exception('Firebase Auth not initialized. Call initialize() first.');
+    }
+
+    if (kDebugMode) debugPrint('FirebaseAuthService: Starting Google Sign-In...');
+
     try {
-      if (_googleSignIn == null) {
-        throw Exception('Google Sign-In not initialized. Please configure OAuth in Firebase Console.');
-      }
-
-      if (kDebugMode) debugPrint('FirebaseAuthService: Starting Google Sign-In...');
-
-      // Trigger the authentication flow (7.x API uses authenticate() with scopeHint)
-      GoogleSignInAccount? googleUser;
-      try {
-        googleUser = await _googleSignIn!.authenticate(
-          scopeHint: ['email', 'profile'],
-        );
-      } catch (e) {
-        if (kDebugMode) debugPrint('FirebaseAuthService: Google Sign-In trigger failed: $e');
-        // Check for common configuration errors
-        final errorString = e.toString().toLowerCase();
-        if (errorString.contains('client id') || 
-            errorString.contains('clientid') ||
-            errorString.contains('configuration') ||
-            errorString.contains('missing')) {
-          throw Exception('Google Sign-In is not configured. Please use Email sign-in instead, or configure OAuth in Firebase Console.');
-        }
-        if (errorString.contains('canceled') || errorString.contains('cancelled')) {
-          return null; // User cancelled, not an error
-        }
-        throw Exception('Google Sign-In failed. Please try Email sign-in instead.');
-      }
-
-      // In 7.x, authenticate() throws on cancellation, doesn't return null
-      // If we get here, authentication succeeded
-
-      if (kDebugMode) debugPrint('FirebaseAuthService: Google user signed in: ${googleUser.email}');
-
-      // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-
-      if (googleAuth.idToken == null) {
-        throw Exception('Failed to get Google authentication tokens. Please try Email sign-in instead.');
-      }
-
-      // Get access token via authorization client (7.x API)
-      String? accessToken;
-      try {
-        final authorization = await googleUser.authorizationClient.authorizationForScopes(
-          ['email', 'profile'],
-        );
-        if (authorization != null) {
-          accessToken = authorization.accessToken;
-        }
-      } catch (e) {
-        if (kDebugMode) debugPrint('FirebaseAuthService: Could not get access token: $e');
-      }
-      
-      // If authorizationForScopes returned null, try authorizeScopes (requires user interaction)
-      if (accessToken == null) {
+      // Clear any cached GoogleSignIn user so the native layer does not short-circuit.
+      if (!kIsWeb && _googleSignIn != null) {
         try {
-          final authorization = await googleUser.authorizationClient.authorizeScopes(
-            ['email', 'profile'],
-          );
-          accessToken = authorization.accessToken;
-        } catch (e2) {
-          if (kDebugMode) debugPrint('FirebaseAuthService: Could not get access token via authorizeScopes: $e2');
+          await _googleSignIn!.signOut();
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('FirebaseAuthService: Pre-Google plugin signOut (non-fatal): $e');
+          }
         }
       }
 
-      if (accessToken == null) {
-        throw Exception('Failed to get Google access token. Please try Email sign-in instead.');
+      final GoogleAuthProvider provider = _googleAuthProviderForInteractiveSignIn();
+
+      late final UserCredential userCredential;
+
+      if (kIsWeb) {
+        userCredential = await auth.signInWithPopup(provider);
+      } else if (isAnonymous) {
+        final u = currentUser;
+        if (u == null) {
+          throw Exception('No user session to link.');
+        }
+        userCredential = await u.linkWithProvider(provider);
+      } else {
+        userCredential = await auth.signInWithProvider(provider);
       }
 
-      // Create a new credential
-      final credential = GoogleAuthProvider.credential(
-        accessToken: accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // If currently anonymous, link the accounts to preserve data
-      if (isAnonymous) {
-        return await linkAnonymousWithCredential(credential);
+      if (kDebugMode) {
+        debugPrint(
+            'FirebaseAuthService: Google sign-in OK: ${userCredential.user?.email}');
       }
 
-      // Otherwise, sign in normally
-      final UserCredential userCredential = await auth.signInWithCredential(credential);
-
-      if (kDebugMode) debugPrint('FirebaseAuthService: Successfully signed in to Firebase: ${userCredential.user?.email}');
-
-      // CRITICAL: Reload user to ensure all claims and tokens are fresh
       if (userCredential.user != null) {
         try {
           await userCredential.user!.reload();
-          if (kDebugMode) debugPrint('FirebaseAuthService: ✅ User reloaded successfully');
         } catch (e) {
-          if (kDebugMode) debugPrint('FirebaseAuthService: ⚠️ User reload failed (non-critical): $e');
+          if (kDebugMode) {
+            debugPrint('FirebaseAuthService: User reload (non-critical): $e');
+          }
         }
       }
 
-      // Force refresh the auth token to ensure all services have the new user
       await _refreshAuthState(userCredential.user);
-
-      // Wait a moment for auth state to fully propagate
       await Future.delayed(const Duration(milliseconds: 300));
 
       return userCredential;
-
-    } on Exception {
+    } on FirebaseAuthException catch (e) {
+      final code = e.code.toLowerCase();
+      final msg = (e.message ?? '').toLowerCase();
+      if (code.contains('cancel') ||
+          msg.contains('cancel') ||
+          code == 'web-context-canceled') {
+        if (kDebugMode) {
+          debugPrint('FirebaseAuthService: Google Sign-In canceled');
+        }
+        return null;
+      }
+      if (kDebugMode) {
+        debugPrint(
+            'FirebaseAuthService: Google FirebaseAuthException: ${e.code} ${e.message}');
+      }
       rethrow;
-    } catch (e) {
-      if (kDebugMode) debugPrint('FirebaseAuthService: Google Sign-In failed unexpectedly: $e');
-      throw Exception('Google Sign-In is not available. Please use Email sign-in instead.');
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('FirebaseAuthService: Google Sign-In failed: $e\n$st');
+      }
+      throw Exception(
+        'Google Sign-In is not available. Please use Email sign-in instead. ($e)',
+      );
     }
   }
 
@@ -451,15 +432,42 @@ class FirebaseAuthService {
       if (kDebugMode) debugPrint('  Current user: ${user?.email ?? user?.uid ?? "NULL"}');
       if (kDebugMode) debugPrint('  Was anonymous: ${user?.isAnonymous ?? false}');
 
-      // Sign out from Google if signed in
+      // google_sign_in: sign out + disconnect so the next OAuth flow can pick another
+      // Google account (signOut alone often leaves enough state to re-bind the same user).
       if (_googleSignIn != null) {
-        if (kDebugMode) debugPrint('FirebaseAuthService: 🔄 Signing out from Google...');
-        await _googleSignIn!.signOut();
+        try {
+          if (kDebugMode) debugPrint('FirebaseAuthService: 🔄 Signing out from Google...');
+          await _googleSignIn!.signOut();
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint(
+                'FirebaseAuthService: Google Sign-In signOut skipped (non-fatal): $e');
+          }
+        }
+        try {
+          if (kDebugMode) {
+            debugPrint('FirebaseAuthService: 🔄 Disconnecting Google Sign-In (revoke app session)...');
+          }
+          await _googleSignIn!.disconnect();
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint(
+                'FirebaseAuthService: Google disconnect skipped (non-fatal): $e');
+          }
+        }
       }
 
       // Sign out from Firebase
       if (kDebugMode) debugPrint('FirebaseAuthService: 🔄 Signing out from Firebase...');
       await auth.signOut();
+
+      try {
+        await RevenueCatService.instance.logOut();
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('FirebaseAuthService: RevenueCat logOut (non-fatal): $e');
+        }
+      }
 
       // Clear subscription cache to ensure fresh data on next login
       if (kDebugMode) debugPrint('FirebaseAuthService: 🧹 Clearing subscription cache...');

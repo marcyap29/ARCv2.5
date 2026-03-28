@@ -306,7 +306,6 @@
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				1F13283A2E99950A006FD793 /* Embed Foundation Extensions */,
-				AEE6FDFCF63490946DB14F08 /* [CP] Embed Pods Frameworks */,
 				07231398287C6EE956C3523B /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
@@ -450,23 +449,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
-		};
-		AEE6FDFCF63490946DB14F08 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
 		};
 		FF6AF5AB040435EFB3EEEF45 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -632,7 +614,7 @@
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LUMARA;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -641,6 +623,7 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.03;
 				OTHER_LDFLAGS = (
+					"$(inherited)",
 					"-lc++",
 					"-ObjC",
 					"-lpthread",
@@ -649,6 +632,7 @@
 					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/libllama_full.a",
 				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
 					"-lc++",
 					"-ObjC",
 					"-lpthread",
@@ -852,7 +836,7 @@
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LUMARA;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -861,6 +845,7 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.03;
 				OTHER_LDFLAGS = (
+					"$(inherited)",
 					"-lc++",
 					"-ObjC",
 					"-lpthread",
@@ -869,6 +854,7 @@
 					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/libllama_full.a",
 				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
 					"-lc++",
 					"-ObjC",
 					"-lpthread",
@@ -907,7 +893,7 @@
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LUMARA;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -916,6 +902,7 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.03;
 				OTHER_LDFLAGS = (
+					"$(inherited)",
 					"-lc++",
 					"-ObjC",
 					"-lpthread",
@@ -924,6 +911,7 @@
 					"$(PROJECT_DIR)/Runner/Vendor/llama.xcframework/ios-arm64/libllama_full.a",
 				);
 				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
 					"-lc++",
 					"-ObjC",
 					"-lpthread",
