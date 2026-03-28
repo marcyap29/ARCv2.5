@@ -1,7 +1,25 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.87
-**Last Updated:** March 28, 2026
+**Version:** 3.3.88
+**Last Updated:** March 29, 2026
+
+---
+
+## [3.3.88] - March 29, 2026
+
+### Robust gallery picker; unified LUMARA image pipeline; doc sync
+
+**Action:** Documentation & Git Backup run (claude.md). User-requested maintenance: prompt tracker, bug tracker, git backup.
+
+**Updated (sync with repo / working tree):**
+- **`lib/core/services/robust_gallery_picker.dart` (new):** Centralized iOS-safe gallery/camera picking — `requestFullMetadata: false`, decode caps (`maxWidth`/`maxHeight`/`imageQuality`) to avoid `NSItemProvider` / `invalid_image` failures on HEIC, screenshots, and iCloud-backed assets; fallback chain multi → single `pickImage` → `FilePicker` for images.
+- **`lib/core/services/media_pick_and_analyze_service.dart`:** Uses `RobustGalleryPicker` for gallery/camera; adds `pickSourceImageWithPermission` (research document scan), `pickMultiPhotosFromGallery` / `pickCameraPhoto` / `pickVideoFromGallery`, `analyzeImagePath`, and `AnalyzedMedia.toPhotoAttachment()` for shared journal/chat attachment shape.
+- **`lib/ui/journal/journal_screen.dart`:** Replaces ad-hoc `ImagePicker` + `IOSVisionOrchestrator` wiring with `MediaPickAndAnalyzeService` for multi-photo, camera, video pick, and `_processPhotoWithEnhancedOCP`.
+- **`lib/arc/ui/journal_capture_view.dart`:** Gallery multi-pick and camera via `RobustGalleryPicker`.
+- **`lib/arc/chat/ui/research_screen.dart`:** Document image pick uses `MediaPickAndAnalyzeService.pickSourceImageWithPermission` (permissions + robust gallery path).
+- **iOS:** `Podfile.lock` / `.flutter-plugins-dependencies` refresh from dependency resolution.
+
+**Prompt audit:** No new LLM prompt strings in this delta; `PROMPT_REFERENCES.md` remains **v2.10.1** (header last-synced refreshed).
 
 ---
 

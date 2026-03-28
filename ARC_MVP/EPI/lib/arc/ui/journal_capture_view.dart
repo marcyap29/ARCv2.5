@@ -15,6 +15,7 @@ import 'package:my_app/arc/ui/media/media_preview_dialog.dart';
 import 'package:my_app/arc/internal/prism/media/ocr_text_insert_dialog.dart';
 import 'package:my_app/core/services/media_store.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
+import 'package:my_app/core/services/robust_gallery_picker.dart';
 import 'package:image_picker/image_picker.dart';
 
 class JournalCaptureView extends StatefulWidget {
@@ -144,7 +145,8 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
   // Working multimodal methods
   Future<void> _handlePhotoGallery() async {
     try {
-      final List<XFile> images = await _imagePicker.pickMultiImage();
+      final List<XFile> images =
+          await RobustGalleryPicker.pickMulti(_imagePicker);
       if (images.isNotEmpty) {
         for (final image in images) {
           // Save photo to iOS photo library to get ph:// identifier
@@ -181,8 +183,8 @@ class _JournalCaptureViewState extends State<JournalCaptureView> {
 
   Future<void> _handleCamera() async {
     try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.camera,
+      final XFile? image = await RobustGalleryPicker.pickCamera(
+        _imagePicker,
         imageQuality: 85,
       );
       if (image != null) {

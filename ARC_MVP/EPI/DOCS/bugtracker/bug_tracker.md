@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.5.3  
-**Last Updated:** 2026-03-28  
+**Version:** 3.5.4  
+**Last Updated:** 2026-03-29  
 **Record count:** 40 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
@@ -103,6 +103,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 
 | Fix / change | Version | Bug record | Notes |
 |--------------|---------|------------|--------|
+| Robust gallery picker; `MediaPickAndAnalyzeService` unifies journal + research + capture image flow | v3.3.88 | — | 2026-03-29: `robust_gallery_picker.dart` (HEIC/iCloud/`NSItemProvider` mitigations, FilePicker fallback); `media_pick_and_analyze_service.dart` (`pickSourceImageWithPermission`, `analyzeImagePath`, `toPhotoAttachment`); `journal_screen`, `journal_capture_view`, `research_screen`; Podfile.lock / plugins deps. **Triage:** Reduces iOS gallery `invalid_image` / representation load failures; watch for regressions on Android and very large assets. |
 | Google OAuth via Firebase provider; onboarding nav/Hive completion; RevenueCat iOS without Firebase auth; static iOS pods; profile save timeout | v3.3.87 | — | 2026-03-28: `firebase_auth_service` (`signInWithProvider` / `select_account`), `sign_in_screen` timeout/errors; `bootstrap` RevenueCat on iOS post-Firebase attempt; `revenuecat_service` logging/docs; `arc_onboarding_cubit` / `arc_onboarding_sequence` / `user_phase_service` / `profile_fields_screen`; `completed_form_export_service` (`cross_file`); `reset_onboarding.dart` dev target; iOS Podfile static linkage, pbxproj/Info.plist. **Triage:** No new open bug records — changes address Google Sign-In 7.x friction and onboarding navigation/persistence edge cases; monitor auth flows on device. |
 | Writing screen + Phase5b prompts; CHRONICLE bundle for agents; format card; unified bottom bar; exports; RevenueCat | v3.3.86 | — | 2026-03-27: `writing_screen`, `writing_prompts` (Phase 5b), `chronicle_bundle_builder`, `lumara_writing_format_card`, `lumara_bottom_tab_bar`, `output_detail_screen`, `report_export_service` / `docx_export_helper`, `profile_fields_screen`, `revenuecat_service`, pubspec/iOS. |
 | Agents persona resolver; outputs + report export; profile fields; `.dev.vars` gitignore | v3.3.85 | — | 2026-03-25: `agents_persona_resolver`, `features/agents/*`, `features/outputs/*`, LUMARA `docx_export_helper` / `report_export_service`, `profile_fields_screen`; root `.gitignore` for `workers/workflows/.dev.vars`. |
@@ -186,7 +187,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 | Doc-config-git-backup; Persona selector removal; LUMARA/settings/MCP/journal | v3.3.68 | — | 2026-03-10: persona_selector_widget.dart, persona_selector.dart deleted; arc_subsystem, enhanced_lumara_api, lumara_control_state_builder, lumara_reflection_settings_service, lumara_settings_screen, mcp_export/import, advanced_settings_view, settings_view, journal_screen, inline_reflection_block. |
 | Doc-config-git-backup; HealthKit removal; OpenAI provider removal; prompt optimization | v3.3.67 | — | 2026-03-10: HealthKitManager.swift deleted; openai_provider.dart, openai_adapter.dart deleted; LUMARA/settings/prompt optimization/subscription/journal/feed/auth/iOS updates; APP_STORE_LUMARA_DESCRIPTION.md, SIMULATOR_CORESIMULATOR_FIX.md. |
 
-**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-03-28.
+**Source:** `git log --oneline`, [CHANGELOG.md](../CHANGELOG.md), terminal build log. Last synced: 2026-03-29.
 
 ---
 

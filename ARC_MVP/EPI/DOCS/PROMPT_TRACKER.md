@@ -1,7 +1,7 @@
 # Prompt Tracker
 
-**Version:** 1.36.0  
-**Last Updated:** March 28, 2026  
+**Version:** 1.37.0  
+**Last Updated:** March 29, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
 ---
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-03-29 | Doc sync v3.3.88: Prompt audit — robust gallery / `MediaPickAndAnalyzeService` / journal-research-capture delta has no new LLM prompts; `PROMPT_REFERENCES` v2.10.1 (header sync); session: Documentation & Config & Git Backup + prompt/bug tracker | CHANGELOG v3.3.88 |
 | 2026-03-28 | Doc sync v3.3.87: Prompt audit on auth/onboarding/RevenueCat/iOS delta — no new LLM prompt sources; `PROMPT_REFERENCES` v2.10.1 unchanged (catalog header last-synced); session tasking: Documentation & Config & Git Backup + prompt-tracker/bug-tracker maintenance | CHANGELOG v3.3.87 |
 | 2026-03-27 | Doc sync v3.3.86: Phase 5b writing-screen user prompt expanded (`buildPhase5bWritingPrompt`, `phase5bFormatInstructions`); `PROMPT_REFERENCES` v2.10.1 (§21 subsection + version history) | CHANGELOG v3.3.86 |
 | 2026-03-25 | Doc sync v3.3.85: Doc-config-git-backup run; Agents persona resolver + outputs/export/profile changes; no new prompts; `PROMPT_REFERENCES` v2.10.0 unchanged | CHANGELOG v3.3.85 |
@@ -93,6 +94,7 @@ Cursor / operator requests logged here for traceability (not LLM system prompts 
 
 | Date | Summary |
 |------|---------|
+| 2026-03-29 | Documentation, Configuration Management and Git Backup (claude.md §387+); track recent prompts; update bug tracker; git backup sync |
 | 2026-03-28 | Documentation, Configuration Management and Git Backup (claude.md §387+); track recent prompts; update bug tracker; git backup sync |
 
 ---

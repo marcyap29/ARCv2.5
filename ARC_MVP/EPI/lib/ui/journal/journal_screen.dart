@@ -14,7 +14,6 @@ import 'package:geocoding/geocoding.dart';
 import '../../state/journal_entry_state.dart';
 import '../../state/feature_flags.dart';
 import '../../services/thumbnail_cache_service.dart';
-import '../../services/media_alt_text_generator.dart';
 import '../widgets/keywords_discovered_widget.dart';
 import '../widgets/discovery_popup.dart';
 import '../../telemetry/analytics.dart';
@@ -50,7 +49,7 @@ import 'package:my_app/core/services/photo_library_service.dart';
 import 'package:my_app/aurora/services/circadian_profile_service.dart';
 import 'package:my_app/data/models/media_item.dart';
 import 'media_conversion_utils.dart';
-import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
+import 'package:my_app/core/services/media_pick_and_analyze_service.dart';
 import 'widgets/lumara_suggestion_sheet.dart';
 import 'widgets/inline_reflection_block.dart';
 // import '../../features/timeline/widgets/entry_content_renderer.dart'; // TODO: EntryContentRenderer not yet implemented
@@ -129,8 +128,8 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
   String? _currentDraftId;
   Timer? _autoSaveTimer;
   bool _pendingDraftSaveOnResume = false; // Deferred save to avoid semantics assertion
-  final ImagePicker _imagePicker = ImagePicker();
-  
+  final MediaPickAndAnalyzeService _lumaraImageFlow = MediaPickAndAnalyzeService();
+
   /// Get the current entry ID for per-entry usage limit tracking
   /// Uses existing entry ID if editing, or draft ID for new entries
   String? get _currentEntryId => widget.existingEntry?.id ?? _currentDraftId;
@@ -153,9 +152,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     );
     return _reflectionHandler!;
   }
-  
-  // Enhanced OCP/PRISM orchestrator
-  late final IOSVisionOrchestrator _ocpOrchestrator;
   
   // Thumbnail cache service
   final ThumbnailCacheService _thumbnailCache = ThumbnailCacheService();
@@ -236,10 +232,6 @@ class _JournalScreenState extends State<JournalScreen> with WidgetsBindingObserv
     // _arcLLM = provideArcLLM(); // DEPRECATED
     _initializeLumara();
     // _ocrService = StubOcrService(_analytics); // TODO: OCR service not yet implemented
-    
-    // Initialize enhanced OCP services
-    _ocpOrchestrator = IOSVisionOrchestrator();
-    _ocpOrchestrator.initialize();
     
     // Initialize thumbnail cache
     _thumbnailCache.initialize();
@@ -5778,7 +5770,8 @@ $originalEntryTextToInclude
       }
       
       print('DEBUG: Photo library permissions granted, opening photo picker');
-      final List<XFile> images = await _imagePicker.pickMultiImage();
+      final List<XFile> images =
+          await _lumaraImageFlow.pickMultiPhotosFromGallery();
       if (images.isNotEmpty) {
         print('DEBUG: Selected ${images.length} images');
         for (final image in images) {
@@ -5985,7 +5978,7 @@ $originalEntryTextToInclude
         return;
       }
       print('DEBUG: Photo library permissions granted, opening video picker');
-      final XFile? video = await _imagePicker.pickVideo(source: ImageSource.gallery);
+      final XFile? video = await _lumaraImageFlow.pickVideoFromGallery();
       if (video != null) {
         print('DEBUG: Selected video: ${video.path}');
         await _processVideo(video.path);
@@ -6119,7 +6112,7 @@ $originalEntryTextToInclude
       }
       
       print('DEBUG: Photo library permissions granted, opening camera');
-      final XFile? image = await _imagePicker.pickImage(source: ImageSource.camera);
+      final XFile? image = await _lumaraImageFlow.pickCameraPhoto();
       if (image != null) {
         print('DEBUG: Camera captured image: ${image.path}');
         await _processPhotoWithEnhancedOCP(image.path);
@@ -6214,10 +6207,9 @@ $originalEntryTextToInclude
     }
   }
 
-  /// Process photo with real OCP/PRISM orchestrator
+  /// Vision analysis + journal attachment — same pipeline as LUMARA chat ([MediaPickAndAnalyzeService]).
   Future<void> _processPhotoWithEnhancedOCP(String imagePath) async {
     try {
-      // Show processing indicator
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🔍 Analyzing photo with iOS Vision AI...'),
@@ -6225,61 +6217,24 @@ $originalEntryTextToInclude
         ),
       );
 
-      // Run real OCP analysis
-      final result = await _ocpOrchestrator.processPhoto(
-        imagePath: imagePath,
-        ocrEngine: 'ios_vision', // Use iOS Vision framework
-        language: 'auto',
-        maxProcessingMs: 1500,
-      );
-
-      if (result['success'] == true) {
-        print('DEBUG: Photo analysis successful');
-
-        // Parse EXIF date if present for richer alt text
-        DateTime? capturedAt;
-        final capturedAtStr = result['capturedAt'] as String?;
-        if (capturedAtStr != null && capturedAtStr.isNotEmpty) {
-          capturedAt = DateTime.tryParse(capturedAtStr);
-        }
-        final location = result['location'] as String?;
-
-        // Generate alt text from analysis (6-10 keywords + date/location when available)
-        final altText = MediaAltTextGenerator.generateAltText(
-          result,
-          capturedAt: capturedAt,
-          location: location,
-        );
-
-        // Generate unique photo ID
-        final photoId = 'photo_${DateTime.now().millisecondsSinceEpoch}';
-
-        // Store the original picked path directly - no copying yet (analysisResult includes exif, gps, capturedAt, location)
-        final photoAttachment = PhotoAttachment(
-          type: 'photo_analysis',
-          imagePath: imagePath, // Use original picked path
-          analysisResult: result,
-          timestamp: capturedAt?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch,
-          altText: altText,
-          photoId: photoId,
-          sha256: null, // Will be generated when entry is saved
-        );
-
-        setState(() {
-          _entryState.attachments.add(photoAttachment);
-        });
-
-        // Show success message with alt text
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Photo added: $altText'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      } else {
-        throw Exception(result['error'] ?? 'Unknown error');
+      final analyzed = await _lumaraImageFlow.analyzeImagePath(imagePath);
+      if (analyzed == null) {
+        throw Exception('Vision analysis failed');
       }
 
+      print('DEBUG: Photo analysis successful');
+      final photoAttachment = analyzed.toPhotoAttachment();
+
+      setState(() {
+        _entryState.attachments.add(photoAttachment);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Photo added: ${analyzed.altText}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
       debugPrint('Real OCP processing failed: $e');
       ScaffoldMessenger.of(context).showSnackBar(

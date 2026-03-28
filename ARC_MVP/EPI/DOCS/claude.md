@@ -615,7 +615,7 @@ The architecture is documented but full integration requires:
 
 ---
 
-*Last synchronized: March 28, 2026 | Version: 3.3.87*
+*Last synchronized: March 29, 2026 | Version: 3.3.88*
 
 ---
 

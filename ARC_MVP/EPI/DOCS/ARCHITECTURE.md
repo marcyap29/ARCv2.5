@@ -1,7 +1,7 @@
 # EPI LUMARA MVP - Architecture Overview
 
-**Version:** 3.3.87
-**Last Updated:** March 28, 2026
+**Version:** 3.3.88
+**Last Updated:** March 29, 2026
 **Status:** ✅ Production Ready - MVP Fully Operational with Companion-First LUMARA (GPT-OSS 120B primary), LUMARA Vision Reposition (phases de-emphasized in UI), streamlined onboarding (standalone personality setup screens removed v3.3.80), Dual Prompt Mode, Reflection Session Safety System, RevenueCat In-App Purchases, Voice Sigil State Machine, Simplified Settings, Health Integration (HealthKit removed on iOS in v3.3.67), AssemblyAI v3, Web Access Safety, Correlation-Resistant PII Protection, Google Drive Backup, Temporal Notifications, Enhanced Incremental Backups, Timeline Pagination, repo-root Firebase Functions `proxyGroq` module (v3.3.80), SwarmSpace social-publisher Cloudflare worker (Bluesky/LinkedIn paths)
 
 ---
@@ -92,6 +92,7 @@ EPI (Evolving Personal Intelligence) is a Flutter-based intelligent journaling a
 - ✅ **Agents persona routing + outputs/export (v3.3.85)**: `lib/features/agents` uses `AgentsPersonaResolver` (profile → founder/student/coach/artist) for worker-facing runs; outputs feature screens and storage extended; LUMARA `report_export_service` / `docx_export_helper` and profile fields align export inputs.
 - ✅ **Writing screen + agent CHRONICLE bundle + shell tab bar (v3.3.86)**: `writing_screen.dart` / Phase 5b `writing_prompts.dart` assembly; `chronicle_bundle_builder.dart` for real `ChronicleBundle` from timeline context; `LumaraUnifiedBottomBar` for tab escape hatches on pushed agent/output/writing routes; report export and RevenueCat service iterations.
 - ✅ **Auth + bootstrap + onboarding wiring (v3.3.87)**: Google OAuth through Firebase Auth provider APIs (`firebase_auth_service.dart`); `bootstrap.dart` initializes RevenueCat on iOS independent of Firebase Auth success; onboarding completion emits state before Hive/SharedPreferences (`arc_onboarding_cubit.dart`) and routes home via named `/home` (`arc_onboarding_sequence.dart`); iOS CocoaPods static linkage for gRPC-related simulator codesign stability.
+- ✅ **Media pick + on-device Vision (v3.3.88)**: `RobustGalleryPicker` wraps `image_picker` with iOS-safe options and FilePicker fallback; `MediaPickAndAnalyzeService` owns `IOSVisionOrchestrator` + `MediaAltTextGenerator` and feeds journal, LUMARA chat-style flows, research document image pick, and `JournalCaptureView` gallery/camera.
 
 ### Current Version
 

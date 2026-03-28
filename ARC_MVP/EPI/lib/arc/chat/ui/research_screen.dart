@@ -25,6 +25,7 @@ import 'package:my_app/lumara/agents/vision/parsed_document.dart';
 import 'package:my_app/lumara/agents/widgets/agent_tip_banner.dart';
 import 'package:my_app/services/firebase_auth_service.dart';
 import 'package:my_app/arc/chat/services/lumara_reflection_settings_service.dart';
+import 'package:my_app/core/services/media_pick_and_analyze_service.dart';
 
 /// Screen for the LUMARA Research Agent: enter a question, get a synthesized report.
 class ResearchScreen extends StatefulWidget {
@@ -52,7 +53,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
   String? _error;
   /// Context from scanned document (Phase 4); injected into research when running.
   String? _documentContext;
-  static final ImagePicker _imagePicker = ImagePicker();
+  final MediaPickAndAnalyzeService _lumaraImageFlow = MediaPickAndAnalyzeService();
 
   /// Research agent: [generateForAgents] (Gemini-first) + SwarmSpaceWebSearchTool with context for PRISM.
   ResearchAgent _createResearchAgent() {
@@ -210,7 +211,7 @@ class _ResearchScreenState extends State<ResearchScreen> {
       ),
     );
     if (source == null || !mounted) return;
-    final xFile = await _imagePicker.pickImage(
+    final XFile? xFile = await _lumaraImageFlow.pickSourceImageWithPermission(
       source: source,
       maxWidth: 1920,
       imageQuality: 85,

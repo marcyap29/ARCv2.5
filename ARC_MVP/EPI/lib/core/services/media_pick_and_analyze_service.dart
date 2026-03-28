@@ -1,18 +1,17 @@
-/// Shared media pick and analyze service
+/// Shared LUMARA image flow: robust gallery/camera picking + on-device Vision analysis.
 ///
-/// Reuses the same architecture as reflections/journal:
-/// - ImagePicker for gallery/camera
-/// - IOSVisionOrchestrator for analysis (OCR, objects, faces, labels)
-/// - MediaAltTextGenerator for keyword extraction
-///
-/// Used by both journal/reflections and chat to minimize duplication.
+/// Used by **reflections (journal)**, **LUMARA chat** attachments, and **research**
+/// document scan (pick-only with resize). One [ImagePicker] instance avoids divergent
+/// behavior; [IOSVisionOrchestrator] + [MediaAltTextGenerator] stay in one place.
 library;
 
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:my_app/core/services/photo_library_service.dart';
+import 'package:my_app/core/services/robust_gallery_picker.dart';
 import 'package:my_app/mira/store/mcp/orchestrator/ios_vision_orchestrator.dart';
 import 'package:my_app/services/media_alt_text_generator.dart';
+import 'package:my_app/state/journal_entry_state.dart';
 
 /// Result of picking and analyzing an image
 class AnalyzedMedia {
@@ -27,6 +26,25 @@ class AnalyzedMedia {
     required this.altText,
     required this.keywords,
   });
+
+  /// Journal entry attachment — same Vision payload chat uses, shared mapping.
+  PhotoAttachment toPhotoAttachment() {
+    DateTime? capturedAt;
+    final capturedAtStr = analysisResult['capturedAt'] as String?;
+    if (capturedAtStr != null && capturedAtStr.isNotEmpty) {
+      capturedAt = DateTime.tryParse(capturedAtStr);
+    }
+    return PhotoAttachment(
+      type: 'photo_analysis',
+      imagePath: imagePath,
+      analysisResult: analysisResult,
+      timestamp: capturedAt?.millisecondsSinceEpoch ??
+          DateTime.now().millisecondsSinceEpoch,
+      altText: altText,
+      photoId: 'photo_${DateTime.now().microsecondsSinceEpoch}',
+      sha256: null,
+    );
+  }
 }
 
 class MediaPickAndAnalyzeService {
@@ -38,13 +56,50 @@ class MediaPickAndAnalyzeService {
   final ImagePicker _picker = ImagePicker();
   final IOSVisionOrchestrator _orchestrator = IOSVisionOrchestrator();
 
+  // --- Shared picking (caller may request [PhotoLibraryService] first; journal/chat do) ---
+
+  /// Multi-select from gallery (robust iOS metadata handling).
+  Future<List<XFile>> pickMultiPhotosFromGallery() =>
+      RobustGalleryPicker.pickMulti(_picker);
+
+  Future<XFile?> pickCameraPhoto() => RobustGalleryPicker.pickCamera(_picker);
+
+  Future<XFile?> pickVideoFromGallery() =>
+      _picker.pickVideo(source: ImageSource.gallery);
+
+  /// Gallery or camera with optional downscale; requests photo library access first.
+  /// For flows that run their own processing (e.g. research [parseDocument]).
+  Future<XFile?> pickSourceImageWithPermission({
+    required ImageSource source,
+    double? maxWidth,
+    double? maxHeight,
+    int? imageQuality,
+  }) async {
+    final ok = await PhotoLibraryService.requestPermissions();
+    if (!ok) return null;
+    if (source == ImageSource.gallery) {
+      return RobustGalleryPicker.pickSingleGallery(
+        _picker,
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
+        imageQuality: imageQuality,
+      );
+    }
+    return RobustGalleryPicker.pickCamera(
+      _picker,
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      imageQuality: imageQuality,
+    );
+  }
+
   /// Pick image from gallery, analyze, and return result with keywords.
   /// Returns null if user cancels or analysis fails.
   Future<AnalyzedMedia?> pickFromGallery() async {
     final hasPermissions = await PhotoLibraryService.requestPermissions();
     if (!hasPermissions) return null;
 
-    final images = await _picker.pickMultiImage();
+    final images = await RobustGalleryPicker.pickMulti(_picker);
     if (images.isEmpty) return null;
     return _analyzeImage(images.first.path);
   }
@@ -54,14 +109,14 @@ class MediaPickAndAnalyzeService {
     final hasPermissions = await PhotoLibraryService.requestPermissions();
     if (!hasPermissions) return null;
 
-    final image = await _picker.pickImage(source: ImageSource.gallery);
+    final image = await RobustGalleryPicker.pickSingleGallery(_picker);
     if (image == null) return null;
     return _analyzeImage(image.path);
   }
 
   /// Capture from camera, analyze, and return result
   Future<AnalyzedMedia?> captureFromCamera() async {
-    final image = await _picker.pickImage(source: ImageSource.camera);
+    final image = await RobustGalleryPicker.pickCamera(_picker);
     if (image == null) return null;
     return _analyzeImage(image.path);
   }
