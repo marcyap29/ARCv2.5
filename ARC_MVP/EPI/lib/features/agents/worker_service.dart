@@ -5,18 +5,41 @@ import 'package:http/http.dart' as http;
 
 import 'agents_data.dart';
 
+/// One hybrid-search excerpt from CHRONICLE (BM25 + semantic), for the Worker writer.
+class ChronicleSemanticHit {
+  const ChronicleSemanticHit({
+    required this.snippet,
+    this.score,
+    this.entryDate,
+  });
+
+  final String snippet;
+  final double? score;
+  final String? entryDate;
+
+  Map<String, dynamic> toJson() => {
+        'snippet': snippet,
+        if (score != null) 'score': score,
+        if (entryDate != null && entryDate!.isNotEmpty) 'entry_date': entryDate,
+      };
+}
+
 /// CHRONICLE bundle sent to the workflow Worker when [useChronicle] is true.
 class ChronicleBundle {
   final String profile;
   final String tags;
   final String recent;
   final String topical;
+  final List<ChronicleSemanticHit>? semanticHits;
+  final String? integrationNote;
 
   const ChronicleBundle({
     required this.profile,
     required this.tags,
     required this.recent,
     required this.topical,
+    this.semanticHits,
+    this.integrationNote,
   });
 
   Map<String, dynamic> toJson() => {
@@ -28,6 +51,10 @@ class ChronicleBundle {
             .toList(),
         'recent': recent,
         'topical': topical,
+        if (semanticHits != null && semanticHits!.isNotEmpty)
+          'semantic_hits': semanticHits!.map((e) => e.toJson()).toList(),
+        if (integrationNote != null && integrationNote!.trim().isNotEmpty)
+          'integration_note': integrationNote!.trim(),
       };
 }
 
@@ -124,6 +151,9 @@ class WorkerService {
     if (steps.contains('plugin discovery')) {
       return '$_base/workflows/plugins';
     }
+    if (steps.contains('research') && steps.contains('writing')) {
+      return '$_base/workflows/research-writing';
+    }
     if (steps.length > 1 && steps.contains('writing')) {
       return '$_base/workflows/writing';
     }
@@ -145,6 +175,8 @@ class WorkerService {
     ChronicleBundle? chronicle,
     List<String>? platforms,
     Map<String, dynamic>? writingPreferences,
+    List<Map<String, String>>? sourceDocuments,
+    bool skipWriterClarification = false,
   }) async* {
     final client = http.Client();
     try {
@@ -166,6 +198,12 @@ class WorkerService {
       }
       if (writingPreferences != null && writingPreferences.isNotEmpty) {
         body['writing_preferences'] = writingPreferences;
+      }
+      if (sourceDocuments != null && sourceDocuments.isNotEmpty) {
+        body['source_documents'] = sourceDocuments;
+      }
+      if (skipWriterClarification) {
+        body['skip_writer_clarification'] = true;
       }
 
       final request = http.Request('POST', Uri.parse(endpoint));

@@ -4,6 +4,7 @@ import { handleCompetitor } from './workflows/competitor';
 import { handlePlugins } from './workflows/plugins';
 import { handleResearch } from './workflows/research';
 import { handleWriting } from './workflows/writing';
+import { handleResearchWriting } from './workflows/research_writing';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -35,6 +36,7 @@ export default {
     const validRoutes = [
       '/workflows/research',
       '/workflows/writing',
+      '/workflows/research-writing',
       '/workflows/competitor',
       '/workflows/plugins',
     ] as const;
@@ -60,6 +62,8 @@ export default {
       try {
         if (path === '/workflows/research') {
           await handleResearch(body, env, send);
+        } else if (path === '/workflows/research-writing') {
+          await handleResearchWriting(body, env, send);
         } else if (path === '/workflows/writing') {
           await handleWriting(body, env, send);
         } else if (path === '/workflows/competitor') {

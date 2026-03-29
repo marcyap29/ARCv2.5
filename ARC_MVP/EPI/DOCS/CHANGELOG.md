@@ -1,7 +1,22 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.88
+**Version:** 3.3.89
 **Last Updated:** March 29, 2026
+
+---
+
+## [3.3.89] - March 29, 2026
+
+### Worker clarification + shared research pipeline; agent attachments; workflow output persistence; doc sync
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup).
+
+**Updated (sync with repo / working tree):**
+- **Cloudflare workflows (`workers/workflows/src/`):** New **`clarification_gate.ts`** — LLM JSON intake assessment before research / research→writing / writing (`assessWriterClarification`); SSE type **`clarification_needed`**. New **`research_pipeline.ts`** — shared **`runResearchPipeline`** with optional **`source_documents`**, four-sub-question planning, Brave + Jina + Groq extract loop, CHRONICLE-aware synthesis **system** when `use_chronicle`. **`types.ts`** — `SourceDocument`, `writing_preferences`, `skip_writer_clarification` on `WorkflowRequest`. **`workflows/research.ts`**, **`research_writing.ts`**, **`writing.ts`** wired to gate and/or pipeline.
+- **Agents (`lib/features/agents/`):** **`agent_attachment_text.dart`** — PDF (via `PdfContentService`) and `.txt`/`.md` → `{name, text}` maps for Worker **`source_documents`** (per-file and total char caps). **`run_screen.dart`** — clarification Q&A UI and replay into input; **`worker_service.dart`** sends `source_documents` / `skip_writer_clarification` as needed. Supporting updates in **`agents_data.dart`**, **`agents_screen.dart`**, **`chronicle_bundle_builder.dart`**.
+- **Outputs (`lib/features/outputs/`):** **`workflow_output_persistence.dart`** — writes workflow JSON under app Documents `LumaraOutputs/` and mirrors to Firestore output taxonomy when signed in; **`outputs_screen.dart`**, **`output_detail_screen.dart`** integration.
+
+**Prompt audit:** New Worker prompt sources documented; **`PROMPT_REFERENCES.md`** bumped to **v2.10.2** (§27).
 
 ---
 

@@ -1,4 +1,5 @@
-import type { Env, SSEMessage, WorkflowRequest } from '../types';
+import type { ChronicleBundle, Env, SSEMessage, WorkflowRequest } from '../types';
+import { assessWriterClarification } from '../clarification_gate';
 import { synthesize, synthesizeJson } from '../tools';
 
 const PLATFORM_SPECS: Record<
@@ -88,6 +89,163 @@ interface NarrativeJson {
   cta: string;
 }
 
+export interface WritingCoreResult {
+  narrative: NarrativeJson;
+  platforms: Record<string, string>;
+  generated_platforms: string[];
+  platform_labels: Record<string, string>;
+}
+
+export type WritingExecutionOutcome =
+  | { status: 'clarification_needed'; confidence: number; questions: string[] }
+  | { status: 'complete'; data: WritingCoreResult };
+
+function formatInstructionFromPrefs(wp: Record<string, unknown> | undefined): string {
+  if (wp == null) return 'Match each platform spec; follow the user request.';
+  const f = wp.format as string | undefined;
+  switch (f) {
+    case 'short_threads':
+      return 'SMALL / short-form: punchy social (Twitter/X, Bluesky, Reddit). Hooks first; minimal throat-clearing.';
+    case 'medium_social':
+      return 'MEDIUM: LinkedIn / Reddit depth — professional, concrete, still scannable.';
+    case 'large_substack':
+      return 'LARGE: Substack-style essay — sections, narrative arc, technical clarity where appropriate.';
+    case 'xl_white_paper':
+    case 'research_paper':
+      return 'XL: white paper / research rigor — structure, definitions, careful claims, minimal hype.';
+    case 'article':
+      return 'ARTICLE: general long-form article — thesis, sections, readable depth (not thread-length).';
+    default:
+      return 'Match each platform spec; follow the user request.';
+  }
+}
+
+function chronicleSemanticBlock(ctx: ChronicleBundle | undefined): string {
+  if (ctx == null) return '';
+  const hits = ctx.semantic_hits;
+  if (hits == null || hits.length === 0) return '';
+  const lines = hits
+    .map(
+      (h, i) =>
+        `${i + 1}. [score ${h.score != null ? h.score.toFixed(3) : 'n/a'}] (${h.entry_date ?? 'date unknown'}) ${h.snippet}`,
+    )
+    .join('\n');
+  const note = ctx.integration_note?.trim() ?? '';
+  return `\n\nCHRONICLE SEMANTIC / KEYWORD MATCHES (from the user's journal — confirm relevance; do not fabricate private facts):\n${lines}\n${note ? `\nIntegration guidance: ${note}\n` : ''}`;
+}
+
+/**
+ * Shared narrative + multi-platform generation. Used by writing-only and research→writing flows.
+ * Runs an optional clarification gate unless [options.skipWriterClarification] is true.
+ */
+export async function executeWritingCore(
+  req: WorkflowRequest,
+  env: Env,
+  onProgress: (message: string) => void,
+  options?: { priorResearchReport?: string; skipWriterClarification?: boolean },
+): Promise<WritingExecutionOutcome> {
+  if (options?.skipWriterClarification !== true) {
+    const gate = await assessWriterClarification(req, env);
+    if (gate.blocked && gate.questions.length > 0) {
+      return {
+        status: 'clarification_needed',
+        confidence: gate.confidence,
+        questions: gate.questions,
+      };
+    }
+  }
+
+  const semantic = chronicleSemanticBlock(req.chronicle_context);
+  const formatHint = formatInstructionFromPrefs(req.writing_preferences);
+  const research = options?.priorResearchReport?.trim() ?? '';
+  const researchBlock =
+    research.length > 0
+      ? `\n\nPRIOR RESEARCH REPORT (use facts, product names, and themes from here):\n${research.slice(0, 18_000)}${research.length > 18_000 ? '…' : ''}\n`
+      : '';
+
+  const voice =
+    req.chronicle_context != null
+      ? `Voice and context: ${req.chronicle_context.recent}`
+      : '';
+
+  onProgress('Extracting core narrative...');
+
+  const narrative = await synthesizeJson<NarrativeJson>(
+    `From this input, extract the core narrative for content.
+        User request / input: ${req.input}
+        ${researchBlock}
+        ${voice}
+        ${semantic}
+
+        FORMAT / LENGTH INTENT (from user settings):
+        ${formatHint}
+
+        If CHRONICLE semantic matches are present, only incorporate them when they clearly relate to the topic; never invent private diary details not implied by the snippets.
+
+        Return JSON with: headline, core_insight, target_pain, cta`,
+    'You are a content strategist. Extract what is genuinely interesting. Stay faithful to the research report and user documents when provided.',
+    env,
+  );
+
+  onProgress('Narrative extracted');
+  onProgress('Writing for each platform...');
+
+  const requestedPlatforms: string[] =
+    req.platforms != null && req.platforms.length > 0
+      ? req.platforms
+      : ['linkedin', 'orbital_ai', 'mechanical_musings'];
+  const results: Record<string, string> = {};
+
+  const chronicleVoice =
+    req.chronicle_context != null && req.use_chronicle
+      ? `Write in the voice of: ${req.chronicle_context.profile}.
+            Voice reference: ${req.chronicle_context.recent}`
+      : '';
+
+  const researchTail = research.length > 0 ? research.slice(0, 8000) : '';
+
+  for (const platformId of requestedPlatforms) {
+    const spec = PLATFORM_SPECS[platformId];
+    if (!spec) continue;
+
+    onProgress(`Writing ${spec.label}...`);
+
+    results[platformId] = await synthesize(
+      `Write a ${spec.desc} based on this narrative:
+       Headline: ${narrative.headline}
+       Core insight: ${narrative.core_insight}
+       Pain addressed: ${narrative.target_pain}
+       CTA: ${narrative.cta}
+       ${chronicleVoice ? `${chronicleVoice}\n` : ''}
+       ${researchTail ? `Ground details in this research excerpt where relevant:\n${researchTail}\n` : ''}
+
+       Tone: ${spec.tone}
+       Format: ${spec.format}
+       Target length: ${spec.length}
+
+       User format intent: ${formatHint}
+
+       Do not use em dashes.
+       Do not start with "I" or with the product name.
+       Do not use: game-changer, revolutionary, unleash, harness, dive in.`,
+      `You are writing authentic content for ${spec.desc}.`,
+      env,
+    );
+  }
+
+  return {
+    status: 'complete',
+    data: {
+      narrative,
+      platforms: results,
+      generated_platforms: requestedPlatforms.filter((p) => results[p]),
+      platform_labels: Object.fromEntries(
+        requestedPlatforms.filter((p) => PLATFORM_SPECS[p]).map((p) => [p, PLATFORM_SPECS[p].label]),
+      ),
+    },
+  };
+}
+
 export async function handleWriting(
   req: WorkflowRequest,
   env: Env,
@@ -96,64 +254,27 @@ export async function handleWriting(
   send({
     type: 'step_start',
     step: 'Writing',
-    message: 'Extracting core narrative...',
+    message: 'Checking whether clarifications are needed...',
   });
 
-  const voice =
-    req.chronicle_context != null
-      ? `Voice and context: ${req.chronicle_context.recent}`
-      : '';
+  const outcome = await executeWritingCore(req, env, (message) => {
+    send({ type: 'progress', message });
+  });
 
-  const narrative = await synthesizeJson<NarrativeJson>(
-    `From this input, extract the core narrative for content.
-        Input: ${req.input}
-        ${voice}
-
-        Return JSON with: headline, core_insight, target_pain, cta`,
-    'You are a content strategist. Extract what is genuinely interesting.',
-    env,
-  );
-
-  send({ type: 'progress', message: 'Narrative extracted' });
-
-  send({ type: 'progress', message: 'Writing for each platform...' });
-
-  const requestedPlatforms: string[] =
-    (req as any).platforms?.length > 0
-      ? (req as any).platforms
-      : ['linkedin', 'orbital_ai', 'mechanical_musings'];
-  const results: Record<string, string> = {};
-
-  for (const platformId of requestedPlatforms) {
-    const spec = PLATFORM_SPECS[platformId];
-    if (!spec) continue;
-
-    send({ type: 'progress', message: `Writing ${spec.label}...` });
-
-    results[platformId] = await synthesize(
-      `Write a ${spec.desc} based on this narrative:
-       Headline: ${narrative.headline}
-       Core insight: ${narrative.core_insight}
-       Pain addressed: ${narrative.target_pain}
-       CTA: ${narrative.cta}
-       ${
-         req.chronicle_context && req.use_chronicle
-           ? `Write in the voice of: ${req.chronicle_context.profile}.
-            Voice reference: ${req.chronicle_context.recent}`
-           : ''
-       }
-       
-       Tone: ${spec.tone}
-       Format: ${spec.format}
-       Target length: ${spec.length}
-       
-       Do not use em dashes.
-       Do not start with "I" or with the product name.
-       Do not use: game-changer, revolutionary, unleash, harness, dive in.`,
-      `You are writing authentic content for ${spec.desc}.`,
-      env,
-    );
+  if (outcome.status === 'clarification_needed') {
+    send({
+      type: 'clarification_needed',
+      step: 'Writing',
+      message: 'Please answer the questions in the app, then continue.',
+      data: {
+        confidence: outcome.confidence,
+        questions: outcome.questions,
+      },
+    });
+    return;
   }
+
+  const core = outcome.data;
 
   send({
     type: 'step_complete',
@@ -163,14 +284,10 @@ export async function handleWriting(
   send({
     type: 'result',
     data: {
-      narrative,
-      platforms: results,
-      generated_platforms: requestedPlatforms.filter((p) => results[p]),
-      platform_labels: Object.fromEntries(
-        requestedPlatforms
-          .filter((p) => PLATFORM_SPECS[p])
-          .map((p) => [p, PLATFORM_SPECS[p].label]),
-      ),
+      narrative: core.narrative,
+      platforms: core.platforms,
+      generated_platforms: core.generated_platforms,
+      platform_labels: core.platform_labels,
     },
   });
 }

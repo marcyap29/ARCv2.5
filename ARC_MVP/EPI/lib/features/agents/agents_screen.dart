@@ -15,6 +15,25 @@ import 'agents_persona_resolver.dart';
 import 'run_screen.dart';
 import 'worker_service.dart';
 
+/// Emoji hints for [AgentsData.swarmspaceOfficialFreeApiSlugs] (site-style list).
+const Map<String, String> _kFreeApiSlugEmoji = {
+  'brave-search': '🦁',
+  'semantic-scholar': '📚',
+  'jina-reader': '🔗',
+  'wikipedia': '📖',
+  'open-meteo': '🌤️',
+  'news-api': '📰',
+  'arxiv': '📄',
+  'pubmed': '🧬',
+  'hacker-news': '🔶',
+  'reddit': '🤖',
+  'github-public': '🐙',
+  'exchange-rates': '💱',
+  'rest-countries': '🌍',
+  'nominatim': '📍',
+  'gemini-flash': '✨',
+};
+
 class AgentsScreen extends StatefulWidget {
   const AgentsScreen({super.key});
 
@@ -33,8 +52,12 @@ class _AgentsScreenState extends State<AgentsScreen> {
   late final TextEditingController _inputController;
   late final TextEditingController _writingFormatSpecsController;
   late final TextEditingController _researchPaperSpecsController;
+  late final TextEditingController _capabilitySearchController;
   late final FocusNode _inputFocusNode;
   late final ScrollController _scrollController;
+  bool _outputFormatExpanded = false;
+  bool _inspirationExpanded = false;
+  bool _swarmSpaceStoreExpanded = true;
   final List<_PartEntry> _partEntries = [];
   final List<AgentAttachment> _attachments = [];
   /// See [LumaraWritingFormatIds]; legacy ids still accepted by Run screen defaults.
@@ -61,11 +84,15 @@ class _AgentsScreenState extends State<AgentsScreen> {
     _inputController = TextEditingController();
     _writingFormatSpecsController = TextEditingController();
     _researchPaperSpecsController = TextEditingController();
+    _capabilitySearchController = TextEditingController();
     _inputFocusNode = FocusNode();
     _formatSocialSelections = {
       for (final p in WritingPlatforms.all) p.id: p.defaultSelected,
     };
     _inputController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _capabilitySearchController.addListener(() {
       if (mounted) setState(() {});
     });
     _scrollController = ScrollController();
@@ -159,6 +186,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
     _inputController.dispose();
     _writingFormatSpecsController.dispose();
     _researchPaperSpecsController.dispose();
+    _capabilitySearchController.dispose();
     _inputFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -191,7 +219,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
             surfaceTintColor: Colors.transparent,
             centerTitle: true,
             title: Text(
-              'Agents',
+              'SwarmSpace',
               style: heading1Style(context).copyWith(
                 color: kcPrimaryTextColor,
                 fontWeight: FontWeight.bold,
@@ -203,6 +231,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
                   setState(() {
                     _input = '';
                     _inputController.clear();
+                    _capabilitySearchController.clear();
                     _dismissedGreeting = false;
                     _clearPartsAndAttachments();
                   });
@@ -234,40 +263,254 @@ class _AgentsScreenState extends State<AgentsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildFreeformCard(),
-          const SizedBox(height: 20),
-          _buildWritingFormatSection(),
-          const SizedBox(height: 24),
-          _buildSectionLabel('NEED INSPIRATION?'),
-          const SizedBox(height: 4),
           Text(
-            'Suggestions adjust from your profile text and what you type above — tap to fill the box.',
+            'LUMARA hosts capabilities on SwarmSpace and chooses what to run from your request, enabled agents, and toggled plugins.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF6A6A8A),
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildSectionLabel('YOUR RUN'),
+          const SizedBox(height: 6),
+          Text(
+            'This box is for the job you want done. Tap Work it out for me and LUMARA will pick workflows and SwarmSpace tools—it is not the plugin catalogue.',
             style: GoogleFonts.inter(
               color: const Color(0xFF33334A),
               fontSize: 12,
+              height: 1.35,
             ),
           ),
           const SizedBox(height: 12),
-          _buildGoalCards(),
+          _buildFreeformCard(),
+          const SizedBox(height: 16),
+          _buildChevronSection(
+            expanded: _outputFormatExpanded,
+            onToggle: () => setState(
+              () => _outputFormatExpanded = !_outputFormatExpanded,
+            ),
+            title: 'Output format',
+            subtitle:
+                'Length, tone, channels, and specs for writing—only affects runs that include Writing.',
+            child: _buildWritingFormatSection(),
+          ),
+          const SizedBox(height: 8),
+          _buildChevronSection(
+            expanded: _inspirationExpanded,
+            onToggle: () => setState(
+              () => _inspirationExpanded = !_inspirationExpanded,
+            ),
+            title: 'Inspiration',
+            subtitle: 'Prep meeting, launch plan, content ideas—tap a card to fill Your run.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Suggestions use your profile and what you typed in Your run.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF33334A),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildGoalCards(),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
           _buildSectionLabel('AGENTS'),
           const SizedBox(height: 12),
           _buildAgentsList(),
           const SizedBox(height: 24),
-          _buildSectionLabel('SWARMSPACE PLUGINS'),
-          const SizedBox(height: 4),
-          Text(
-            'Free plugins from the SwarmSpace catalogue. Toggle to include in runs.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF33334A),
-              fontSize: 12,
+          _buildChevronSection(
+            expanded: _swarmSpaceStoreExpanded,
+            onToggle: () => setState(
+              () => _swarmSpaceStoreExpanded = !_swarmSpaceStoreExpanded,
             ),
+            title: 'SwarmSpace store · 15 free APIs',
+            subtitle:
+                'Official free-tier order (swarmspace.app). Search to narrow; open the catalog for everything.',
+            child: _buildSwarmSpaceStoreExpandedBody(),
           ),
-          const SizedBox(height: 12),
-          _buildPluginsList(),
           const SizedBox(height: 24),
         ],
       ),
     );
+  }
+
+  /// Collapsible block with a leading chevron (Material-style expand affordance).
+  Widget _buildChevronSection({
+    required bool expanded,
+    required VoidCallback onToggle,
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: AnimatedRotation(
+                      turns: expanded ? 0.25 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFF7A7A9A),
+                        size: 26,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFE8E8F4),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF44445A),
+                            fontSize: 12,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (expanded) ...[
+          const SizedBox(height: 10),
+          child,
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSwarmSpaceStoreExpandedBody() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildSectionLabel('FIND A CAPABILITY'),
+        const SizedBox(height: 6),
+        Text(
+          'Filter the free-tier list by keyword. This search does not start a run—use Your run and Work it out for me for that.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF33334A),
+            fontSize: 12,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _capabilitySearchController,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: const Color(0xFFE0E0F0),
+          ),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFF0F0F1E),
+            hintText: 'Search by name, slug, or keyword…',
+            hintStyle: GoogleFonts.inter(
+              color: const Color(0xFF44445A),
+              fontSize: 13,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF1C1C30)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF1C1C30)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF5B5BD6)),
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: const Color(0xFF5B5BD6).withValues(alpha: 0.85),
+              size: 22,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Toggle Include in runs only where LUMARA already routes that plugin.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF33334A),
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildOfficialFreeApisList(),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: _openPluginCatalog,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF5B5BD6),
+              side: BorderSide(
+                color: const Color(0xFF5B5BD6).withValues(alpha: 0.55),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'Browse all SwarmSpace plugins',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Map<String, dynamic>> _filteredFreeApis() {
+    final q = _capabilitySearchController.text.trim().toLowerCase();
+    if (q.isEmpty) return AgentsData.freeApis;
+    bool matches(Map<String, dynamic> raw) {
+      final slug = (raw['slug'] as String? ?? '').toLowerCase();
+      final name = (raw['name'] as String? ?? '').toLowerCase();
+      final desc = (raw['description'] as String? ?? '').toLowerCase();
+      return slug.contains(q) || name.contains(q) || desc.contains(q);
+    }
+    return AgentsData.freeApis.where(matches).toList();
   }
 
   Widget _buildWritingFormatSection() {
@@ -707,119 +950,263 @@ class _AgentsScreenState extends State<AgentsScreen> {
     );
   }
 
-  Widget _buildPluginsList() {
-    return Column(
-      children: AgentsData.swarmspacePlugins.map((plugin) {
-        final isEnabled = _agentToggles[plugin.id] ?? false;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF14142A),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF1C1C30)),
+  Widget _buildOfficialFreeApisList() {
+    final rows = _filteredFreeApis();
+    if (rows.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Text(
+          'No free-tier APIs match that search. Try another keyword or browse all plugins below.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF44445A),
+            fontSize: 13,
+            height: 1.35,
           ),
-          child: Column(
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: rows.map(_buildFreeApiRow).toList(),
+    );
+  }
+
+  Widget _buildFreeApiRow(Map<String, dynamic> raw) {
+    final slug = raw['slug'] as String? ?? '';
+    final name = raw['name'] as String? ?? slug;
+    final desc = raw['description'] as String? ?? '';
+    final wired = AgentsData.swarmspacePluginForSlug(slug);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: wired != null
+          ? _buildWiredOfficialFreeApiCard(
+              plugin: wired,
+              displayName: name,
+              displayDescription: desc,
+            )
+          : _buildCatalogOnlyFreeApiCard(
+              slug: slug,
+              title: name,
+              description: desc,
+            ),
+    );
+  }
+
+  Widget _buildWiredOfficialFreeApiCard({
+    required AgentItem plugin,
+    required String displayName,
+    required String displayDescription,
+  }) {
+    final isEnabled = _agentToggles[plugin.id] ?? false;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14142A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1C1C30)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: plugin.iconBg,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      plugin.icon,
-                      style: GoogleFonts.inter(fontSize: 20),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: plugin.iconBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  plugin.icon,
+                  style: GoogleFonts.inter(fontSize: 20),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          plugin.label,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: Text(
+                            displayName,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          plugin.description,
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: const Color(0xFF7A7A9A),
-                            height: 1.4,
-                          ),
-                        ),
+                        const SizedBox(width: 8),
+                        _buildFreeTierChip(),
                       ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _buildConnectedBadge(),
-                  const Spacer(),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Include in runs',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF7A7A9A),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      _buildToggle(
-                        isEnabled,
-                        () {
-                          setState(() {
-                            _agentToggles[plugin.id] = !isEnabled;
-                          });
-                          _persistAgentToggles();
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              if (isEnabled) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text(
-                      'SwarmSpace · ',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF33334A),
-                        fontSize: 10,
-                      ),
-                    ),
+                    const SizedBox(height: 4),
                     Text(
                       plugin.swarmspaceSlug,
                       style: GoogleFonts.robotoMono(
                         color: const Color(0xFF34D399),
-                        fontSize: 10,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      displayDescription,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFF7A7A9A),
+                        height: 1.4,
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ],
           ),
-        );
-      }).toList(),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _buildConnectedBadge(),
+              const Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Include in runs',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF7A7A9A),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  _buildToggle(
+                    isEnabled,
+                    () {
+                      setState(() {
+                        _agentToggles[plugin.id] = !isEnabled;
+                      });
+                      _persistAgentToggles();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (isEnabled) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  'SwarmSpace · ',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF33334A),
+                    fontSize: 10,
+                  ),
+                ),
+                Text(
+                  plugin.swarmspaceSlug,
+                  style: GoogleFonts.robotoMono(
+                    color: const Color(0xFF34D399),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCatalogOnlyFreeApiCard({
+    required String slug,
+    required String title,
+    required String description,
+  }) {
+    final emoji = _kFreeApiSlugEmoji[slug] ?? '✦';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14142A),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1C1C30)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(emoji, style: GoogleFonts.inter(fontSize: 22)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              _buildFreeTierChip(),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            slug,
+            style: GoogleFonts.robotoMono(
+              color: const Color(0xFF34D399),
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: const Color(0xFF7A7A9A),
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'On SwarmSpace free tier; LUMARA will add include toggles as workers go live.',
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: const Color(0xFF44445A),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFreeTierChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C2218),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF183A26)),
+      ),
+      child: Text(
+        'FREE',
+        style: GoogleFonts.inter(
+          color: const Color(0xFF34D399),
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.6,
+        ),
+      ),
     );
   }
 

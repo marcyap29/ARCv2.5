@@ -2,7 +2,7 @@
 
 For each prompt:
 
-1. Create an Agent that will break down the prompt into manageble steps composed of sub-tasks that can assigned to individual sub-agents. This overseeing agent will also determine the definition of done prior to assigning tasks.
+1. Create an Agent that will Analyze the prompt, plan out the actions to fulfill the promp, and then break down the actions into manageble steps composed of sub-tasks that can assigned to individual sub-agents. This overseeing agent will also determine the definition of done prior to assigning tasks.
 2. Create enough sub-agents to handle the tasks.
 3. Assign each sub-agent their respective sub-tasks that make up the steps.
 4. Create A review agent that also knows the definition of done (from step 1), and will oversee the review of tasking that finishes from the sub-agents as they finishe their tasking.
@@ -615,7 +615,7 @@ The architecture is documented but full integration requires:
 
 ---
 
-*Last synchronized: March 29, 2026 | Version: 3.3.88*
+*Last synchronized: March 29, 2026 | Version: 3.3.89*
 
 ---
 

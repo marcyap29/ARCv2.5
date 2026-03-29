@@ -922,12 +922,34 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
     final selectedId = tabIds[selectedIdx];
     final selectedLabel = labels[selectedId]?.toString() ?? selectedId;
     final content = platforms[selectedId]?.toString() ?? '';
+    final researchReport = (_output.data['report'] as String?)?.trim() ?? '';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (researchReport.isNotEmpty) ...[
+            Text(
+              'Research report (used for writing)',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8A8AB0),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            MarkdownBody(
+              data: researchReport,
+              styleSheet: _researchMarkdownStyle(),
+              selectable: true,
+              shrinkWrap: true,
+              fitContent: true,
+            ),
+            const SizedBox(height: 20),
+            const Divider(color: Color(0xFF1C1C30), height: 1),
+            const SizedBox(height: 16),
+          ],
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(

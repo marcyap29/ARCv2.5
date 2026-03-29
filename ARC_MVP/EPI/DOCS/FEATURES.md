@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.88
+**Version:** 3.3.89
 **Last Updated:** March 29, 2026
 
 ---
@@ -218,6 +218,8 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **iOS build — static CocoaPods frameworks (v3.3.87)**: `use_frameworks! :linkage => :static` in `Podfile` to reduce gRPC dynamic-framework simulator codesign failures.
 - **Robust iOS gallery / camera picking (v3.3.88)**: `RobustGalleryPicker` (`requestFullMetadata: false`, dimension/quality caps, FilePicker fallback) to avoid `NSItemProvider` / `invalid_image` failures on HEIC, screenshots, and iCloud-backed photos.
 - **Unified LUMARA image pipeline (v3.3.88)**: `MediaPickAndAnalyzeService` centralizes gallery/camera/video pick helpers and Vision analysis; journal (`journal_screen`), ARC capture (`journal_capture_view`), and research document scan (`research_screen`) share the same paths and `AnalyzedMedia.toPhotoAttachment()` for journal attachments.
+- **Cloudflare workflow clarification + document context (v3.3.89)**: Worker **`clarification_gate`** can pause research / research→writing / writing with SSE **`clarification_needed`** until the user answers in-app; **`research_pipeline`** merges client **`source_documents`** into planning and synthesis. App extracts PDF and `.txt`/`.md` attachments via **`agent_attachment_text.dart`** into `{name, text}` payloads for the Worker.
+- **Workflow outputs on disk + Firestore (v3.3.89)**: Completed workflow runs can be written to app Documents **`LumaraOutputs/`** as JSON and mirrored into the Firestore outputs taxonomy when signed in (`workflow_output_persistence.dart`, outputs screens).
 - **Agents persona + outputs stack (v3.3.85)**: `AgentsPersonaResolver` maps profile/Chronicle preferences to workflow personas; expanded `lib/features/agents` run UI and worker client; richer `lib/features/outputs` detail/list/storage; LUMARA report DOCX/export service extensions tied to profile fields.
 - **Per-User LLM Model Configuration (v3.3.62)**: updateUserModelConfig Cloud Function; users can configure provider (groq, openai, anthropic, gemini, cloudflare, swarmspace), model ID, and optional API key via Settings or in-chat flow; llmRouter, groqClient, saveUserModelConfig; MODEL_CONFIG_SETUP.md.
 - **Phase Check-In Removal; SwarmSpace Plugin Catalog (v3.3.63)**: Phase check-in module removed; SwarmSpace plugin catalog screen; CHRONICLE reviews module; DOCX export helper; swarmspacePluginStatus callable.

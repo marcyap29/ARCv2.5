@@ -1,6 +1,6 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.5.4  
+**Version:** 3.5.5  
 **Last Updated:** 2026-03-29  
 **Record count:** 40 individual bug records in [records/](records/). Index below matches all files in records/.
 
@@ -103,6 +103,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 
 | Fix / change | Version | Bug record | Notes |
 |--------------|---------|------------|--------|
+| Worker clarification gate + shared research pipeline; PDF/txt/md → `source_documents`; LumaraOutputs + Firestore mirror | v3.3.89 | — | 2026-03-29: `workers/workflows` — `clarification_gate.ts`, `research_pipeline.ts`, `types.ts` (`SourceDocument`, `skip_writer_clarification`), `research.ts` / `research_writing.ts` / `writing.ts` wiring, SSE `clarification_needed`. EPI — `agent_attachment_text.dart`, `run_screen` clarification UI, `worker_service` body fields; `workflow_output_persistence.dart`, outputs screens. **Triage:** Watch clarification loop vs `skip_writer_clarification`; large attachment truncation caps. |
 | Robust gallery picker; `MediaPickAndAnalyzeService` unifies journal + research + capture image flow | v3.3.88 | — | 2026-03-29: `robust_gallery_picker.dart` (HEIC/iCloud/`NSItemProvider` mitigations, FilePicker fallback); `media_pick_and_analyze_service.dart` (`pickSourceImageWithPermission`, `analyzeImagePath`, `toPhotoAttachment`); `journal_screen`, `journal_capture_view`, `research_screen`; Podfile.lock / plugins deps. **Triage:** Reduces iOS gallery `invalid_image` / representation load failures; watch for regressions on Android and very large assets. |
 | Google OAuth via Firebase provider; onboarding nav/Hive completion; RevenueCat iOS without Firebase auth; static iOS pods; profile save timeout | v3.3.87 | — | 2026-03-28: `firebase_auth_service` (`signInWithProvider` / `select_account`), `sign_in_screen` timeout/errors; `bootstrap` RevenueCat on iOS post-Firebase attempt; `revenuecat_service` logging/docs; `arc_onboarding_cubit` / `arc_onboarding_sequence` / `user_phase_service` / `profile_fields_screen`; `completed_form_export_service` (`cross_file`); `reset_onboarding.dart` dev target; iOS Podfile static linkage, pbxproj/Info.plist. **Triage:** No new open bug records — changes address Google Sign-In 7.x friction and onboarding navigation/persistence edge cases; monitor auth flows on device. |
 | Writing screen + Phase5b prompts; CHRONICLE bundle for agents; format card; unified bottom bar; exports; RevenueCat | v3.3.86 | — | 2026-03-27: `writing_screen`, `writing_prompts` (Phase 5b), `chronicle_bundle_builder`, `lumara_writing_format_card`, `lumara_bottom_tab_bar`, `output_detail_screen`, `report_export_service` / `docx_export_helper`, `profile_fields_screen`, `revenuecat_service`, pubspec/iOS. |

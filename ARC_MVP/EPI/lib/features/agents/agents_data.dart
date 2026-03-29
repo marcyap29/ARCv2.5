@@ -112,14 +112,34 @@ class AgentItem {
 }
 
 class AgentsData {
-  /// Free-tier SwarmSpace plugin / API catalogue (no paid keys required for basic use).
-  /// Includes in-app manifest for [JinaReaderPlugin] plus common research plugins.
+  /// Canonical free-tier plugin slugs, same order as [swarmspace.app](https://swarmspace.app/)
+  /// **System status** block at the bottom of the homepage (15 APIs).
+  static const List<String> swarmspaceOfficialFreeApiSlugs = [
+    'brave-search',
+    'semantic-scholar',
+    'jina-reader',
+    'wikipedia',
+    'open-meteo',
+    'news-api',
+    'arxiv',
+    'pubmed',
+    'hacker-news',
+    'reddit',
+    'github-public',
+    'exchange-rates',
+    'rest-countries',
+    'nominatim',
+    'gemini-flash',
+  ];
+
+  /// Free-tier SwarmSpace catalogue entries aligned with [swarmspaceOfficialFreeApiSlugs].
+  /// Descriptions mirror the public site’s “15 free APIs” section where applicable.
   static List<Map<String, dynamic>> get freeApis => [
         {
           'slug': 'brave-search',
           'name': 'Brave Search',
           'description':
-              'Web search for research runs. Free tier available via SwarmSpace.',
+              'Privacy-first web search on an independent index.',
           'access_tier': 'free',
           'trust_tier': 'verified',
         },
@@ -127,19 +147,107 @@ class AgentsData {
           'slug': 'semantic-scholar',
           'name': 'Semantic Scholar',
           'description':
-              'Academic paper search and metadata. Free API for non-commercial use.',
-          'access_tier': 'free',
-          'trust_tier': 'verified',
-        },
-        {
-          'slug': 'tavily-search',
-          'name': 'Tavily Search',
-          'description':
-              'AI-oriented web search. Often used when configured on SwarmSpace.',
+              '200M+ academic papers. Free, no key required.',
           'access_tier': 'free',
           'trust_tier': 'verified',
         },
         JinaReaderPlugin.toManifest(),
+        {
+          'slug': 'wikipedia',
+          'name': 'Wikipedia',
+          'description':
+              'Encyclopaedic knowledge base. Unlimited.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'open-meteo',
+          'name': 'Open-Meteo',
+          'description':
+              'Weather, forecasts, and historical data. No key.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'news-api',
+          'name': 'NewsAPI',
+          'description':
+              'Headlines from 70+ sources. 100 req/day.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'arxiv',
+          'name': 'arXiv',
+          'description':
+              'Scientific preprints. CS, physics, biology.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'pubmed',
+          'name': 'PubMed',
+          'description':
+              'Biomedical literature. National Library of Medicine.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'hacker-news',
+          'name': 'Hacker News',
+          'description':
+              'Tech community stories and discussions.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'reddit',
+          'name': 'Reddit (read)',
+          'description':
+              'Community discussions. 60 req/min free.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'github-public',
+          'name': 'GitHub Public',
+          'description':
+              'Public repo and developer data.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'exchange-rates',
+          'name': 'Exchange Rates',
+          'description':
+              'Currency conversion. 1,500 req/month.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'rest-countries',
+          'name': 'REST Countries',
+          'description':
+              'Country data, geography, flags. Unlimited.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'nominatim',
+          'name': 'Nominatim',
+          'description':
+              'Geocoding via OpenStreetMap. 1 req/sec.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
+        {
+          'slug': 'gemini-flash',
+          'name': 'Gemini Flash',
+          'description':
+              'Fast AI synthesis. 10 queries/day free.',
+          'access_tier': 'free',
+          'trust_tier': 'verified',
+        },
       ];
 
   static String formatBytes(int bytes) {
@@ -553,6 +661,14 @@ class AgentsData {
     ),
   ];
 
+  /// In-app worker route for this SwarmSpace free-tier slug, if one exists.
+  static AgentItem? swarmspacePluginForSlug(String slug) {
+    for (final p in swarmspacePlugins) {
+      if (p.id == slug) return p;
+    }
+    return null;
+  }
+
   static List<String> defaultEnabledIds() => [
         ...agents,
         ...swarmspacePlugins,
@@ -712,6 +828,34 @@ class AgentsData {
       );
     }
 
+    if (_isResearchThenWriteIntent(lower)) {
+      return const WorkflowChain(
+        label: 'Research, then write',
+        steps: ['Research', 'Writing'],
+        reason:
+            'Detected: gather research first, then produce written output (Substack, LinkedIn, article, etc.)',
+      );
+    }
+
+    if (_containsAny(lower, ['synthesis', 'synthesize']) &&
+        _containsAny(lower, [
+          'document',
+          'documents',
+          'pdf',
+          'paper',
+          'papers',
+          'sources',
+          'files',
+          'attach',
+        ])) {
+      return const WorkflowChain(
+        label: 'Synthesize your sources',
+        steps: ['Research', 'Writing'],
+        reason:
+            'Detected: synthesis across uploaded or named sources — research merges documents + query, then writing',
+      );
+    }
+
     if (_containsAny(lower, [
       'plugin',
       'plugins',
@@ -865,6 +1009,30 @@ class AgentsData {
   static bool _containsAny(String source, List<String> terms) {
     for (final term in terms) {
       if (source.contains(term)) return true;
+    }
+    return false;
+  }
+
+  /// "Research X then write…", "look into … and draft …", etc.
+  static bool _isResearchThenWriteIntent(String lower) {
+    final researchCue = RegExp(
+      r'\b(research|look up|look into|investigate|find out about|gather (info|information|sources)|deep dive on)\b',
+    );
+    final writeCue = RegExp(
+      r'\b(write|draft|post|publish|substack|linkedin|article|essay|piece|blog|newsletter)\b',
+    );
+    if (!researchCue.hasMatch(lower) || !writeCue.hasMatch(lower)) {
+      return false;
+    }
+    final bridge = RegExp(
+      r'\b(then|after that|afterwards|and then|before (i|you) write|and (also )?(write|draft|help me write|help me draft))\b',
+    );
+    if (bridge.hasMatch(lower)) return true;
+    if (lower.contains('research') &&
+        (lower.contains(' and write') ||
+            lower.contains(' and draft') ||
+            lower.contains(' & write'))) {
+      return true;
     }
     return false;
   }

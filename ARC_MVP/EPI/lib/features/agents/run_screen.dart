@@ -6,12 +6,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:my_app/app/app.dart' show navigatorKey;
 import 'package:my_app/features/agents/chronicle_bundle_builder.dart';
 import 'package:my_app/features/outputs/output_detail_screen.dart';
+import 'package:my_app/features/outputs/workflow_output_persistence.dart';
 import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
 import 'package:my_app/lumara/agents/widgets/lumara_writing_format_card.dart';
 import 'package:my_app/shared/ui/home/home_cubit.dart';
 import 'package:my_app/shared/ui/lumara_bottom_tab_bar.dart';
 import 'package:uuid/uuid.dart';
 
+import 'agent_attachment_text.dart';
 import 'agents_data.dart';
 import 'worker_service.dart';
 import '../outputs/output_model.dart';
@@ -115,9 +117,17 @@ class _RunScreenState extends State<RunScreen> {
   ChronicleBundle? _liveChronicleBundle;
   bool _chroniclePreviewLoading = false;
 
+  /// Sent to the Worker (includes clarification answers after the first blocked pass).
+  String _workflowInputEffective = '';
+  bool _skipWriterClarification = false;
+  List<String> _clarificationQuestions = [];
+  double? _clarificationConfidence;
+  final List<TextEditingController> _clarificationControllers = [];
+
   @override
   void initState() {
     super.initState();
+    _workflowInputEffective = widget.input;
     _partDone = List<bool>.filled(widget.requestParts.length, false);
     _platformSelections = {
       for (final p in WritingPlatforms.all) p.id: p.defaultSelected,
@@ -136,7 +146,8 @@ class _RunScreenState extends State<RunScreen> {
           final uid = await AgentsChronicleService.instance.getCurrentUserId();
           final bundle = await buildChronicleBundleForWorkflow(
             userId: uid,
-            contentTopic: widget.input,
+            contentTopic: _workflowInputEffective,
+            hybridSearchForTopic: widget.useChronicle,
           );
           if (mounted) {
             setState(() {
@@ -153,9 +164,17 @@ class _RunScreenState extends State<RunScreen> {
     }
   }
 
+  void _disposeClarificationControllers() {
+    for (final c in _clarificationControllers) {
+      c.dispose();
+    }
+    _clarificationControllers.clear();
+  }
+
   @override
   void dispose() {
     _streamSub?.cancel();
+    _disposeClarificationControllers();
     super.dispose();
   }
 
@@ -170,6 +189,16 @@ class _RunScreenState extends State<RunScreen> {
 
   bool get _chainHasWriting =>
       widget.chain.steps.any((s) => s.toLowerCase().contains('writing'));
+
+  bool get _chainHasResearchOnly =>
+      widget.chain.steps.any((s) => s.toLowerCase().contains('research')) &&
+      !_chainHasWriting;
+
+  String get _clarificationCardTitle => _chainHasWriting
+      ? 'Writer — quick clarifications'
+      : _chainHasResearchOnly
+          ? 'Research — quick clarifications'
+          : 'Quick clarifications';
 
   List<String> get _selectedPlatformIds => _platformSelections.entries
       .where((e) => e.value)
@@ -222,11 +251,18 @@ class _RunScreenState extends State<RunScreen> {
                       _buildErrorCard(),
                       const SizedBox(height: 14),
                     ],
+                    if (_phase == 'clarify') ...[
+                      _buildWriterClarificationCard(),
+                      const SizedBox(height: 14),
+                    ],
                     if (_phase == 'done') ...[
                       _buildDoneCard(),
                       const SizedBox(height: 14),
                     ],
-                    if (_phase != 'done' && _phase != 'error') _buildCtas(),
+                    if (_phase != 'done' &&
+                        _phase != 'error' &&
+                        _phase != 'clarify')
+                      _buildCtas(),
                   ],
                 ),
               ),
@@ -1345,6 +1381,160 @@ class _RunScreenState extends State<RunScreen> {
     );
   }
 
+  List<String> _parseClarificationQuestions(Object? raw) {
+    if (raw is! List) return [];
+    return raw
+        .map((e) => e.toString().trim())
+        .where((s) => s.isNotEmpty)
+        .take(4)
+        .toList();
+  }
+
+  void _submitWriterClarificationsAndContinue() {
+    if (_clarificationQuestions.length != _clarificationControllers.length) {
+      return;
+    }
+    final buf = StringBuffer();
+    for (var i = 0; i < _clarificationQuestions.length; i++) {
+      final a = _clarificationControllers[i].text.trim();
+      if (a.isEmpty) continue;
+      buf.writeln('Q: ${_clarificationQuestions[i]}');
+      buf.writeln('A: $a');
+    }
+    if (buf.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Answer at least one question so ${_chainHasWriting ? 'the writer' : 'the run'} can continue.',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: const Color(0xFF2A2A3E),
+        ),
+      );
+      return;
+    }
+    _disposeClarificationControllers();
+    setState(() {
+      _workflowInputEffective =
+          '${widget.input}\n\n--- Author clarifications ---\n${buf.toString().trim()}';
+      _skipWriterClarification = true;
+      _clarificationQuestions = [];
+      _clarificationConfidence = null;
+      _phase = 'running';
+    });
+    unawaited(_startRunAsync());
+  }
+
+  Widget _buildWriterClarificationCard() {
+    final conf = _clarificationConfidence;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14142A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF5B5BD6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _clarificationCardTitle,
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (conf != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Model confidence before proceeding: ~${conf.round()}%',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8A8AB0),
+                fontSize: 12,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            'Answer below, then continue — your replies are merged into the request.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7070A0),
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (var i = 0;
+              i < _clarificationQuestions.length &&
+                  i < _clarificationControllers.length;
+              i++) ...[
+            Text(
+              _clarificationQuestions[i],
+              style: GoogleFonts.inter(
+                color: const Color(0xFFB0B0D0),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _clarificationControllers[i],
+              minLines: 2,
+              maxLines: 4,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE0E0F0),
+                fontSize: 14,
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF0C0C1A),
+                hintText: 'Your answer…',
+                hintStyle: GoogleFonts.inter(color: const Color(0xFF44445A)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1C1C30)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1C1C30)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF5B5BD6)),
+                ),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5B5BD6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+              ),
+              onPressed: _submitWriterClarificationsAndContinue,
+              child: Text(
+                'Continue with answers →',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _ghostButton(String label, VoidCallback onPressed) {
     return SizedBox(
       width: double.infinity,
@@ -1466,6 +1656,7 @@ class _RunScreenState extends State<RunScreen> {
       steps: widget.chain.steps,
     );
     await OutputsStorage.save(output);
+    unawaited(persistWorkflowOutputEverywhere(output));
     if (!mounted) return;
     await Future<void>.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
@@ -1500,7 +1691,8 @@ class _RunScreenState extends State<RunScreen> {
         final uid = await AgentsChronicleService.instance.getCurrentUserId();
         bundle = await buildChronicleBundleForWorkflow(
           userId: uid,
-          contentTopic: widget.input,
+          contentTopic: _workflowInputEffective,
+          hybridSearchForTopic: widget.useChronicle,
         );
       } catch (_) {
         bundle = _liveChronicleBundle;
@@ -1519,14 +1711,26 @@ class _RunScreenState extends State<RunScreen> {
       };
     }
 
+    List<Map<String, String>>? sourceDocs;
+    if (widget.attachments.isNotEmpty) {
+      try {
+        sourceDocs = await extractSourceDocumentsForWorker(widget.attachments);
+        if (sourceDocs.isEmpty) sourceDocs = null;
+      } catch (_) {
+        sourceDocs = null;
+      }
+    }
+
     try {
       _streamSub = WorkerService.streamWorkflow(
         endpoint: endpoint,
-        input: widget.input,
+        input: _workflowInputEffective,
         useChronicle: widget.useChronicle,
         chronicle: bundle,
         platforms: _chainHasWriting ? _selectedPlatformIds : null,
         writingPreferences: writingPrefs,
+        sourceDocuments: sourceDocs,
+        skipWriterClarification: _skipWriterClarification,
       ).listen(
         (event) {
           if (!mounted) return;
@@ -1608,6 +1812,38 @@ class _RunScreenState extends State<RunScreen> {
                   _currentMessage = message;
                 });
               }
+              break;
+            case 'clarification_needed':
+              _streamSub?.cancel();
+              _streamSub = null;
+              final payload = event['data'];
+              Map<String, dynamic>? clarMap;
+              if (payload is Map) {
+                clarMap = Map<String, dynamic>.from(payload);
+              }
+              var qs = _parseClarificationQuestions(clarMap?['questions']);
+              final conf = (clarMap?['confidence'] as num?)?.toDouble();
+              if (!mounted) return;
+              if (qs.isEmpty) {
+                qs = [
+                  'What is the single most important outcome you want from this piece?',
+                ];
+              }
+              _disposeClarificationControllers();
+              for (var i = 0; i < qs.length; i++) {
+                _clarificationControllers.add(TextEditingController());
+              }
+              setState(() {
+                _clarificationQuestions = qs;
+                _clarificationConfidence = conf;
+                _phase = 'clarify';
+                if (message.isNotEmpty) {
+                  _currentMessage = message;
+                }
+              });
+              _pushActivityLogLine(
+                '${_chainHasWriting ? 'Writer' : 'Research'}: clarifying questions (${conf != null ? '${conf.round()}%' : 'review'})',
+              );
               break;
             case 'result':
               unawaited(_onWorkflowResult(event));

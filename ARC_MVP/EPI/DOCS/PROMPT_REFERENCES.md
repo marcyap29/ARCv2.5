@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-03-29. Document version: 2.10.1 (§21 Phase 5b writing-screen user prompt builder expanded in `writing_prompts.dart`; v3.3.88 audit — no new prompt sources in media-pick / journal / research / capture delta).
+- **Last synced with codebase:** 2026-03-29. Document version: 2.10.2 (§27 — `clarification_gate.ts` writer/research intake JSON gate; `research_pipeline.ts` shared research planning/extraction/synthesis with `source_documents` + CHRONICLE-aware system; v3.3.89 audit).
 
 ---
 
@@ -2089,15 +2089,20 @@ The three-mode reference below is for definitions only; do not blend modes or de
 
 ## 27. Worker Workflow Prompts (Research / Writing / Competitor / Plugins)
 
-**Sources:** `workers/workflows/src/workflows/research.ts`, `writing.ts`, `competitor.ts`, `plugins.ts`.
+**Sources:** `workers/workflows/src/workflows/research.ts`, `research_writing.ts`, `writing.ts`, `competitor.ts`, `plugins.ts`; shared modules `workers/workflows/src/clarification_gate.ts`, `research_pipeline.ts`.
 
-New Cloudflare Worker workflows introduce prompt-driven orchestration for four paths:
-- **Research:** query decomposition prompt (exactly 4 sub-questions), extraction prompt per source (3-5 facts), and final analytical report synthesis prompt.
-- **Writing:** narrative extraction JSON prompt (`headline`, `core_insight`, `target_pain`, `cta`) and per-platform generation prompts (LinkedIn, Orbital AI, Mechanical Musings, X, Bluesky, Reddit, Dev.to, Hacker News) with explicit tone/format constraints.
-- **Competitor:** competitor-name extraction prompt, competitive-signal extraction prompt (pricing/features/positioning/weaknesses), structured competitive card JSON prompt, and strategic brief synthesis prompt.
-- **Plugins:** API analysis JSON prompt for candidate APIs, recommendation/scoring JSON prompt, and plugin-manifest generation prompts (full and fallback variants) with required schema fields.
+**Shared modules (research / writing entry paths):**
+- **`clarification_gate.ts` — `assessWriterClarification`:** User-intake prompt (request text, attached document filenames, format tier from `writing_preferences`) asks the model to return **only JSON** (`confidence`, `ready_to_proceed`, `questions[]`). Secondary system stub: compact JSON only, specific one-sentence questions. Used before research-only, research→writing, and writing-only runs when not skipped (`revise_in_place` or `skip_writer_clarification`). Worker surfaces blocked state via SSE `clarification_needed`.
+- **`research_pipeline.ts` — `runResearchPipeline`:** Injects optional **`source_documents`** into planning and final synthesis. **Planning:** JSON sub-question decomposition (exactly four angles) with strategist system line. **Extraction:** per-URL `groqExtract` user prompt (3–5 bullet facts for the sub-question). **Synthesis:** user prompt builds structured report sections; **system** string is CHRONICLE-calibrated when `use_chronicle` and `chronicle_context` are set (profile + recent), else generic expert analyst.
 
-These prompts are new source categories in repo-root worker code, separate from `ARC_MVP/EPI/lib` prompt paths.
+**Four workflow routes** (orchestration + prompts):
+- **Research:** `handleResearch` → clarification gate → `runResearchPipeline` (steps above).
+- **Research → writing:** `handleResearchWriting` → gate → pipeline → `executeWritingCore` (writing prompts below; may skip second clarification).
+- **Writing:** `handleWriting` / `executeWritingCore` — narrative extraction JSON (`headline`, `core_insight`, `target_pain`, `cta`) and per-platform generation (LinkedIn, Orbital AI, Mechanical Musings, X, Bluesky, Reddit, Dev.to, Hacker News) with tone/format constraints.
+- **Competitor:** competitor-name extraction, competitive-signal extraction, structured competitive card JSON, strategic brief synthesis.
+- **Plugins:** API analysis JSON, recommendation/scoring JSON, plugin-manifest generation (full and fallback).
+
+Worker prompt sources live under repo-root `workers/workflows/`, separate from `ARC_MVP/EPI/lib` prompt paths.
 
 ---
 
@@ -2105,6 +2110,7 @@ These prompts are new source categories in repo-root worker code, separate from 
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.10.2 | 2026-03-29 | **v3.3.89:** §27 expanded — `clarification_gate.ts` (intake JSON assessment + synthesisJson system stub); `research_pipeline.ts` (merged `source_documents`, four-sub-question plan, per-source extract, CHRONICLE-aware synthesis system); `research.ts` / `research_writing.ts` / `writing.ts` orchestration notes and SSE `clarification_needed`. |
 | 2.10.1 | 2026-03-27 | **v3.3.86:** §21 — Documented Phase 5b writing-screen builder (`buildPhase5bWritingPrompt`, `phase5bFormatInstructions`): optional format display name/specs, revise-in-place intent, white-paper/research-paper branches, optional Sources tail; platform copy guidance updates (LinkedIn/Reddit, X/Threads). |
 | 2.10.0 | 2026-03-24 | **v3.3.84:** Added §27 Worker Workflow Prompts covering new prompt definitions in `workers/workflows/src/workflows/{research,writing,competitor,plugins}.ts` (planning/extraction/synthesis, platform writing, competitor intel card/brief, plugin scoring/manifest generation). |
 | 2.9.2 | 2026-03-22 | **v3.3.81:** New §26 — `lumaraModeBindingPreamble` in `lumara_mode_definition.dart`; session-start / reflection injection in `lumara_assistant_cubit.dart`, `enhanced_lumara_api.dart`. Mode 1 text extended for long attachments (stay Personal; no Mode 3 dossier unless requested). |
