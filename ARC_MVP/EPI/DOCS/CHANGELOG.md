@@ -1,7 +1,24 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.89
+**Version:** 3.3.90
 **Last Updated:** March 29, 2026
+
+---
+
+## [3.3.90] - March 29, 2026
+
+### Research scope confirmation (Worker); chat + Research screen document context; mobile RAM trims; doc sync
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup).
+
+**Updated (sync with repo / working tree):**
+- **Cloudflare workflows (`workers/workflows/src/`):** **`planResearchSubQuestions`** split out of **`research_pipeline.ts`** so the four sub-questions can be surfaced before web search. **`research.ts`** and **`research_writing.ts`** emit **`clarification_needed`** with **`phase: 'research_scope'`** (planned search angles) unless **`skip_research_scope_clarification`** is true; first gate uses **`phase: 'intake'`**; research→writing writer gate uses **`phase: 'writing'`**. **`writing.ts`** intake payload includes **`phase: 'intake'`**. **`types.ts`** — `skip_research_scope_clarification` on **`WorkflowRequest`**.
+- **Agents run UI (`run_screen.dart`, `worker_service.dart`):** Tracks **`_pendingClarificationPhase`**, merges user answers under section labels (`research_scope` / `writing` / default), sends **`skipResearchScopeClarification`**; up to **8** clarification lines; activity log visible during **`clarify`** phase.
+- **LUMARA chat (`lumara_assistant_cubit.dart`, `lumara_chat_orchestrator.dart`):** New **`chat_attachment_document_context.dart`** — extracts PDF/DOCX/TXT/MD from chat file attachments (per-file and total caps) into **`attachmentDocumentContext`** for the Research Agent path. Agent-path completions clear **`showApiProgressScreen`**.
+- **Research screen (`research_screen.dart`):** **Attach PDF / Word** via **`FilePicker`** + **`DocumentContentService`**; document context clamped to **12k** chars (aligned with agent); **`SwarmSpaceWebSearchTool`** uses **`contextLookup`** so PRISM calls do not use a stale **`BuildContext`** after async gaps.
+- **Research Agent stack:** **`research_agent.dart`** — sub-query caps by depth (**3 / 5 / 7**) and **6** when depth is unset (chat); **12k** document-context clamp; **`executeSearches`** uses **`effectivePlan.executionStrategy`**; session **`searchResults`** refreshed from report; refine path caps sub-queries. **`search_orchestrator.dart`** — smaller parallel batch (**2**), fewer fetched pages (**2**), **5k** char cap per fetched page. **`research_models.dart`** — **`compactSearchResultsForMemory`**. **`synthesis_engine.dart`** — reports store compacted results; fallback insight omits full synthesis as evidence. **`agent_attachment_text.dart`** — **`.doc` / `.docx`** text via **`DocumentContentService`**. **`writing_prompts.dart`** — Phase 5b includes capped research brief summary (**4k**) before key points.
+
+**Prompt audit:** Worker orchestration and SSE **`phase`** contract updated in catalog; **`PROMPT_REFERENCES.md`** **v2.10.3** (§27).
 
 ---
 

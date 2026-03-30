@@ -32,6 +32,11 @@ export interface WorkflowRequest {
   writing_preferences?: Record<string, unknown>;
   /** After the user answers clarifying questions, set true so the writer does not loop. */
   skip_writer_clarification?: boolean;
+  /**
+   * After the user confirms planned research search angles (see clarification_needed phase
+   * `research_scope`), set true so the worker runs web/academic search without pausing again.
+   */
+  skip_research_scope_clarification?: boolean;
 }
 
 export interface ChronicleBundle {

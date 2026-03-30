@@ -28,17 +28,13 @@ function sourceDocumentsBlock(req: WorkflowRequest): string {
 }
 
 /**
- * Runs web research + synthesis. Emits progress via [onProgress].
- * Merges optional uploaded documents into planning and final report context.
+ * Plans exactly four sub-questions for web + academic-style search (used before search, and
+ * optionally surfaced to the user for confirmation via clarification_needed).
  */
-export async function runResearchPipeline(
+export async function planResearchSubQuestions(
   req: WorkflowRequest,
   env: Env,
-  onProgress: (message: string) => void,
-): Promise<{
-  report: string;
-  sources: { title: string; url: string }[];
-}> {
+): Promise<string[]> {
   const docBlock = sourceDocumentsBlock(req);
 
   const ctxBlock =
@@ -46,8 +42,6 @@ export async function runResearchPipeline(
       ? `User context: ${req.chronicle_context.profile}.
         Recent: ${req.chronicle_context.recent}`
       : '';
-
-  onProgress('Planning sub-questions...');
 
   const plan = await synthesizeJson<PlanJson>(
     `Break this research query into exactly 4 focused sub-questions that together
@@ -69,7 +63,26 @@ export async function runResearchPipeline(
   while (questions.length < 4) {
     questions.push(req.input);
   }
-  questions = questions.slice(0, 4);
+  return questions.slice(0, 4);
+}
+
+/**
+ * Runs web research + synthesis. Emits progress via [onProgress].
+ * Merges optional uploaded documents into planning and final report context.
+ */
+export async function runResearchPipeline(
+  req: WorkflowRequest,
+  env: Env,
+  onProgress: (message: string) => void,
+): Promise<{
+  report: string;
+  sources: { title: string; url: string }[];
+}> {
+  const docBlock = sourceDocumentsBlock(req);
+
+  onProgress('Planning sub-questions...');
+
+  const questions = await planResearchSubQuestions(req, env);
 
   onProgress(`${questions.length} sub-questions planned`);
   onProgress('Searching web and academic sources...');

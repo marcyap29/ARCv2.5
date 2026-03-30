@@ -267,6 +267,7 @@ export async function handleWriting(
       step: 'Writing',
       message: 'Please answer the questions in the app, then continue.',
       data: {
+        phase: 'intake',
         confidence: outcome.confidence,
         questions: outcome.questions,
       },

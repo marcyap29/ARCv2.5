@@ -1,6 +1,6 @@
 # Prompt Tracker
 
-**Version:** 1.38.0  
+**Version:** 1.39.0  
 **Last Updated:** March 29, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-03-29 | Doc sync v3.3.90: Worker orchestration — `planResearchSubQuestions`, `research_scope` SSE phase, `skip_research_scope_clarification`; catalog §27; `PROMPT_REFERENCES` v2.10.3 | CHANGELOG v3.3.90 |
 | 2026-03-29 | Doc sync v3.3.89: Worker `clarification_gate.ts` + `research_pipeline.ts` prompt strings catalogued; `PROMPT_REFERENCES` v2.10.2 (§27 expansion); session: Documentation & Config & Git Backup | CHANGELOG v3.3.89 |
 | 2026-03-29 | Doc sync v3.3.88: Prompt audit — robust gallery / `MediaPickAndAnalyzeService` / journal-research-capture delta has no new LLM prompts; `PROMPT_REFERENCES` v2.10.1 (header sync); session: Documentation & Config & Git Backup + prompt/bug tracker | CHANGELOG v3.3.88 |
 | 2026-03-28 | Doc sync v3.3.87: Prompt audit on auth/onboarding/RevenueCat/iOS delta — no new LLM prompt sources; `PROMPT_REFERENCES` v2.10.1 unchanged (catalog header last-synced); session tasking: Documentation & Config & Git Backup + prompt-tracker/bug-tracker maintenance | CHANGELOG v3.3.87 |

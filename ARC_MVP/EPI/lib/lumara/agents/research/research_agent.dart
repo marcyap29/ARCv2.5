@@ -67,6 +67,36 @@ class ResearchAgent {
         _getAgentOsPrefix = getAgentOsPrefix;
 
   static const int _totalSteps = 5;
+  /// When [conductResearch] has no explicit depth (e.g. chat), cap sub-queries for device RAM.
+  static const int _maxSubQueriesDefault = 6;
+  static const int _maxDocumentContextChars = 12000;
+
+  /// Limit scanned-document context so the synthesis prompt does not exhaust mobile RAM.
+  String? _clampDocumentContext(String? documentContext) {
+    if (documentContext == null || documentContext.isEmpty) return documentContext;
+    final t = documentContext.trim();
+    if (t.length <= _maxDocumentContextChars) return t;
+    return '${t.substring(0, _maxDocumentContextChars)}\n\n[Document truncated for memory…]';
+  }
+
+  ResearchPlan _planCappedForDepth(ResearchPlan plan, ResearchDepth? researchDepth) {
+    final max = switch (researchDepth) {
+      ResearchDepth.quick_scan => 3,
+      ResearchDepth.standard => 5,
+      ResearchDepth.deep_dive => 7,
+      null => _maxSubQueriesDefault,
+    };
+    if (plan.subQueries.length <= max) return plan;
+    return ResearchPlan(
+      originalQuery: plan.originalQuery,
+      subQueries: plan.subQueries.take(max).toList(),
+      executionStrategy: plan.executionStrategy,
+      estimatedDuration: plan.estimatedDuration,
+    );
+  }
+
+  /// Follow-ups: no depth in API — use default cap.
+  ResearchPlan _planCappedForRefine(ResearchPlan plan) => _planCappedForDepth(plan, null);
 
   /// Run full research pipeline and return report with session id.
   /// [onProgress] is optional; when provided, called at each step for chat UI.
@@ -112,15 +142,8 @@ class ResearchAgent {
       currentPhase: phase,
     );
 
-    // Brief depth: fewer sub-queries to reduce API usage and keep synthesis short.
-    final effectivePlan = researchDepth == ResearchDepth.quick_scan && plan.subQueries.length > 3
-        ? ResearchPlan(
-            originalQuery: plan.originalQuery,
-            subQueries: plan.subQueries.take(3).toList(),
-            executionStrategy: plan.executionStrategy,
-            estimatedDuration: plan.estimatedDuration,
-          )
-        : plan;
+    final effectivePlan = _planCappedForDepth(plan, researchDepth);
+    final clampedDoc = _clampDocumentContext(documentContext);
 
     onProgress?.call(ResearchProgress(
       status: 'Executing ${effectivePlan.subQueries.length} searches...',
@@ -130,7 +153,7 @@ class ResearchAgent {
 
     final searchResults = await _searchOrchestrator.executeSearches(
       queries: effectivePlan.subQueries,
-      strategy: plan.executionStrategy,
+      strategy: effectivePlan.executionStrategy,
       priorContext: priorContext,
       onProgress: (status) => onProgress?.call(ResearchProgress(
         status: status,
@@ -166,8 +189,12 @@ class ResearchAgent {
       timelineContext: null,
       researchDepthLabel: depthLabel,
       systemPromptPrefix: systemPromptPrefix,
-      documentContext: documentContext,
+      documentContext: clampedDoc,
     );
+
+    session.searchResults
+      ..clear()
+      ..addAll(report.searchResults);
 
     onProgress?.call(ResearchProgress(
       status: 'Saving research session...',
@@ -209,10 +236,11 @@ class ResearchAgent {
       userQuery: followUpQuery,
       currentPhase: session.phase,
     );
+    final cappedPlan = _planCappedForRefine(plan);
 
     final additionalResults = await _searchOrchestrator.executeSearches(
-      queries: plan.subQueries,
-      strategy: plan.executionStrategy,
+      queries: cappedPlan.subQueries,
+      strategy: cappedPlan.executionStrategy,
       priorContext: priorContext,
     );
 
@@ -230,6 +258,10 @@ class ResearchAgent {
       timelineContext: null,
       systemPromptPrefix: systemPromptPrefix,
     );
+
+    session.searchResults
+      ..clear()
+      ..addAll(refinedReport.searchResults);
 
     _sessionManager.updateSessionWithReport(session, refinedReport);
     return refinedReport;

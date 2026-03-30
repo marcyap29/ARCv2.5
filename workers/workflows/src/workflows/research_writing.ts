@@ -1,11 +1,11 @@
 import type { Env, SSEMessage, WorkflowRequest } from '../types';
 import { assessWriterClarification } from '../clarification_gate';
-import { runResearchPipeline } from '../research_pipeline';
+import { planResearchSubQuestions, runResearchPipeline } from '../research_pipeline';
 import { executeWritingCore } from './writing';
 
 /**
  * True research → writing pipeline: web + documents for research, then platform drafts from the report.
- * Clarification runs once before research when the request is ambiguous.
+ * Intake clarification runs when ambiguous; research search angles are confirmed before web search.
  */
 export async function handleResearchWriting(
   req: WorkflowRequest,
@@ -19,8 +19,37 @@ export async function handleResearchWriting(
       step: 'Writing',
       message: 'Please answer the questions in the app, then continue.',
       data: {
+        phase: 'intake',
         confidence: gate.confidence,
         questions: gate.questions,
+      },
+    });
+    return;
+  }
+
+  if (req.skip_research_scope_clarification !== true) {
+    send({
+      type: 'step_start',
+      step: 'Research',
+      message: 'Planning sub-questions...',
+    });
+
+    const questions = await planResearchSubQuestions(req, env);
+
+    send({
+      type: 'progress',
+      message: `${questions.length} sub-questions planned`,
+    });
+
+    send({
+      type: 'clarification_needed',
+      step: 'Research',
+      message:
+        'Review the planned search angles below. Answer to narrow, redirect, or confirm — then we search the web and sources.',
+      data: {
+        phase: 'research_scope',
+        confidence: 100,
+        questions: questions.map((q, i) => `Search angle ${i + 1}: ${q}`),
       },
     });
     return;
@@ -29,7 +58,7 @@ export async function handleResearchWriting(
   send({
     type: 'step_start',
     step: 'Research',
-    message: 'Planning sub-questions...',
+    message: 'Searching web and academic sources...',
   });
 
   const { report } = await runResearchPipeline(req, env, (message) => {
@@ -63,6 +92,7 @@ export async function handleResearchWriting(
       step: 'Writing',
       message: 'Please answer the questions in the app, then continue.',
       data: {
+        phase: 'writing',
         confidence: outcome.confidence,
         questions: outcome.questions,
       },

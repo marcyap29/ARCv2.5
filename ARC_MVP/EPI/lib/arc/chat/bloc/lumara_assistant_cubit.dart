@@ -72,6 +72,7 @@ import 'package:my_app/chronicle/dual/intelligence/agentic_loop_orchestrator.dar
 import 'package:my_app/chronicle/dual/intelligence/interrupt/interrupt_decision_engine.dart';
 import 'package:my_app/arc/internal/echo/prism_adapter.dart';
 import 'package:my_app/core/services/media_pick_and_analyze_service.dart';
+import 'package:my_app/arc/chat/services/chat_attachment_document_context.dart';
 
 /// Pending SwarmSpace plugin consent (first-use interrupt per LUMARA–SwarmSpace docking spec).
 class SwarmSpaceConsentRequest {
@@ -914,7 +915,24 @@ class LumaraAssistantCubit extends Cubit<LumaraAssistantState> {
 
     // Chat agent orchestration: Research and Writing agents run FIRST.
     // If intent is research/writing, agents run and we return; else fall through to Enhanced API.
-    final handled = await _tryChatAgentPath(text, updatedMessages, currentState, currentEntry);
+    String? attachmentDocContext;
+    final chatFiles = fileAttachments;
+    if (chatFiles != null && chatFiles.isNotEmpty) {
+      try {
+        attachmentDocContext = await buildDocumentContextFromChatAttachments(
+          chatFiles.map((f) => (path: f.path, fileName: f.fileName)).toList(),
+        );
+      } catch (e) {
+        print('LUMARA Chat: attachment document extraction failed: $e');
+      }
+    }
+    final handled = await _tryChatAgentPath(
+      text,
+      updatedMessages,
+      currentState,
+      currentEntry,
+      attachmentDocumentContext: attachmentDocContext,
+    );
     if (handled) return;
 
     // Check if this is a reflective query
@@ -3019,8 +3037,9 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
     String text,
     List<LumaraMessage> updatedMessages,
     LumaraAssistantLoaded currentState,
-    JournalEntry? currentEntry,
-  ) async {
+    JournalEntry? currentEntry, {
+    String? attachmentDocumentContext,
+  }) async {
     // Fast pre-filter: skip LLM classification (and its groqSend call) for messages
     // that clearly aren't research/writing tasks. This avoids a back-to-back
     // proxyGroq call immediately before the main response call, which triggers the
@@ -3067,12 +3086,17 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
         userId: userId,
         message: text,
         onProgressUpdate: (_) {},
+        attachmentDocumentContext: attachmentDocumentContext,
       );
       if (response.type == ChatResponseType.notImplemented) {
         final assistantMsg = LumaraMessage.assistant(content: response.message);
         final finalMessages = [...updatedMessages, assistantMsg];
         await _addToChatSession(response.message, 'assistant', messageId: assistantMsg.id, timestamp: assistantMsg.timestamp);
-        emit(currentState.copyWith(messages: finalMessages, isProcessing: false));
+        emit(currentState.copyWith(
+          messages: finalMessages,
+          isProcessing: false,
+          showApiProgressScreen: false,
+        ));
         return true;
       }
       return false;
@@ -3112,11 +3136,16 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
             }
           }
         },
+        attachmentDocumentContext: attachmentDocumentContext,
       );
 
       if (response.type == ChatResponseType.useReflectionPath) {
         // Agent failed or returned delegate; remove placeholder and let reflection path run
-        emit(currentState.copyWith(messages: updatedMessages, isProcessing: true));
+        emit(currentState.copyWith(
+          messages: updatedMessages,
+          isProcessing: true,
+          showApiProgressScreen: false,
+        ));
         return false;
       }
 
@@ -3124,7 +3153,11 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
         final assistantMsg = LumaraMessage.assistant(content: response.message);
         final finalMessages = [...updatedMessages, assistantMsg];
         await _addToChatSession(response.message, 'assistant', messageId: assistantMsg.id, timestamp: assistantMsg.timestamp);
-        emit(currentState.copyWith(messages: finalMessages, isProcessing: false));
+        emit(currentState.copyWith(
+          messages: finalMessages,
+          isProcessing: false,
+          showApiProgressScreen: false,
+        ));
         return true;
       }
 
@@ -3165,12 +3198,20 @@ Your exported MCP bundle can be imported into any MCP-compatible system, ensurin
       final finalMessages = [...updatedMessages, assistantMsg];
       await _recordAssistantMessage(response.message);
       await _addToChatSession(response.message, 'assistant', messageId: assistantMsg.id, timestamp: assistantMsg.timestamp);
-      emit(currentState.copyWith(messages: finalMessages, isProcessing: false));
+      emit(currentState.copyWith(
+        messages: finalMessages,
+        isProcessing: false,
+        showApiProgressScreen: false,
+      ));
       await PendingConversationService.clearPendingInput();
       return true;
     } catch (e) {
       print('LUMARA Chat: Agent path failed: $e');
-      emit(currentState.copyWith(messages: updatedMessages, isProcessing: true));
+      emit(currentState.copyWith(
+        messages: updatedMessages,
+        isProcessing: true,
+        showApiProgressScreen: false,
+      ));
       return false;
     }
   }

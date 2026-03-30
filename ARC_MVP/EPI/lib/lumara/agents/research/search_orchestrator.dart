@@ -4,10 +4,13 @@
 import 'research_models.dart';
 import 'web_search_tool.dart';
 
-/// Batch size for parallel searches (rate limiting).
-const int _batchSize = 5;
+/// Batch size for parallel searches — keep low to reduce peak RAM on mobile.
+const int _batchSize = 2;
 const int _delayBetweenBatchesMs = 500;
-const int _topPagesToFetch = 3;
+const int _topPagesToFetch = 2;
+
+/// Cap extracted page text per URL before retaining in [SearchResult] (synthesis uses substring anyway).
+const int _maxFetchedPageChars = 5000;
 
 /// Executes search plans with optional prior-context filtering.
 class SearchOrchestrator {
@@ -78,6 +81,15 @@ class SearchOrchestrator {
     return results;
   }
 
+  FetchedPage _truncateFetchedPage(FetchedPage page) {
+    if (page.content.length <= _maxFetchedPageChars) return page;
+    return FetchedPage(
+      url: page.url,
+      title: page.title,
+      content: '${page.content.substring(0, _maxFetchedPageChars)}…',
+    );
+  }
+
   Future<SearchResult> _executeSearch(String query) async {
     final snippets = await _searchTool.search(query);
     final scored = _scoreResults(snippets, query);
@@ -85,7 +97,7 @@ class SearchOrchestrator {
     final fullPages = <FetchedPage>[];
     for (final url in topUrls) {
       final page = await _searchTool.fetchPage(url);
-      if (page != null) fullPages.add(page);
+      if (page != null) fullPages.add(_truncateFetchedPage(page));
     }
     return SearchResult(
       query: query,

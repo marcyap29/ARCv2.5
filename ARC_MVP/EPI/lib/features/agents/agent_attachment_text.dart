@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:my_app/core/services/document_content_service.dart';
 import 'package:my_app/core/services/pdf_content_service.dart';
 import 'package:my_app/features/agents/agents_data.dart';
 
@@ -31,6 +32,8 @@ Future<List<Map<String, String>>> extractSourceDocumentsForWorker(
       if (text.isEmpty && r.pageImageInsights.trim().isNotEmpty) {
         text = r.pageImageInsights.trim();
       }
+    } else if (ext == 'docx' || ext == 'doc') {
+      text = (await DocumentContentService.extractTextFromPath(path)).trim();
     } else if (ext == 'txt' || ext == 'md' || ext == 'markdown') {
       try {
         text = (await File(path).readAsString()).trim();

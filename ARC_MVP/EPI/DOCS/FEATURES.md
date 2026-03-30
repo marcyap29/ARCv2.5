@@ -1,6 +1,6 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.89
+**Version:** 3.3.90
 **Last Updated:** March 29, 2026
 
 ---
@@ -219,6 +219,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Robust iOS gallery / camera picking (v3.3.88)**: `RobustGalleryPicker` (`requestFullMetadata: false`, dimension/quality caps, FilePicker fallback) to avoid `NSItemProvider` / `invalid_image` failures on HEIC, screenshots, and iCloud-backed photos.
 - **Unified LUMARA image pipeline (v3.3.88)**: `MediaPickAndAnalyzeService` centralizes gallery/camera/video pick helpers and Vision analysis; journal (`journal_screen`), ARC capture (`journal_capture_view`), and research document scan (`research_screen`) share the same paths and `AnalyzedMedia.toPhotoAttachment()` for journal attachments.
 - **Cloudflare workflow clarification + document context (v3.3.89)**: Worker **`clarification_gate`** can pause research / research→writing / writing with SSE **`clarification_needed`** until the user answers in-app; **`research_pipeline`** merges client **`source_documents`** into planning and synthesis. App extracts PDF and `.txt`/`.md` attachments via **`agent_attachment_text.dart`** into `{name, text}` payloads for the Worker.
+- **Research search-angle confirmation + richer attachments (v3.3.90)**: Research and research→writing workflows surface four planned sub-questions as **`clarification_needed`** with **`phase: research_scope`** before web search; client sends **`skip_research_scope_clarification`** after the user continues. Intake and writer gates include SSE **`data.phase`** (**`intake`**, **`writing`**). **`.doc`/`.docx`** supported in agent attachment extraction. LUMARA **chat** file attachments (PDF/DOCX/TXT/MD) can feed **Research** via **`chat_attachment_document_context.dart`**. **Research** screen: attach PDF/Word from disk with **12k**-char context clamp (matches agent). SwarmSpace web search uses live **`contextLookup`** to avoid stale **`BuildContext`**. On-device research path: tighter parallel search batch, truncated fetched pages, compacted **`searchResults`** after synthesis for lower RAM.
 - **Workflow outputs on disk + Firestore (v3.3.89)**: Completed workflow runs can be written to app Documents **`LumaraOutputs/`** as JSON and mirrored into the Firestore outputs taxonomy when signed in (`workflow_output_persistence.dart`, outputs screens).
 - **Agents persona + outputs stack (v3.3.85)**: `AgentsPersonaResolver` maps profile/Chronicle preferences to workflow personas; expanded `lib/features/agents` run UI and worker client; richer `lib/features/outputs` detail/list/storage; LUMARA report DOCX/export service extensions tied to profile fields.
 - **Per-User LLM Model Configuration (v3.3.62)**: updateUserModelConfig Cloud Function; users can configure provider (groq, openai, anthropic, gemini, cloudflare, swarmspace), model ID, and optional API key via Settings or in-chat flow; llmRouter, groqClient, saveUserModelConfig; MODEL_CONFIG_SETUP.md.

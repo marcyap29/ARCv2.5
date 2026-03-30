@@ -71,6 +71,7 @@ class SynthesisEngine {
     final citations = _citations.buildCitations(searchResults);
     final insights = _extractInsightsSimple(synthesis);
     final abstractBullets = _buildAbstractBullets(_firstParagraph(synthesis), insights);
+    final compactResults = compactSearchResultsForMemory(searchResults);
 
     return ResearchReport(
       query: originalQuery,
@@ -83,7 +84,7 @@ class SynthesisEngine {
       citations: citations,
       priorKnowledge: priorContext.existingKnowledge,
       knowledgeGapsDiscovered: priorContext.knowledgeGaps,
-      searchResults: searchResults,
+      searchResults: compactResults,
       generatedAt: DateTime.now(),
       phase: currentPhase,
       depth: depth,
@@ -248,7 +249,11 @@ Generate the synthesis now.
       if (insights.length >= 7) break;
     }
     if (insights.isEmpty) {
-      insights.add(Insight(statement: _firstParagraph(synthesis), evidence: synthesis, confidence: 0.7));
+      insights.add(Insight(
+        statement: _firstParagraph(synthesis),
+        evidence: '',
+        confidence: 0.7,
+      ));
     }
     return insights;
   }

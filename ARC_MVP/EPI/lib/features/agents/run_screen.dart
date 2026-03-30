@@ -120,9 +120,13 @@ class _RunScreenState extends State<RunScreen> {
   /// Sent to the Worker (includes clarification answers after the first blocked pass).
   String _workflowInputEffective = '';
   bool _skipWriterClarification = false;
+  /// After user confirms planned research angles (worker `research_scope`) or resumes writing.
+  bool _skipResearchScopeClarification = false;
   List<String> _clarificationQuestions = [];
   double? _clarificationConfidence;
   final List<TextEditingController> _clarificationControllers = [];
+  /// From last `clarification_needed` payload: `intake` | `research_scope` | `writing`.
+  String? _pendingClarificationPhase;
 
   @override
   void initState() {
@@ -194,11 +198,19 @@ class _RunScreenState extends State<RunScreen> {
       widget.chain.steps.any((s) => s.toLowerCase().contains('research')) &&
       !_chainHasWriting;
 
-  String get _clarificationCardTitle => _chainHasWriting
-      ? 'Writer — quick clarifications'
-      : _chainHasResearchOnly
-          ? 'Research — quick clarifications'
-          : 'Quick clarifications';
+  String get _clarificationCardTitle {
+    if (_pendingClarificationPhase == 'research_scope') {
+      return 'Research — planned search angles';
+    }
+    if (_pendingClarificationPhase == 'writing') {
+      return 'Writer — quick clarifications';
+    }
+    return _chainHasWriting
+        ? 'Writer — quick clarifications'
+        : _chainHasResearchOnly
+            ? 'Research — quick clarifications'
+            : 'Quick clarifications';
+  }
 
   List<String> get _selectedPlatformIds => _platformSelections.entries
       .where((e) => e.value)
@@ -242,7 +254,8 @@ class _RunScreenState extends State<RunScreen> {
                       const SizedBox(height: 12),
                     ],
                     _buildChainCard(),
-                    if (_phase == 'running' && _activityLog.isNotEmpty) ...[
+                    if ((_phase == 'running' || _phase == 'clarify') &&
+                        _activityLog.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       _buildActivityLogCard(),
                     ],
@@ -1386,7 +1399,7 @@ class _RunScreenState extends State<RunScreen> {
     return raw
         .map((e) => e.toString().trim())
         .where((s) => s.isNotEmpty)
-        .take(4)
+        .take(8)
         .toList();
   }
 
@@ -1414,10 +1427,30 @@ class _RunScreenState extends State<RunScreen> {
       return;
     }
     _disposeClarificationControllers();
+
+    final merged = buf.toString().trim();
+    final base = _workflowInputEffective.trim();
+    final phase = _pendingClarificationPhase;
+    String sectionLabel;
+    if (phase == 'research_scope') {
+      sectionLabel = '--- Research search scope (user) ---';
+    } else if (phase == 'writing') {
+      sectionLabel = '--- Writing clarifications (user) ---';
+    } else {
+      sectionLabel = '--- Author clarifications ---';
+    }
+
+    final skipScope = phase == 'research_scope' || phase == 'writing';
+
     setState(() {
-      _workflowInputEffective =
-          '${widget.input}\n\n--- Author clarifications ---\n${buf.toString().trim()}';
+      _workflowInputEffective = base.isEmpty
+          ? '$sectionLabel\n$merged'
+          : '$base\n\n$sectionLabel\n$merged';
       _skipWriterClarification = true;
+      if (skipScope) {
+        _skipResearchScopeClarification = true;
+      }
+      _pendingClarificationPhase = null;
       _clarificationQuestions = [];
       _clarificationConfidence = null;
       _phase = 'running';
@@ -1458,7 +1491,9 @@ class _RunScreenState extends State<RunScreen> {
           ],
           const SizedBox(height: 12),
           Text(
-            'Answer below, then continue — your replies are merged into the request.',
+            _pendingClarificationPhase == 'research_scope'
+                ? 'Answer below, then continue. Your replies are merged into the request so web and academic search uses the right focus.'
+                : 'Answer below, then continue — your replies are merged into the request.',
             style: GoogleFonts.inter(
               color: const Color(0xFF7070A0),
               fontSize: 12,
@@ -1521,7 +1556,9 @@ class _RunScreenState extends State<RunScreen> {
               ),
               onPressed: _submitWriterClarificationsAndContinue,
               child: Text(
-                'Continue with answers →',
+                _pendingClarificationPhase == 'research_scope'
+                    ? 'Continue to research →'
+                    : 'Continue with answers →',
                 style: GoogleFonts.inter(
                   color: Colors.white,
                   fontSize: 15,
@@ -1731,6 +1768,7 @@ class _RunScreenState extends State<RunScreen> {
         writingPreferences: writingPrefs,
         sourceDocuments: sourceDocs,
         skipWriterClarification: _skipWriterClarification,
+        skipResearchScopeClarification: _skipResearchScopeClarification,
       ).listen(
         (event) {
           if (!mounted) return;
@@ -1823,6 +1861,7 @@ class _RunScreenState extends State<RunScreen> {
               }
               var qs = _parseClarificationQuestions(clarMap?['questions']);
               final conf = (clarMap?['confidence'] as num?)?.toDouble();
+              final clarPhase = clarMap?['phase'] as String?;
               if (!mounted) return;
               if (qs.isEmpty) {
                 qs = [
@@ -1834,6 +1873,7 @@ class _RunScreenState extends State<RunScreen> {
                 _clarificationControllers.add(TextEditingController());
               }
               setState(() {
+                _pendingClarificationPhase = clarPhase;
                 _clarificationQuestions = qs;
                 _clarificationConfidence = conf;
                 _phase = 'clarify';

@@ -536,6 +536,13 @@ Phase5bPromptResult buildPhase5bWritingPrompt({
   if (brief != null) {
     sb.writeln('Use the following research as source material:');
     sb.writeln('Topic: ${brief.title}');
+    final sum = brief.summary.trim();
+    if (sum.isNotEmpty) {
+      final sumCap = sum.length > 4000 ? '${sum.substring(0, 4000)}…' : sum;
+      sb.writeln('Synthesis summary:');
+      sb.writeln(sumCap);
+      sb.writeln();
+    }
     sb.writeln('Key points:');
     for (final p in brief.keyPoints) sb.writeln('- $p');
     if (brief.sources.isNotEmpty) {

@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-03-29. Document version: 2.10.2 (§27 — `clarification_gate.ts` writer/research intake JSON gate; `research_pipeline.ts` shared research planning/extraction/synthesis with `source_documents` + CHRONICLE-aware system; v3.3.89 audit).
+- **Last synced with codebase:** 2026-03-29. Document version: 2.10.3 (§27 — `planResearchSubQuestions` + `research_scope` clarification before search; `skip_research_scope_clarification`; SSE `clarification_needed` `phase` field `intake` | `research_scope` | `writing`; v3.3.90 audit).
 
 ---
 
@@ -2092,12 +2092,18 @@ The three-mode reference below is for definitions only; do not blend modes or de
 **Sources:** `workers/workflows/src/workflows/research.ts`, `research_writing.ts`, `writing.ts`, `competitor.ts`, `plugins.ts`; shared modules `workers/workflows/src/clarification_gate.ts`, `research_pipeline.ts`.
 
 **Shared modules (research / writing entry paths):**
-- **`clarification_gate.ts` — `assessWriterClarification`:** User-intake prompt (request text, attached document filenames, format tier from `writing_preferences`) asks the model to return **only JSON** (`confidence`, `ready_to_proceed`, `questions[]`). Secondary system stub: compact JSON only, specific one-sentence questions. Used before research-only, research→writing, and writing-only runs when not skipped (`revise_in_place` or `skip_writer_clarification`). Worker surfaces blocked state via SSE `clarification_needed`.
-- **`research_pipeline.ts` — `runResearchPipeline`:** Injects optional **`source_documents`** into planning and final synthesis. **Planning:** JSON sub-question decomposition (exactly four angles) with strategist system line. **Extraction:** per-URL `groqExtract` user prompt (3–5 bullet facts for the sub-question). **Synthesis:** user prompt builds structured report sections; **system** string is CHRONICLE-calibrated when `use_chronicle` and `chronicle_context` are set (profile + recent), else generic expert analyst.
+- **`clarification_gate.ts` — `assessWriterClarification`:** User-intake prompt (request text, attached document filenames, format tier from `writing_preferences`) asks the model to return **only JSON** (`confidence`, `ready_to_proceed`, `questions[]`). Secondary system stub: compact JSON only, specific one-sentence questions. Used before research-only, research→writing, and writing-only runs when not skipped (`revise_in_place` or `skip_writer_clarification`). Worker surfaces blocked state via SSE `clarification_needed` with **`data.phase: 'intake'`** (or **`'writing'`** on the second gate in research→writing).
+- **`research_pipeline.ts` — `planResearchSubQuestions`:** Same four-sub-question JSON planning call as before, but exported so **`research.ts` / `research_writing.ts`** can run planning **before** web search and surface angles to the user.
+- **`research_pipeline.ts` — `runResearchPipeline`:** Calls `planResearchSubQuestions` internally, then search + extract + synthesis. Injects optional **`source_documents`** into planning and final synthesis. **Planning:** exactly four angles with strategist system line. **Extraction:** per-URL `groqExtract` user prompt (3–5 bullet facts for the sub-question). **Synthesis:** user prompt builds structured report sections; **system** string is CHRONICLE-calibrated when `use_chronicle` and `chronicle_context` are set (profile + recent), else generic expert analyst.
+
+**Clarification phases (SSE `clarification_needed` — `data.phase`):**
+- **`intake`** — Ambiguous request; user answers writer/research intake questions from `clarification_gate`.
+- **`research_scope`** — Four planned search angles shown; user confirms or narrows before **`skip_research_scope_clarification`** allows **`runResearchPipeline`** to run (research and research→writing only).
+- **`writing`** — Writer clarification in research→writing after research completes (when not skipped).
 
 **Four workflow routes** (orchestration + prompts):
-- **Research:** `handleResearch` → clarification gate → `runResearchPipeline` (steps above).
-- **Research → writing:** `handleResearchWriting` → gate → pipeline → `executeWritingCore` (writing prompts below; may skip second clarification).
+- **Research:** `handleResearch` → intake gate → optional **`research_scope`** pause → `runResearchPipeline` (when `skip_research_scope_clarification` true after user continue).
+- **Research → writing:** `handleResearchWriting` → intake gate → **`research_scope`** pause → pipeline → `executeWritingCore` (writer gate may follow with **`phase: 'writing'`**).
 - **Writing:** `handleWriting` / `executeWritingCore` — narrative extraction JSON (`headline`, `core_insight`, `target_pain`, `cta`) and per-platform generation (LinkedIn, Orbital AI, Mechanical Musings, X, Bluesky, Reddit, Dev.to, Hacker News) with tone/format constraints.
 - **Competitor:** competitor-name extraction, competitive-signal extraction, structured competitive card JSON, strategic brief synthesis.
 - **Plugins:** API analysis JSON, recommendation/scoring JSON, plugin-manifest generation (full and fallback).
@@ -2110,6 +2116,7 @@ Worker prompt sources live under repo-root `workers/workflows/`, separate from `
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 2.10.3 | 2026-03-29 | **v3.3.90:** §27 — `planResearchSubQuestions` extracted; research + research→writing pause for **`research_scope`** before search; `WorkflowRequest.skip_research_scope_clarification`; SSE `data.phase` values (`intake`, `research_scope`, `writing`); `writing.ts` intake `phase: 'intake'`. |
 | 2.10.2 | 2026-03-29 | **v3.3.89:** §27 expanded — `clarification_gate.ts` (intake JSON assessment + synthesisJson system stub); `research_pipeline.ts` (merged `source_documents`, four-sub-question plan, per-source extract, CHRONICLE-aware synthesis system); `research.ts` / `research_writing.ts` / `writing.ts` orchestration notes and SSE `clarification_needed`. |
 | 2.10.1 | 2026-03-27 | **v3.3.86:** §21 — Documented Phase 5b writing-screen builder (`buildPhase5bWritingPrompt`, `phase5bFormatInstructions`): optional format display name/specs, revise-in-place intent, white-paper/research-paper branches, optional Sources tail; platform copy guidance updates (LinkedIn/Reddit, X/Threads). |
 | 2.10.0 | 2026-03-24 | **v3.3.84:** Added §27 Worker Workflow Prompts covering new prompt definitions in `workers/workflows/src/workflows/{research,writing,competitor,plugins}.ts` (planning/extraction/synthesis, platform writing, competitor intel card/brief, plugin scoring/manifest generation). |

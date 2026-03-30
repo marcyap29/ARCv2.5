@@ -268,3 +268,37 @@ class ResearchSession {
         searchResults = searchResults ?? [],
         synthesisHistory = synthesisHistory ?? [];
 }
+
+/// Max snippet/title length when compacting [SearchResult] for RAM after synthesis.
+const int kCompactSnippetMaxChars = 500;
+const int kCompactTitleMaxChars = 240;
+const int kCompactSnippetsPerResult = 10;
+
+/// Drops full-page bodies and trims snippets so [ResearchReport] / sessions use less RAM on device.
+/// Call only after synthesis and [CitationManager.buildCitations] (citations use URLs/snippets first).
+List<SearchResult> compactSearchResultsForMemory(List<SearchResult> results) {
+  return results.map((sr) {
+    final slimSnippets = sr.snippets.take(kCompactSnippetsPerResult).map((s) {
+      final sn = s.snippet.length > kCompactSnippetMaxChars
+          ? '${s.snippet.substring(0, kCompactSnippetMaxChars)}…'
+          : s.snippet;
+      final ti = s.title.length > kCompactTitleMaxChars
+          ? '${s.title.substring(0, kCompactTitleMaxChars)}…'
+          : s.title;
+      return SearchSnippet(
+        title: ti,
+        snippet: sn,
+        url: s.url,
+        domain: s.domain,
+        publishDate: s.publishDate,
+      );
+    }).toList();
+    return SearchResult(
+      query: sr.query,
+      snippets: slimSnippets,
+      fullContent: const [],
+      sources: sr.sources,
+      timestamp: sr.timestamp,
+    );
+  }).toList();
+}

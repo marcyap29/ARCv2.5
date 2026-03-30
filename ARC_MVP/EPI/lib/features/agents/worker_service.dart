@@ -177,6 +177,7 @@ class WorkerService {
     Map<String, dynamic>? writingPreferences,
     List<Map<String, String>>? sourceDocuments,
     bool skipWriterClarification = false,
+    bool skipResearchScopeClarification = false,
   }) async* {
     final client = http.Client();
     try {
@@ -204,6 +205,9 @@ class WorkerService {
       }
       if (skipWriterClarification) {
         body['skip_writer_clarification'] = true;
+      }
+      if (skipResearchScopeClarification) {
+        body['skip_research_scope_clarification'] = true;
       }
 
       final request = http.Request('POST', Uri.parse(endpoint));

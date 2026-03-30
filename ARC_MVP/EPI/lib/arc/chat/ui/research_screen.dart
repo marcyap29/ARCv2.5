@@ -4,6 +4,7 @@
 
 import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
@@ -11,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:my_app/arc/chat/services/lumara_cloud_generate.dart';
+import 'package:my_app/core/services/document_content_service.dart';
 import 'package:my_app/arc/outputs/output_tagging.dart';
 import 'package:my_app/arc/outputs/outputs_chronicle_service.dart';
 import 'package:my_app/arc/outputs/outputs_models.dart';
@@ -43,6 +45,9 @@ class ResearchScreen extends StatefulWidget {
 enum _ResearchDepthOption { brief, summary, deepDive }
 
 class _ResearchScreenState extends State<ResearchScreen> {
+  /// Matches [ResearchAgent] document budget so we do not keep huge strings in state.
+  static const int _maxDocumentContextChars = 12000;
+
   late final TextEditingController _queryController;
 
   ContentBrief? _brief;
@@ -53,6 +58,8 @@ class _ResearchScreenState extends State<ResearchScreen> {
   String? _error;
   /// Context from scanned document (Phase 4); injected into research when running.
   String? _documentContext;
+  /// User-picked PDF/DOCX reference file name (for display).
+  String? _referenceFileLabel;
   final MediaPickAndAnalyzeService _lumaraImageFlow = MediaPickAndAnalyzeService();
 
   /// Research agent: [generateForAgents] (Gemini-first) + SwarmSpaceWebSearchTool with context for PRISM.
@@ -66,7 +73,9 @@ class _ResearchScreenState extends State<ResearchScreen> {
           maxTokens: maxTokens ?? 1200,
         );
       },
-      searchTool: SwarmSpaceWebSearchTool(context: context),
+      searchTool: SwarmSpaceWebSearchTool(
+        contextLookup: () => mounted ? context : null,
+      ),
     );
   }
 
@@ -189,6 +198,56 @@ class _ResearchScreenState extends State<ResearchScreen> {
     }
   }
 
+  /// Attach PDF or Word on device as reference text for the next research run (same budget as synthesis).
+  Future<void> _attachReferenceFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'doc', 'docx'],
+      withData: false,
+    );
+    if (result == null || result.files.isEmpty || !mounted) return;
+    final p = result.files.first;
+    final path = p.path;
+    if (path == null || path.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not read file path. Try another file.')),
+        );
+      }
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _statusMessages.clear();
+      _statusMessages.add('Reading document…');
+      _error = null;
+    });
+    try {
+      final text = (await DocumentContentService.extractTextFromPath(path)).trim();
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        if (text.isEmpty) {
+          _error = 'No text could be extracted from this file.';
+        } else {
+          final capped = _clampDocumentContext('### Reference: ${p.name}\n\n$text');
+          _documentContext = capped;
+          _referenceFileLabel = p.name;
+          _error = null;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Reference document added. Run research to use it.')),
+          );
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Could not read file: $e';
+      });
+    }
+  }
+
   Future<void> _scanDocument() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -235,13 +294,20 @@ class _ResearchScreenState extends State<ResearchScreen> {
       if (parsed.rawText.isEmpty && parsed.keyFields.isEmpty) {
         _error = parseError.isNotEmpty ? parseError.first : 'No text could be read from the image.';
       } else {
-        _documentContext = _buildDocumentContext(parsed);
+        _documentContext = _clampDocumentContext(_buildDocumentContext(parsed));
+        _referenceFileLabel = null;
         _error = null;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Document context added. Run research to use it.')),
         );
       }
     });
+  }
+
+  String _clampDocumentContext(String raw) {
+    final t = raw.trim();
+    if (t.length <= _maxDocumentContextChars) return t;
+    return '${t.substring(0, _maxDocumentContextChars)}\n\n[Document truncated for memory…]';
   }
 
   String _buildDocumentContext(ParsedDocument doc) {
@@ -329,15 +395,21 @@ class _ResearchScreenState extends State<ResearchScreen> {
                 children: [
                   Icon(Icons.document_scanner, size: 18, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 6),
-                  Text(
-                    'Document context added',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                  Expanded(
+                    child: Text(
+                      _referenceFileLabel != null
+                          ? 'Reference: $_referenceFileLabel'
+                          : 'Document context added',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    ),
                   ),
-                  const SizedBox(width: 8),
                   TextButton(
-                    onPressed: () => setState(() => _documentContext = null),
+                    onPressed: () => setState(() {
+                      _documentContext = null;
+                      _referenceFileLabel = null;
+                    }),
                     child: const Text('Clear'),
                   ),
                 ],
@@ -375,6 +447,19 @@ class _ResearchScreenState extends State<ResearchScreen> {
               },
             ),
             const Gap(16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : _attachReferenceFile,
+                  icon: const Icon(Icons.attach_file, size: 20),
+                  label: const Text('Attach PDF / Word'),
+                ),
+              ],
+            ),
+            const Gap(12),
             Row(
               children: [
                 Expanded(

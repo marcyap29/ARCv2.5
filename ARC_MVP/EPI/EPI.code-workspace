@@ -1,7 +1,10 @@
 {
     "folders": [
         {
-            "path": "../../../EPI_v1"
+            "path": ".."
+        },
+        {
+            "path": "../../workers"
         }
     ]
 }

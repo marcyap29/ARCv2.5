@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 29, 2026 (doc sync 2026-03-29, v3.3.89)  
+**Last Updated:** March 29, 2026 (doc sync 2026-03-29, v3.3.90)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -45,13 +45,13 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-29 | ✅ Synced | v3.3.89 - Worker clarification + research pipeline; outputs persistence |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-29 | ✅ Synced | v3.3.89 - Workers + agents attachments + LumaraOutputs |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-29 | ✅ Synced | v2.10.2 - §27 clarification_gate + research_pipeline |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-29 | ✅ Synced | v1.38.0 - Doc sync 2026-03-29 (v3.3.89) |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-29 | ✅ Synced | v3.5.5 - Recent changes v3.3.89 row |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-29 | ✅ Synced | v3.3.89 - Agent PDF/text → Worker; workflow export |
-| README.md | `/DOCS/README.md` | 2026-03-29 | ✅ Synced | Key docs table; see CHANGELOG v3.3.89 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-29 | ✅ Synced | v3.3.90 - research_scope gate; chat attachment doc context; RAM trims |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-29 | ✅ Synced | v3.3.90 - Worker research_scope + LUMARA research/chat memory trims |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-29 | ✅ Synced | v2.10.3 - §27 planResearchSubQuestions + clarification phases |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-29 | ✅ Synced | v1.39.0 - Doc sync 2026-03-29 (v3.3.90) |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-29 | ✅ Synced | v3.5.6 - Recent changes v3.3.90 row |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-29 | ✅ Synced | v3.3.90 - Research scope UX; attach PDF/Word; mobile research RAM |
+| README.md | `/DOCS/README.md` | 2026-03-29 | ✅ Synced | Key docs table; see CHANGELOG v3.3.90 |
 | claude.md | `/DOCS/claude.md` | 2026-03-29 | ✅ Synced | Doc/Config/Git Backup prompt; footer sync |
 | backend.md | `/DOCS/backend.md` | 2026-03-20 | ✅ Synced | v3.3.80 - proxyGroq.ts module, rateLimiter/authGuard |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
@@ -121,6 +121,20 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-29 - Documentation & Git Backup run (v3.3.90; doc sync 2026-03-29)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md). Trigger: user request to run the role prompt.
+
+**PROMPT REFERENCES AUDIT:** Worker orchestration update — **`planResearchSubQuestions`**, SSE **`data.phase`** (`intake`, `research_scope`, `writing`), **`skip_research_scope_clarification`**. Same underlying four-sub-question JSON planner as v3.3.89; **§27** and version **v2.10.3**.
+
+**Doc drift / git delta:** Uncommitted changes after v3.3.89 tag — Workers **`research.ts` / `research_writing.ts` / `writing.ts` / `types.ts` / `research_pipeline.ts`**; EPI Agents run screen + worker client; LUMARA chat attachment document context; Research screen PDF/Word attach; Research Agent RAM-oriented caps (**`compactSearchResultsForMemory`**, orchestrator batch/page limits, synthesis compact); SwarmSpace **`contextLookup`**; Phase 5b brief summary cap; **`.doc`/`.docx`** in **`agent_attachment_text`**.
+
+**Updates:** `CHANGELOG.md` v3.3.90; `FEATURES.md` / `ARCHITECTURE.md`; `bug_tracker.md` v3.5.6; `PROMPT_TRACKER.md` v1.39.0; `PROMPT_REFERENCES.md` v2.10.3; this file; `README.md`; `claude.md` header.
+
+**Status:** Commit and push `main` with application + doc files (this run).
+
+---
 
 ### 2026-03-29 - Documentation & Git Backup run (v3.3.89; doc sync 2026-03-29)
 

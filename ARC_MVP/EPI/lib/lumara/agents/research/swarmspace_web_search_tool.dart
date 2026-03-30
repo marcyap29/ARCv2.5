@@ -32,14 +32,20 @@ typedef SwarmSpaceConsentCallback = Future<bool> Function(String pluginId);
 class SwarmSpaceWebSearchTool implements WebSearchTool {
   final SwarmSpaceClient _client;
   final BuildContext? context;
+  /// When set, called before each PRISM/UI use so a stale [BuildContext] is not used
+  /// after async gaps (e.g. user leaves Research while a run is in flight).
+  final BuildContext? Function()? contextLookup;
   final SwarmSpaceConsentCallback? onConsentRequired;
 
   SwarmSpaceWebSearchTool({
     BuildContext? context,
+    this.contextLookup,
     SwarmSpaceClient? client,
     this.onConsentRequired,
   })  : context = context,
         _client = client ?? SwarmSpaceClient.instance;
+
+  BuildContext? get _effectiveContext => contextLookup?.call() ?? context;
 
   // Key phrase "get me news on/about/concerning X" activates news (NewsData.io).
   static final _newsKeywords = RegExp(
@@ -88,11 +94,12 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
       'include_metadata': true,
     };
     final SwarmSpaceResult result;
-    if (context != null) {
+    final ctx = _effectiveContext;
+    if (ctx != null) {
       final prismResult = await PrismService.instance.authoriseAndCall(
         pluginId: 'url-reader',
         params: params,
-        context: context,
+        context: ctx,
       );
       if (prismResult.isDenied) return null;
       result = prismResult.result!;
@@ -123,11 +130,12 @@ class SwarmSpaceWebSearchTool implements WebSearchTool {
   // ── Plugin calls ────────────────────────────────────────────────────────────
 
   Future<SwarmSpaceResult> _invokePlugin(String pluginId, Map<String, dynamic> params) async {
-    if (context != null) {
+    final ctx = _effectiveContext;
+    if (ctx != null) {
       final prismResult = await PrismService.instance.authoriseAndCall(
         pluginId: pluginId,
         params: params,
-        context: context,
+        context: ctx,
       );
       if (prismResult.isDenied) return SwarmSpaceResult.error('Plugin skipped by user');
       return prismResult.result!;

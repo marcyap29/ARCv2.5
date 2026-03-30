@@ -70,10 +70,12 @@ class LumaraChatOrchestrator {
   }
 
   /// Handle a user message. For research/writing, [onProgressUpdate] is called with status text.
+  /// [attachmentDocumentContext] optional text from PDF/DOCX etc. (chat attachments); used only for research.
   Future<ChatOrchestratorResponse> handleMessage({
     required String userId,
     required String message,
     required void Function(String) onProgressUpdate,
+    String? attachmentDocumentContext,
   }) async {
     final intent = await _classifier.classifyIntent(message);
 
@@ -91,6 +93,7 @@ class LumaraChatOrchestrator {
           userId: userId,
           intent: intent,
           onProgressUpdate: onProgressUpdate,
+          documentContext: attachmentDocumentContext,
         );
       case ChatIntentType.writing:
         return await _handleWriting(
@@ -116,6 +119,7 @@ class LumaraChatOrchestrator {
     required String userId,
     required UserIntent intent,
     required void Function(String) onProgressUpdate,
+    String? documentContext,
   }) async {
     // No scope-clarification interrupt — #corereflection used for context.
 
@@ -134,6 +138,7 @@ class LumaraChatOrchestrator {
             "🔍 ${p.status}\nProgress: ${p.currentStep}/${p.totalSteps}",
           );
         },
+        documentContext: documentContext,
       );
 
       final uiReport = toUiReport(result.report, result.sessionId);
