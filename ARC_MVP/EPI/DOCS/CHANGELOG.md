@@ -1,7 +1,26 @@
 # EPI LUMARA MVP - Changelog
 
-**Version:** 3.3.90
+**Version:** 3.3.91
 **Last Updated:** March 29, 2026
+
+---
+
+## [3.3.91] - March 29, 2026
+
+### Agents ↔ Writing UX; CHRONICLE deferral on research scope; HomeCubit shell; output copy-as-plain; auth `developers` collection; doc sync
+
+**Action:** Documentation & Git Backup run (claude.md — Documentation, Configuration Management and Git Backup).
+
+**Updated (sync with repo / working tree):**
+- **Shell / navigation (`app.dart`, `home_view.dart`):** **`HomeCubit`** provided at app root (above **`MaterialApp`**) so pushed routes (e.g. output detail with **`LumaraUnifiedBottomBar`**) share the same tab index; **`HomeView`** uses **`context.read<HomeCubit>()`** and applies initial tab in **`didChangeDependencies`**.
+- **Settings import (`settings_view.dart`):** Removed **`pushNamedAndRemoveUntil('/home', …)`** and post-import **`HomeView`** navigation so ARCX import keeps the user on the import screen while **`ImportProgressCubit`** runs.
+- **Agents (`agents_data.dart`, `agents_screen.dart`, `run_screen.dart`):** **`_isPureWritingIntent`** — drafting keywords without research cues route to **Writing-only** (not research→writing). **Output format** chevron only when the predicted chain includes Writing; **Agents** list in a chevron; **Writing** agent opens **`WritingScreen`** directly. Worker **`platforms`** sent as **`null`** (per-worker defaults). **Research-only** completion: **Continue in Writing →** builds a minimal **`ResearchReport`** from the markdown report and opens **`WritingScreen`**. **Writing-only** confirm: **Looks right — open Writing →** replaces run with **`WritingScreen`** and passes **`writingFormatId`**, specs, **`includeWritingSources`**. **CHRONICLE** bundle build deferred until **`skipResearchScopeClarification`** when research is in the chain (avoids heavy hybrid search during intake / research-scope clarifications); **`_liveChronicleBundle`** preview in confirm UI; **`useChronicle`** on stream matches whether a bundle is attached. Research-scope clarification copy: per-angle labels, hints (**use as-is**), stricter empty-answer snackbar.
+- **Writing UI (`writing_screen.dart`, `lumara_writing_format_card.dart`):** **`LumaraWritingFormatIds.normalizeSelectableId`** maps legacy Substack / white-paper ids to **article**; simplified tier labels (**Short** / **Medium** / **Article** / **Research**); removed per-platform social chips and **`WritingPlatforms`** wiring from the card and screens.
+- **Outputs (`output_detail_screen.dart`):** **Copy and paste** plain-text export (markdown stripped) for research and writing paths; removed share icon / **`share_plus`** from app bar for this flow.
+- **Exports (`report_export_service.dart`):** Removed **`shareWorkflowMarkdown`** (unused after outputs UX change).
+- **Backend (`functions/src/authGuard.ts`, compiled `lib/`):** **`enforceAuth`**, **`canLinkAccount`**, **`linkAccountData`** read/write plan documents under Firestore **`developers/{uid}`** (SwarmSpace / plan source of truth) instead of **`users`**.
+
+**Prompt audit:** No new LLM prompt definitions in this delta; **`PROMPT_REFERENCES.md`** remains **v2.10.3** (header audit note refreshed).
 
 ---
 

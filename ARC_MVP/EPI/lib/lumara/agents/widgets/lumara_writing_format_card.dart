@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:my_app/features/agents/worker_service.dart';
 
 /// Shared with Agents home and LUMARA Writing. IDs are sent to the Worker as `writing_preferences.format`.
 class LumaraWritingFormatIds {
@@ -10,35 +9,35 @@ class LumaraWritingFormatIds {
   static const article = 'article';
   static const shortThreads = 'short_threads';
   static const mediumSocial = 'medium_social';
+  /// Legacy worker / persisted ids — map to [article] in UI.
   static const largeSubstack = 'large_substack';
   static const xlWhitePaper = 'xl_white_paper';
 
   static const List<MapEntry<String, String>> options = [
-    MapEntry(researchPaper, 'Research paper'),
+    MapEntry(shortThreads, 'Short'),
+    MapEntry(mediumSocial, 'Medium'),
     MapEntry(article, 'Article'),
-    MapEntry(largeSubstack, 'Substack'),
-    MapEntry(shortThreads, 'Short (X / Threads)'),
-    MapEntry(mediumSocial, 'Medium (LinkedIn / Reddit)'),
-    MapEntry(xlWhitePaper, 'White paper'),
+    MapEntry(researchPaper, 'Research'),
   ];
+
+  /// Collapse removed tiers so selectors always show a valid chip.
+  static String normalizeSelectableId(String id) {
+    if (id == largeSubstack || id == xlWhitePaper) return article;
+    return id;
+  }
 
   static bool showIncludeSourcesCheckbox(String id) {
     switch (id) {
       case researchPaper:
       case article:
-      case largeSubstack:
         return true;
       default:
         return false;
     }
   }
-
-  static bool showSocialPlatforms(String id) {
-    return id == shortThreads || id == mediumSocial;
-  }
 }
 
-/// Writing format selector, optional research-paper specs, social targets, and "include sources" for long-form.
+/// Writing format selector, optional research-paper specs, and "include sources" for long-form.
 class LumaraWritingFormatCard extends StatefulWidget {
   const LumaraWritingFormatCard({
     super.key,
@@ -50,8 +49,6 @@ class LumaraWritingFormatCard extends StatefulWidget {
         'Optional: focus, word or page length, audience, tone notes…',
     this.includeSources = false,
     this.onIncludeSourcesChanged,
-    this.socialSelections,
-    this.onSocialSelectionsChanged,
   });
 
   final String selectedId;
@@ -64,51 +61,17 @@ class LumaraWritingFormatCard extends StatefulWidget {
   final bool includeSources;
   final ValueChanged<bool>? onIncludeSourcesChanged;
 
-  /// When null, internal state is used (Short/Medium formats).
-  final Map<String, bool>? socialSelections;
-  final ValueChanged<Map<String, bool>>? onSocialSelectionsChanged;
-
   @override
   State<LumaraWritingFormatCard> createState() =>
       _LumaraWritingFormatCardState();
 }
 
 class _LumaraWritingFormatCardState extends State<LumaraWritingFormatCard> {
-  late Map<String, bool> _socialLocal;
-
-  @override
-  void initState() {
-    super.initState();
-    _socialLocal = {
-      for (final p in WritingPlatforms.all) p.id: p.defaultSelected,
-    };
-    final ext = widget.socialSelections;
-    if (ext != null) {
-      for (final e in ext.entries) {
-        if (_socialLocal.containsKey(e.key)) _socialLocal[e.key] = e.value;
-      }
-    }
-  }
-
-  Map<String, bool> get _effectiveSocial =>
-      widget.socialSelections ?? _socialLocal;
-
-  void _setSocial(String id, bool value) {
-    final next = Map<String, bool>.from(_effectiveSocial);
-    next[id] = value;
-    if (widget.socialSelections != null) {
-      widget.onSocialSelectionsChanged?.call(next);
-    } else {
-      setState(() => _socialLocal = next);
-      widget.onSocialSelectionsChanged?.call(next);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final id = widget.selectedId;
     final specsHint = id == LumaraWritingFormatIds.researchPaper
-        ? 'Focus, page length, citation style, thesis — research papers are more comprehensive than articles.'
+        ? 'Focus, page length, citation style, thesis — research-length output is more comprehensive than a typical article.'
         : widget.hintText;
     final rpController =
         widget.researchPaperSpecsController ?? widget.specsController;
@@ -135,7 +98,7 @@ class _LumaraWritingFormatCardState extends State<LumaraWritingFormatCard> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Pick length and channel. Add specifics below; short formats can match “create content” platforms.',
+            'Pick target length. Add specifics below.',
             style: GoogleFonts.inter(
               color: const Color(0xFF5A5A7A),
               fontSize: 12,
@@ -212,41 +175,10 @@ class _LumaraWritingFormatCardState extends State<LumaraWritingFormatCard> {
               ],
             ),
           ],
-          if (LumaraWritingFormatIds.showSocialPlatforms(id)) ...[
-            const SizedBox(height: 12),
-            Text(
-              'Platforms (same options as quick social / “create content”)',
-              style: GoogleFonts.robotoMono(
-                color: const Color(0xFF33334A),
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final p in WritingPlatforms.all)
-                  FilterChip(
-                    label: Text('${p.emoji} ${p.label}'),
-                    selected: _effectiveSocial[p.id] ?? false,
-                    onSelected: (sel) => _setSocial(p.id, sel),
-                    selectedColor:
-                        const Color(0xFF5B5BD6).withValues(alpha: 0.2),
-                    checkmarkColor: const Color(0xFF8888FF),
-                    labelStyle: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: const Color(0xFFC0C0E0),
-                    ),
-                  ),
-              ],
-            ),
-          ],
           const SizedBox(height: 12),
           Text(
             id == LumaraWritingFormatIds.researchPaper
-                ? 'RESEARCH PAPER DETAILS'
+                ? 'RESEARCH DETAILS'
                 : 'FORMAT DETAILS',
             style: GoogleFonts.robotoMono(
               color: const Color(0xFF33334A),

@@ -11,7 +11,6 @@ import 'package:my_app/lumara/agents/writing/style_profile_service.dart';
 import 'package:my_app/lumara/agents/writing/writing_prompts.dart';
 import 'package:my_app/lumara/agents/widgets/agent_tip_banner.dart';
 import 'package:my_app/features/agents/agents_data.dart';
-import 'package:my_app/features/agents/worker_service.dart';
 import 'package:my_app/lumara/agents/widgets/lumara_writing_format_card.dart';
 import 'package:my_app/shared/ui/lumara_bottom_tab_bar.dart';
 import 'package:my_app/lumara/agents/writing/writing_models.dart';
@@ -60,9 +59,9 @@ class _WritingScreenState extends State<WritingScreen> {
   /// When set, we're viewing/editing an existing draft (e.g. from Outputs).
   String? _editingDraftId;
   // Phase 5b
-  String _writingFormatTierId = LumaraWritingFormatIds.mediumSocial;
+  String _writingFormatTierId = LumaraWritingFormatIds.normalizeSelectableId(
+      LumaraWritingFormatIds.mediumSocial);
   bool _includeWritingSources = false;
-  late Map<String, bool> _formatSocialSelections;
   WritingTone _phase5bTone = WritingTone.informative;
   bool _styleProfileOn = false;
   String? _styleExcerpt;
@@ -71,38 +70,32 @@ class _WritingScreenState extends State<WritingScreen> {
   String? _researchQuestionFromContext;
 
   WritingFormat _formatForTier(String id) {
-    switch (id) {
+    final t = LumaraWritingFormatIds.normalizeSelectableId(id);
+    switch (t) {
       case LumaraWritingFormatIds.researchPaper:
       case LumaraWritingFormatIds.article:
-      case LumaraWritingFormatIds.xlWhitePaper:
         return WritingFormat.article;
       case LumaraWritingFormatIds.shortThreads:
         return WritingFormat.threads;
       case LumaraWritingFormatIds.mediumSocial:
         return WritingFormat.linkedin;
-      case LumaraWritingFormatIds.largeSubstack:
-        return WritingFormat.substack;
       default:
         return WritingFormat.linkedin;
     }
   }
 
   String _displayNameForTier(String id) {
-    switch (id) {
+    switch (LumaraWritingFormatIds.normalizeSelectableId(id)) {
       case LumaraWritingFormatIds.researchPaper:
-        return 'Research paper';
+        return 'Research';
       case LumaraWritingFormatIds.article:
         return 'Article';
       case LumaraWritingFormatIds.shortThreads:
-        return 'Short (X / Threads)';
+        return 'Short';
       case LumaraWritingFormatIds.mediumSocial:
-        return 'Medium (LinkedIn / Reddit)';
-      case LumaraWritingFormatIds.largeSubstack:
-        return 'Substack';
-      case LumaraWritingFormatIds.xlWhitePaper:
-        return 'White paper';
+        return 'Medium';
       default:
-        return 'Medium (LinkedIn / Reddit)';
+        return 'Medium';
     }
   }
 
@@ -122,9 +115,6 @@ class _WritingScreenState extends State<WritingScreen> {
   @override
   void initState() {
     super.initState();
-    _formatSocialSelections = {
-      for (final p in WritingPlatforms.all) p.id: p.defaultSelected,
-    };
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
@@ -153,6 +143,24 @@ class _WritingScreenState extends State<WritingScreen> {
     if (widget.initialPrompt != null && widget.initialPrompt!.trim().isNotEmpty) {
       prompt = widget.initialPrompt;
     } else if (args is Map<String, dynamic>) {
+      final wfRaw = args['writingFormatId'] as String?;
+      var tierId = _writingFormatTierId;
+      if (wfRaw != null && wfRaw.trim().isNotEmpty) {
+        tierId = LumaraWritingFormatIds.normalizeSelectableId(wfRaw.trim());
+        setState(() => _writingFormatTierId = tierId);
+      }
+      final specs = args['researchPaperSpecs'] as String?;
+      if (specs != null && specs.trim().isNotEmpty) {
+        if (tierId == LumaraWritingFormatIds.researchPaper) {
+          _researchPaperSpecsController.text = specs;
+        } else {
+          _writingFormatSpecsController.text = specs;
+        }
+      }
+      final incSrc = args['includeWritingSources'];
+      if (incSrc is bool && incSrc) {
+        setState(() => _includeWritingSources = true);
+      }
       if (args['initialPrompt'] is String) {
         prompt = args['initialPrompt'] as String;
       } else if (args['researchContext'] != null) {
@@ -610,9 +618,6 @@ class _WritingScreenState extends State<WritingScreen> {
                   includeSources: _includeWritingSources,
                   onIncludeSourcesChanged: (v) =>
                       setState(() => _includeWritingSources = v),
-                  socialSelections: _formatSocialSelections,
-                  onSocialSelectionsChanged: (m) =>
-                      setState(() => _formatSocialSelections = m),
                 ),
                 const Gap(16),
                 Container(

@@ -6,11 +6,35 @@ import 'package:my_app/arc/chat/ui/writing_screen.dart';
 import 'package:my_app/lumara/agents/models/research_models.dart';
 import 'package:my_app/lumara/agents/services/report_export_service.dart';
 import 'package:my_app/shared/ui/lumara_bottom_tab_bar.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'output_model.dart';
 import 'outputs_storage.dart';
+
+/// Strip common markdown so pasted text is easy to edit outside the app.
+String _markdownToPasteFriendlyPlainText(String md) {
+  var s = md.replaceAll('\r\n', '\n');
+  for (var i = 0; i < 6; i++) {
+    final next = s
+        .replaceAllMapped(
+          RegExp(r'\[([^\]]+)\]\([^)]*\)'),
+          (m) => m[1] ?? '',
+        )
+        .replaceAllMapped(RegExp(r'\*\*([^*]+)\*\*'), (m) => m[1] ?? '')
+        .replaceAllMapped(RegExp(r'__([^_]+)__'), (m) => m[1] ?? '')
+        .replaceAllMapped(
+          RegExp(r'(?<![*_])\*([^*\n]+)\*(?![*_])'),
+          (m) => m[1] ?? '',
+        )
+        .replaceAll('`', '');
+    if (next == s) break;
+    s = next;
+  }
+  s = s.replaceAll(RegExp(r'^#{1,6}\s*', multiLine: true), '');
+  s = s.replaceAll(RegExp(r'^>\s?', multiLine: true), '');
+  s = s.replaceAll(RegExp(r'^[-*+]\s+', multiLine: true), '• ');
+  return s.trim();
+}
 
 class OutputDetailScreen extends StatefulWidget {
   const OutputDetailScreen({super.key, required this.output});
@@ -136,11 +160,6 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
                   onPressed: () => setState(() => _researchEditing = true),
                 ),
             ],
-            IconButton(
-              onPressed: _onSharePressed,
-              icon: const Icon(Icons.share_outlined, color: Color(0xFF7A7A9A)),
-              tooltip: 'Share',
-            ),
           ],
         ),
       ),
@@ -405,6 +424,53 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
     );
   }
 
+  Widget _copyPasteOutlinedButton(
+    Future<void> Function() onCopy, {
+    bool enabled = true,
+  }) {
+    return SizedBox(
+      height: 48,
+      child: OutlinedButton.icon(
+        onPressed: enabled ? () async => onCopy() : null,
+        icon: const Icon(Icons.copy_outlined, color: Color(0xFF5B5BD6), size: 20),
+        label: Text(
+          'Copy and paste',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF5B5BD6),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Color(0xFF1C1C30)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+        ),
+      ),
+    );
+  }
+
+  /// Full block for output types that only need copy (writing / competitor).
+  Widget _buildCopyPasteExportSection({
+    required Future<void> Function() onCopy,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 28),
+        Text(
+          'EXPORT & NEXT STEP',
+          style: GoogleFonts.robotoMono(
+            color: const Color(0xFF33334A),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _copyPasteOutlinedButton(onCopy),
+      ],
+    );
+  }
+
   Widget _buildResearchExportFooter() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -458,6 +524,11 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
           ),
         ),
         const SizedBox(height: 10),
+        _copyPasteOutlinedButton(
+          _copyResearchPasteFriendly,
+          enabled: !_researchSaving,
+        ),
+        const SizedBox(height: 10),
         SizedBox(
           height: 50,
           child: ElevatedButton.icon(
@@ -479,6 +550,142 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
         ),
       ],
     );
+  }
+
+  void _showCopiedPlainSnackbar() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Copied as plain text',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: const Color(0xFF1A3A1A),
+      ),
+    );
+  }
+
+  Future<void> _copyResearchPasteFriendly() async {
+    final c = _researchReportController;
+    if (c == null) return;
+    final q = _output.input.trim();
+    final r = c.text.trim();
+    final plain = _markdownToPasteFriendlyPlainText(r);
+    final buf = StringBuffer()
+      ..writeln('YOUR QUESTION')
+      ..writeln(q.isEmpty ? '—' : q)
+      ..writeln()
+      ..writeln('REPORT')
+      ..writeln(plain.isEmpty ? '—' : plain);
+    await Clipboard.setData(ClipboardData(text: buf.toString()));
+    _showCopiedPlainSnackbar();
+  }
+
+  String _composeWritingClipboardPlainText() {
+    final q = _output.input.trim();
+    final buf = StringBuffer()
+      ..writeln('YOUR QUESTION')
+      ..writeln(q.isEmpty ? '—' : q)
+      ..writeln();
+
+    final platformsRaw = _output.data['platforms'];
+    final labelsRaw = _output.data['platform_labels'];
+    final platforms = platformsRaw is Map
+        ? Map<String, dynamic>.from(platformsRaw)
+        : <String, dynamic>{};
+    final labels =
+        labelsRaw is Map ? Map<String, dynamic>.from(labelsRaw) : <String, dynamic>{};
+    final tabIds = platforms.keys.where((k) => labels.containsKey(k)).toList();
+
+    final researchReport = (_output.data['report'] as String?)?.trim() ?? '';
+    if (researchReport.isNotEmpty && tabIds.isNotEmpty) {
+      buf.writeln('RESEARCH CONTEXT');
+      buf.writeln(_markdownToPasteFriendlyPlainText(researchReport));
+      buf.writeln();
+    }
+
+    if (tabIds.isEmpty) {
+      final report = (_output.data['report'] as String?)?.trim() ?? '';
+      final body = report.isNotEmpty ? report : _output.input;
+      final plain = _markdownToPasteFriendlyPlainText(body.trim());
+      buf.writeln('OUTPUT');
+      buf.writeln(plain.isEmpty ? '—' : plain);
+      return buf.toString();
+    }
+
+    buf.writeln('WRITTEN OUTPUT');
+    for (final id in tabIds) {
+      final label = labels[id]?.toString() ?? id.toString();
+      final text = platforms[id]?.toString().trim() ?? '';
+      buf.writeln();
+      buf.writeln(label);
+      buf.writeln(text.isEmpty ? '—' : text);
+    }
+    return buf.toString();
+  }
+
+  Future<void> _copyWritingPasteFriendly() async {
+    await Clipboard.setData(
+      ClipboardData(text: _composeWritingClipboardPlainText()),
+    );
+    _showCopiedPlainSnackbar();
+  }
+
+  String _tagLinesPlain(String heading, Object? raw) {
+    if (raw is! List) return '';
+    final items =
+        raw.map((e) => e.toString()).where((s) => s.trim().isNotEmpty).toList();
+    if (items.isEmpty) return '';
+    final b = StringBuffer()..writeln(heading);
+    for (final s in items) {
+      b.writeln('• ${s.trim()}');
+    }
+    return '${b.toString().trim()}\n';
+  }
+
+  String _composeCompetitorClipboardPlainText() {
+    final buf = StringBuffer()
+      ..writeln('YOUR REQUEST')
+      ..writeln(_output.input.trim().isEmpty ? '—' : _output.input.trim())
+      ..writeln();
+
+    final cardRaw = _output.data['card'];
+    if (cardRaw is Map) {
+      final card = Map<String, dynamic>.from(cardRaw);
+      buf.writeln('COMPETITOR SNAPSHOT');
+      final name = card['name']?.toString().trim() ?? '';
+      final tagline = card['tagline']?.toString().trim() ?? '';
+      if (name.isNotEmpty) buf.writeln('Name: $name');
+      if (tagline.isNotEmpty) buf.writeln('Tagline: $tagline');
+      final pricing = card['pricing'];
+      if (pricing is Map) {
+        final m = pricing['model']?.toString().trim();
+        if (m != null && m.isNotEmpty) buf.writeln('Pricing: $m');
+      }
+      final target = card['target_customer']?.toString().trim();
+      if (target != null && target.isNotEmpty) buf.writeln('Target: $target');
+      final threat = card['threat_level']?.toString().trim();
+      if (threat != null && threat.isNotEmpty) {
+        buf.writeln('Threat: ${threat.toUpperCase()}');
+      }
+      buf.write(_tagLinesPlain('Strengths', card['strengths']));
+      buf.write(_tagLinesPlain('Weaknesses', card['weaknesses']));
+      buf.write(_tagLinesPlain('Recent moves', card['recent_moves']));
+      buf.writeln();
+    }
+
+    final brief = _output.data['brief'] as String? ?? _output.input;
+    final analysis = _markdownToPasteFriendlyPlainText(brief.trim());
+    buf.writeln('ANALYSIS');
+    buf.writeln(analysis.isEmpty ? '—' : analysis);
+    return buf.toString();
+  }
+
+  Future<void> _copyCompetitorPasteFriendly() async {
+    await Clipboard.setData(
+      ClipboardData(text: _composeCompetitorClipboardPlainText()),
+    );
+    _showCopiedPlainSnackbar();
   }
 
   Future<void> _saveResearchEdits() async {
@@ -532,18 +739,6 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
         '${d.year}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}';
     final short = _output.id.length >= 8 ? _output.id.substring(0, 8) : _output.id;
     return 'Research_${ymd}_$short';
-  }
-
-  String _researchSharePlainBody() {
-    final q = _output.input.trim();
-    final r = _researchReportController!.text.trim();
-    final buf = StringBuffer();
-    buf.writeln('YOUR QUESTION');
-    buf.writeln(q.isEmpty ? '—' : q);
-    buf.writeln();
-    buf.writeln('REPORT');
-    buf.writeln(r.isEmpty ? '—' : r);
-    return buf.toString();
   }
 
   Future<void> _exportResearchPdf() async {
@@ -612,145 +807,6 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
     );
   }
 
-  Future<void> _onSharePressed() async {
-    if (_isResearchLikeOutput) {
-      await _showResearchShareSheet();
-      return;
-    }
-    if (_output.type == 'writing') {
-      await _shareWritingOutput();
-      return;
-    }
-    final brief = _output.data['brief'] as String? ?? _output.input;
-    await SharePlus.instance.share(
-      ShareParams(text: brief, subject: _output.title),
-    );
-  }
-
-  Future<void> _shareWritingOutput() async {
-    final platformsRaw = _output.data['platforms'];
-    final labelsRaw = _output.data['platform_labels'];
-    final platforms = platformsRaw is Map
-        ? Map<String, dynamic>.from(platformsRaw)
-        : <String, dynamic>{};
-    final labels =
-        labelsRaw is Map ? Map<String, dynamic>.from(labelsRaw) : <String, dynamic>{};
-    final tabIds = platforms.keys.where((k) => labels.containsKey(k)).toList();
-    String text;
-    if (tabIds.isEmpty) {
-      text = _output.input;
-    } else {
-      final selectedIdx = _selectedTab.clamp(0, tabIds.length - 1);
-      final selectedId = tabIds[selectedIdx];
-      text = platforms[selectedId]?.toString() ?? _output.input;
-    }
-    await SharePlus.instance.share(
-      ShareParams(text: text, subject: _output.title),
-    );
-  }
-
-  Future<void> _showResearchShareSheet() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF14142A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.article_outlined, color: Color(0xFF5B5BD6)),
-                title: Text('Share Markdown (.md)', style: GoogleFonts.inter(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _shareResearchFile(ReportExportFormat.markdown);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.picture_as_pdf_outlined, color: Color(0xFF5B5BD6)),
-                title: Text('Share PDF', style: GoogleFonts.inter(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _shareResearchFile(ReportExportFormat.pdf);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.description_outlined, color: Color(0xFF5B5BD6)),
-                title: Text('Share Word (.docx)', style: GoogleFonts.inter(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _shareResearchFile(ReportExportFormat.docx);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.copy_outlined, color: Color(0xFF7A7A9A)),
-                title: Text('Copy full text', style: GoogleFonts.inter(color: Colors.white)),
-                onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: _researchSharePlainBody()));
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Copied', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                        backgroundColor: const Color(0xFF1A3A1A),
-                      ),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.ios_share_outlined, color: Color(0xFF7A7A9A)),
-                title: Text('Share as plain text', style: GoogleFonts.inter(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  SharePlus.instance.share(
-                    ShareParams(
-                      text: _researchSharePlainBody(),
-                      subject: 'Research report',
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.auto_awesome, color: Color(0xFF5B5BD6)),
-                title: Text('Create content', style: GoogleFonts.inter(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _openCreateContentFromResearch();
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _shareResearchFile(ReportExportFormat format) async {
-    final ok = await ReportExportService.instance.shareWorkflowMarkdown(
-      title: _output.title,
-      markdown: _researchReportController!.text,
-      format: format,
-      createdAt: _output.createdAt,
-      userQuestion: _output.input,
-      fileBaseName: _researchExportFileStem(),
-    );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok ? 'Share sheet opened' : 'Share failed',
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: ok ? const Color(0xFF1A3A1A) : const Color(0xFF3A1515),
-      ),
-    );
-  }
-
   Widget _buildCompetitorBody() {
     final card = _output.data['card'];
     final brief = _output.data['brief'] as String? ?? _output.input;
@@ -764,6 +820,7 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
             const SizedBox(height: 16),
           ],
           ..._buildSectionedText(brief),
+          _buildCopyPasteExportSection(onCopy: _copyCompetitorPasteFriendly),
         ],
       ),
     );
@@ -908,12 +965,18 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
       final body = report.trim().isNotEmpty ? report : _output.input;
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: MarkdownBody(
-          data: body.trim().isEmpty ? '_No content._' : body,
-          styleSheet: _researchMarkdownStyle(),
-          selectable: true,
-          shrinkWrap: true,
-          fitContent: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MarkdownBody(
+              data: body.trim().isEmpty ? '_No content._' : body,
+              styleSheet: _researchMarkdownStyle(),
+              selectable: true,
+              shrinkWrap: true,
+              fitContent: true,
+            ),
+            _buildCopyPasteExportSection(onCopy: _copyWritingPasteFriendly),
+          ],
         ),
       );
     }
@@ -1016,6 +1079,7 @@ class _OutputDetailScreenState extends State<OutputDetailScreen> {
                     },
             ),
           ),
+          _buildCopyPasteExportSection(onCopy: _copyWritingPasteFriendly),
         ],
       ),
     );

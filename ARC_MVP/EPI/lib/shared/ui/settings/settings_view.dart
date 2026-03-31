@@ -43,7 +43,6 @@ import 'package:my_app/services/rivet_sweep_service.dart';
 import 'package:my_app/services/analytics_service.dart';
 import 'package:my_app/utils/file_utils.dart';
 import 'package:my_app/arc/ui/timeline/timeline_cubit.dart';
-import 'package:my_app/shared/ui/home/home_view.dart';
 import 'package:my_app/arc/chat/chat/chat_repo_impl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -834,7 +833,6 @@ class ImportExportFolderView extends StatelessWidget {
           final journalRepo = context.read<JournalRepository>();
           final arcxPath = arcxFiles.first;
           progressCubit.start();
-          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
           Future(() async {
             try {
               final chatRepo = ChatRepoImpl.instance;
@@ -878,7 +876,6 @@ class ImportExportFolderView extends StatelessWidget {
           final progressCubit = context.read<ImportProgressCubit>();
           final journalRepo = context.read<JournalRepository>();
           progressCubit.startWithFiles(arcxFiles);
-          Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
           Future(() => _runMultipleArcImportInBackground(
             progressCubit: progressCubit,
             journalRepo: journalRepo,
@@ -941,17 +938,6 @@ class ImportExportFolderView extends StatelessWidget {
                 'Import Complete',
                 'Imported ${importResult.totalEntries} entries and ${importResult.totalPhotos} media items.',
               );
-              
-              Future.delayed(const Duration(milliseconds: 500), () {
-                if (context.mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (context) => const HomeView(initialTab: 0),
-                    ),
-                    (route) => false,
-                  );
-                }
-              });
             } else {
               _showImportError(context, importResult.error ?? 'Import failed');
             }

@@ -5,7 +5,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_app/app/app.dart' show navigatorKey;
 import 'package:my_app/features/agents/chronicle_bundle_builder.dart';
+import 'package:my_app/arc/chat/ui/writing_screen.dart';
 import 'package:my_app/features/outputs/output_detail_screen.dart';
+import 'package:my_app/lumara/agents/models/research_models.dart';
 import 'package:my_app/features/outputs/workflow_output_persistence.dart';
 import 'package:my_app/lumara/agents/services/agents_chronicle_service.dart';
 import 'package:my_app/lumara/agents/widgets/lumara_writing_format_card.dart';
@@ -57,45 +59,6 @@ class RunScreen extends StatefulWidget {
   State<RunScreen> createState() => _RunScreenState();
 }
 
-void _applyWritingFormatPlatformDefaults(
-  String formatId,
-  Map<String, bool> selections,
-) {
-  switch (formatId) {
-    case LumaraWritingFormatIds.shortThreads:
-      if (selections.containsKey('twitter')) {
-        selections['twitter'] = true;
-      }
-      break;
-    case LumaraWritingFormatIds.mediumSocial:
-      if (selections.containsKey('linkedin')) {
-        selections['linkedin'] = true;
-      }
-      if (selections.containsKey('reddit')) {
-        selections['reddit'] = true;
-      }
-      break;
-    case LumaraWritingFormatIds.largeSubstack:
-      if (selections.containsKey('orbital_ai')) {
-        selections['orbital_ai'] = true;
-      }
-      break;
-    case LumaraWritingFormatIds.xlWhitePaper:
-      break;
-    case 'substack':
-      if (selections.containsKey('orbital_ai')) {
-        selections['orbital_ai'] = true;
-      }
-      break;
-    case 'linkedin_article':
-    case 'article':
-    case LumaraWritingFormatIds.researchPaper:
-      break;
-    default:
-      break;
-  }
-}
-
 class _RunScreenState extends State<RunScreen> {
   String _phase = 'confirm';
   int _stepIdx = 0;
@@ -107,7 +70,6 @@ class _RunScreenState extends State<RunScreen> {
   StreamSubscription<Map<String, dynamic>>? _streamSub;
   /// Set when a run completes and the output is persisted (for "View report").
   WorkflowOutput? _savedWorkflowOutput;
-  Map<String, bool> _platformSelections = {};
   /// Latest status line per chain step index (keeps completed steps visible).
   final Map<int, String> _stepStatusByIndex = {};
   /// Append-only trace per step (API progress lines; not overwritten by the next line).
@@ -133,17 +95,9 @@ class _RunScreenState extends State<RunScreen> {
     super.initState();
     _workflowInputEffective = widget.input;
     _partDone = List<bool>.filled(widget.requestParts.length, false);
-    _platformSelections = {
-      for (final p in WritingPlatforms.all) p.id: p.defaultSelected,
-    };
-    final ids = widget.platforms;
-    if (ids != null && ids.isNotEmpty) {
-      for (final p in WritingPlatforms.all) {
-        _platformSelections[p.id] = ids.contains(p.id);
-      }
-    }
-    _applyWritingFormatPlatformDefaults(widget.writingFormatId, _platformSelections);
-    if (widget.useChronicle) {
+    // Preload CHRONICLE preview only when we would attach on the first request (writing-only paths).
+    // Research chains defer hybrid search until after search-angle confirmation.
+    if (widget.useChronicle && _shouldAttachChronicleNow) {
       _chroniclePreviewLoading = true;
       Future<void>.microtask(() async {
         try {
@@ -198,9 +152,22 @@ class _RunScreenState extends State<RunScreen> {
       widget.chain.steps.any((s) => s.toLowerCase().contains('research')) &&
       !_chainHasWriting;
 
+  /// True when this chain runs the Research worker step (research-only or research→writing, etc.).
+  bool get _chainIncludesResearch =>
+      widget.chain.steps.any((s) => s.toLowerCase().contains('research'));
+
+  /// Hybrid CHRONICLE load + worker `chronicle_context` are deferred until the user confirms
+  /// planned search angles (`skip_research_scope_clarification`), so intake / scope clarifications
+  /// run without on-device embedding search (avoids crashes) and retrieval uses the merged topic.
+  bool get _deferChronicleUntilResearchScopeConfirmed =>
+      widget.useChronicle && _chainIncludesResearch && !_skipResearchScopeClarification;
+
+  /// Whether to build and send [ChronicleBundle] on the upcoming worker request.
+  bool get _shouldAttachChronicleNow => !_deferChronicleUntilResearchScopeConfirmed;
+
   String get _clarificationCardTitle {
     if (_pendingClarificationPhase == 'research_scope') {
-      return 'Research — planned search angles';
+      return 'Research — tune how we search';
     }
     if (_pendingClarificationPhase == 'writing') {
       return 'Writer — quick clarifications';
@@ -212,10 +179,9 @@ class _RunScreenState extends State<RunScreen> {
             : 'Quick clarifications';
   }
 
-  List<String> get _selectedPlatformIds => _platformSelections.entries
-      .where((e) => e.value)
-      .map((e) => e.key)
-      .toList();
+  bool get _isWritingOnlyChain =>
+      widget.chain.steps.length == 1 &&
+      widget.chain.steps.first.toLowerCase() == 'writing';
 
   @override
   Widget build(BuildContext context) {
@@ -249,10 +215,6 @@ class _RunScreenState extends State<RunScreen> {
                     const SizedBox(height: 12),
                     _buildChronicleCard(),
                     const SizedBox(height: 12),
-                    if (_phase == 'confirm' && _chainHasWriting) ...[
-                      _buildPlatformSelector(),
-                      const SizedBox(height: 12),
-                    ],
                     _buildChainCard(),
                     if ((_phase == 'running' || _phase == 'clarify') &&
                         _activityLog.isNotEmpty) ...[
@@ -596,7 +558,16 @@ class _RunScreenState extends State<RunScreen> {
           ),
           if (widget.useChronicle) ...[
             const SizedBox(height: 8),
-            if (_chroniclePreviewLoading)
+            if (_deferChronicleUntilResearchScopeConfirmed)
+              Text(
+                '+ CHRONICLE: journal context loads after you confirm search angles (then it is sent to the worker).',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF444464),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              )
+            else if (_chroniclePreviewLoading)
               Text(
                 '+ CHRONICLE: loading your journal context…',
                 style: GoogleFonts.inter(
@@ -701,7 +672,17 @@ class _RunScreenState extends State<RunScreen> {
             ),
             if (_showBundle) ...[
               const SizedBox(height: 12),
-              if (_chroniclePreviewLoading)
+              if (_deferChronicleUntilResearchScopeConfirmed)
+                Text(
+                  'For chains that include Research, timeline + hybrid journal search run after you answer '
+                  'the planned search-angle questions. Then the bundle is sent with your clarified topic.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7070A0),
+                    fontSize: 12,
+                    height: 1.45,
+                  ),
+                )
+              else if (_chroniclePreviewLoading)
                 Text(
                   'Loading CHRONICLE…',
                   style: GoogleFonts.inter(
@@ -734,121 +715,6 @@ class _RunScreenState extends State<RunScreen> {
             ],
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildPlatformSelector() {
-    final noneSelected = _platformSelections.values.where((v) => v).isEmpty;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF14142A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1C1C30)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text('✍️', style: GoogleFonts.inter(fontSize: 16)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Publishing platforms',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      'Where should we write this?',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF5A5A7A),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          const Divider(color: Color(0xFF1C1C30), height: 1),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final p in WritingPlatforms.all)
-                _platformChip(
-                  platform: p,
-                  selected: _platformSelections[p.id] ?? false,
-                  onToggle: () {
-                    setState(() {
-                      _platformSelections[p.id] = !(_platformSelections[p.id] ?? false);
-                    });
-                  },
-                ),
-            ],
-          ),
-          if (noneSelected) ...[
-            const SizedBox(height: 8),
-            Text(
-              '⚠️ Select at least one platform',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: const Color(0xFFFF6B6B),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _platformChip({
-    required WritingPlatform platform,
-    required bool selected,
-    required VoidCallback onToggle,
-  }) {
-    return GestureDetector(
-      onTap: onToggle,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: selected
-              ? const Color(0xFF5B5BD6).withValues(alpha: 0.15)
-              : const Color(0xFF0F0F1E),
-          border: Border.all(
-            color: selected ? const Color(0xFF5B5BD6) : const Color(0xFF1A1A2C),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(platform.emoji, style: GoogleFonts.inter(fontSize: 14)),
-            const SizedBox(width: 6),
-            Text(
-              platform.label,
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color:
-                    selected ? const Color(0xFF8888FF) : const Color(0xFF55556A),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1267,16 +1133,98 @@ class _RunScreenState extends State<RunScreen> {
               ),
             ],
           ),
+          if (_chainHasResearchOnly &&
+              _result != null &&
+              (_result!['report'] as String?)?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton(
+                onPressed: _openWritingFromResearchResult,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF5B5BD6)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                ),
+                child: Text(
+                  'Continue in Writing →',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF5B5BD6),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  void _openWritingFromResearchResult() {
+    final raw = _result?['report'];
+    final report = raw is String ? raw.trim() : '';
+    if (report.isEmpty) return;
+    final q = widget.input.trim();
+    final reportModel = ResearchReport(
+      id: const Uuid().v4(),
+      query: q.isNotEmpty ? q : widget.chain.label,
+      summary: '',
+      detailedFindings: report,
+      generatedAt: DateTime.now(),
+    );
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const WritingScreen(),
+        settings: RouteSettings(
+          arguments: <String, dynamic>{'researchContext': reportModel},
+        ),
+      ),
+    );
+  }
+
+  void _openWritingAgentFromRun() {
+    final prompt = _workflowInputEffective.trim().isEmpty
+        ? widget.input.trim()
+        : _workflowInputEffective.trim();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const WritingScreen(),
+        settings: RouteSettings(
+          arguments: <String, dynamic>{
+            'initialPrompt': prompt,
+            'writingFormatId':
+                LumaraWritingFormatIds.normalizeSelectableId(widget.writingFormatId),
+            'researchPaperSpecs': widget.researchPaperSpecs,
+            'includeWritingSources': widget.includeWritingSources,
+          },
+        ),
+      ),
+    );
+  }
+
+  void _onConfirmLooksRight() {
+    if (_isWritingOnlyChain) {
+      _openWritingAgentFromRun();
+      return;
+    }
+    _startRun();
   }
 
   Widget _buildCtas() {
     if (_phase == 'confirm') {
       return Column(
         children: [
-          _primaryButton('Looks right — run it →', _startRun),
+          _primaryButton(
+            _isWritingOnlyChain
+                ? 'Looks right — open Writing →'
+                : 'Looks right — run it →',
+            _onConfirmLooksRight,
+          ),
           const SizedBox(height: 10),
           _ghostButton('Change my request', () => Navigator.pop(context)),
         ],
@@ -1418,7 +1366,9 @@ class _RunScreenState extends State<RunScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Answer at least one question so ${_chainHasWriting ? 'the writer' : 'the run'} can continue.',
+            _pendingClarificationPhase == 'research_scope'
+                ? 'Add a short note in at least one box (or type “use as-is”) so research can continue.'
+                : 'Answer at least one question so ${_chainHasWriting ? 'the writer' : 'the run'} can continue.',
             style: GoogleFonts.inter(fontWeight: FontWeight.w600),
           ),
           backgroundColor: const Color(0xFF2A2A3E),
@@ -1492,7 +1442,7 @@ class _RunScreenState extends State<RunScreen> {
           const SizedBox(height: 12),
           Text(
             _pendingClarificationPhase == 'research_scope'
-                ? 'Answer below, then continue. Your replies are merged into the request so web and academic search uses the right focus.'
+                ? 'This is not a yes/no step. Under each angle, write a short note: what to emphasize, extra keywords, sources you care about, or what to skip. If an angle already looks right, type use as-is. Your notes are added to the search request.'
                 : 'Answer below, then continue — your replies are merged into the request.',
             style: GoogleFonts.inter(
               color: const Color(0xFF7070A0),
@@ -1505,6 +1455,18 @@ class _RunScreenState extends State<RunScreen> {
               i < _clarificationQuestions.length &&
                   i < _clarificationControllers.length;
               i++) ...[
+            if (_pendingClarificationPhase == 'research_scope') ...[
+              Text(
+                'Search angle ${i + 1}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8A8AB0),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
             Text(
               _clarificationQuestions[i],
               style: GoogleFonts.inter(
@@ -1525,7 +1487,9 @@ class _RunScreenState extends State<RunScreen> {
               decoration: InputDecoration(
                 filled: true,
                 fillColor: const Color(0xFF0C0C1A),
-                hintText: 'Your answer…',
+                hintText: _pendingClarificationPhase == 'research_scope'
+                    ? 'e.g. Focus on enterprise tools; use as-is; skip hype…'
+                    : 'Your answer…',
                 hintStyle: GoogleFonts.inter(color: const Color(0xFF44445A)),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -1723,7 +1687,7 @@ class _RunScreenState extends State<RunScreen> {
     final endpoint = WorkerService.resolveEndpoint(widget.chain);
 
     ChronicleBundle? bundle;
-    if (widget.useChronicle) {
+    if (widget.useChronicle && _shouldAttachChronicleNow) {
       try {
         final uid = await AgentsChronicleService.instance.getCurrentUserId();
         bundle = await buildChronicleBundleForWorkflow(
@@ -1731,6 +1695,9 @@ class _RunScreenState extends State<RunScreen> {
           contentTopic: _workflowInputEffective,
           hybridSearchForTopic: widget.useChronicle,
         );
+        if (mounted) {
+          setState(() => _liveChronicleBundle = bundle);
+        }
       } catch (_) {
         bundle = _liveChronicleBundle;
       }
@@ -1739,7 +1706,7 @@ class _RunScreenState extends State<RunScreen> {
     Map<String, dynamic>? writingPrefs;
     if (_chainHasWriting) {
       writingPrefs = {
-        'format': widget.writingFormatId,
+        'format': LumaraWritingFormatIds.normalizeSelectableId(widget.writingFormatId),
         if (widget.researchPaperSpecs.isNotEmpty)
           'research_paper_specs': widget.researchPaperSpecs,
         if (widget.includeWritingSources) 'include_sources': true,
@@ -1762,9 +1729,9 @@ class _RunScreenState extends State<RunScreen> {
       _streamSub = WorkerService.streamWorkflow(
         endpoint: endpoint,
         input: _workflowInputEffective,
-        useChronicle: widget.useChronicle,
+        useChronicle: bundle != null,
         chronicle: bundle,
-        platforms: _chainHasWriting ? _selectedPlatformIds : null,
+        platforms: null,
         writingPreferences: writingPrefs,
         sourceDocuments: sourceDocs,
         skipWriterClarification: _skipWriterClarification,

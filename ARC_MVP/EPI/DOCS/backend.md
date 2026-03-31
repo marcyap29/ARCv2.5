@@ -1,7 +1,7 @@
 # Backend Architecture & Setup
 
-**Version:** 3.3.85
-**Last Updated:** March 25, 2026
+**Version:** 3.3.91
+**Last Updated:** March 29, 2026
 **Status:** ✅ Production Ready with Adaptive Framework, Companion-First LUMARA, Validation & Logging, Health Integration, AssemblyAI v3, Internet Access, Enhanced Classification-Aware PRISM Privacy Protection, Stripe Integration (web), RevenueCat (in-app purchases), Local Backup Services, and Groq API Proxy (GPT-OSS 120B primary). OpenAI provider and adapter removed (v3.3.67).
 
 ---
@@ -521,14 +521,14 @@ Firebase Auth (Anonymous → Google/Email)
   ↓
 Cloud Functions (enforceAuth + checkLimits)
   ↓
-Firestore (User Document + Usage Tracking)
+Firestore (Developer plan document + usage tracking)
 ```
 
 ### Key Components
 
 #### 1. Authentication (`authGuard.ts`)
 
-- **enforceAuth()**: Validates Firebase Auth, creates/loads user documents
+- **enforceAuth()**: Validates Firebase Auth, creates/loads the per-user plan document at **`developers/{uid}`** (SwarmSpace / subscription tier source of truth). Journal adaptive state and other user-scoped data may still live under paths such as **`users/{uid}/...`** — do not confuse the two collections.
 - **checkJournalEntryLimit()**: Per-entry limit (5 for free users)
 - **checkChatLimit()**: Per-chat limit (20 for free users)
 - **Admin Detection**: Email-based admin privileges

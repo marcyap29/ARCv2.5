@@ -93,8 +93,8 @@ export async function enforceAuth(
 
   logger.info(`Auth enforced for user ${userId} (anonymous: ${isAnonymous}, provider: ${signInProvider}, email: ${userEmail || 'none'})`);
 
-  // Step 2: Load or create user document
-  const userRef = db.collection("users").doc(userId);
+  // Step 2: Load or create developer document (SwarmSpace / plan source of truth)
+  const userRef = db.collection("developers").doc(userId);
   const userDoc = await userRef.get();
 
   let user: UserDocument;
@@ -290,7 +290,7 @@ export async function checkChatLimit(
  * Check if a user can link their anonymous account to a real account
  */
 export async function canLinkAccount(userId: string): Promise<boolean> {
-  const userDoc = await db.collection("users").doc(userId).get();
+  const userDoc = await db.collection("developers").doc(userId).get();
   
   if (!userDoc.exists) {
     return false;
@@ -310,14 +310,14 @@ export async function linkAccountData(
   const batch = db.batch();
 
   // Get old user document
-  const oldUserRef = db.collection("users").doc(oldAnonymousUid);
+  const oldUserRef = db.collection("developers").doc(oldAnonymousUid);
   const oldUserDoc = await oldUserRef.get();
 
   if (oldUserDoc.exists) {
     const oldUser = oldUserDoc.data() as UserDocument;
 
     // Create/update new user document with transferred data
-    const newUserRef = db.collection("users").doc(newRealUid);
+    const newUserRef = db.collection("developers").doc(newRealUid);
     batch.set(newUserRef, {
       ...oldUser,
       userId: newRealUid,

@@ -8,7 +8,7 @@ This document catalogs all prompts used throughout the ARC application, organize
 - **Path baseline:** All paths are relative to the EPI app root (e.g. `ARC MVP/EPI/`). Example: `lib/arc/chat/prompts/lumara_profile.json` means `ARC MVP/EPI/lib/arc/chat/prompts/lumara_profile.json`.
 - **Content:** Quoted blocks are taken from or derived from the cited sources. Some sections show a subset or summary; the source file holds the full, authoritative text.
 - **Cloud vs on-device:** Cloud API uses the master prompt system (`lumara_master_prompt.dart`); on-device and legacy paths may use `lumara_system_prompt.dart` or profile JSON.
-- **Last synced with codebase:** 2026-03-29. Document version: 2.10.3 (§27 — `planResearchSubQuestions` + `research_scope` clarification before search; `skip_research_scope_clarification`; SSE `clarification_needed` `phase` field `intake` | `research_scope` | `writing`; v3.3.90 audit).
+- **Last synced with codebase:** 2026-03-29. Document version: 2.10.3 (§27 — `planResearchSubQuestions` + `research_scope` clarification before search; `skip_research_scope_clarification`; SSE `clarification_needed` `phase` field `intake` | `research_scope` | `writing`; v3.3.91 audit: no new LLM prompt strings — Agents/Writing UI + `authGuard` Firestore path only).
 
 ---
 

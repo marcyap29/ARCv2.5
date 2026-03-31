@@ -68,7 +68,7 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  late HomeCubit _homeCubit;
+  bool _appliedInitialHomeTab = false;
   // Insights moved under Health as Analytics
   
   // Shake to report bug
@@ -104,9 +104,7 @@ class _HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
-    _homeCubit = HomeCubit();
-    _homeCubit.initialize();
-    
+
     // Trigger phase preview and Gantt refresh on app startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       PhaseRegimeService.regimeChangeNotifier.value = DateTime.now();
@@ -155,14 +153,6 @@ class _HomeViewState extends State<HomeView> {
       });
     });
     
-      if (widget.initialTab != 0) {
-        _homeCubit.changeTab(widget.initialTab);
-      } else if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
-        _homeCubit.changeTab(0); // Unified feed is the default in new mode
-      } else {
-        _homeCubit.changeTab(1); // Set Conversations (Journal) tab as default in legacy mode
-      }
-
     // Check photo permissions and refresh timeline if granted
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkPhotoPermissionsAndRefresh();
@@ -290,6 +280,21 @@ class _HomeViewState extends State<HomeView> {
   static const String _keyShowLumaraSetupNudge = 'show_lumara_setup_nudge';
   static const String _keyOnboardingNudgeShown = 'onboarding_nudge_shown';
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_appliedInitialHomeTab) return;
+    _appliedInitialHomeTab = true;
+    final cubit = context.read<HomeCubit>();
+    if (widget.initialTab != 0) {
+      cubit.changeTab(widget.initialTab);
+    } else if (core_flags.FeatureFlags.USE_UNIFIED_FEED) {
+      cubit.changeTab(0);
+    } else {
+      cubit.changeTab(1);
+    }
+  }
+
   Future<void> _maybeShowLumaraSetupNudge() async {
     final prefs = await SharedPreferences.getInstance();
     final shouldShow = prefs.getBool(_keyShowLumaraSetupNudge) ?? false;
@@ -310,9 +315,7 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: _homeCubit,
-              child: BlocListener<HomeCubit, HomeState>(
+    return BlocListener<HomeCubit, HomeState>(
         listener: (context, state) {
           if (state is HomeLoaded) {
             // Track tab navigation
@@ -445,7 +448,7 @@ class _HomeViewState extends State<HomeView> {
                       onTabSelected: (index) {
                         debugPrint('DEBUG: Tab selected: $index');
                         debugPrint('DEBUG: Current selected index was: $selectedIndex');
-                        _homeCubit.changeTab(index);
+                        context.read<HomeCubit>().changeTab(index);
                       },
                       onNewJournalPressed: () async {
                         await JournalSessionCache.clearSession();
@@ -465,7 +468,6 @@ class _HomeViewState extends State<HomeView> {
                     ),
             );
           },
-        ),
         ),
       ),
     );
@@ -734,7 +736,6 @@ class _HomeViewState extends State<HomeView> {
   void dispose() {
     _shakeSubscription?.cancel();
     ShakeDetectorService().stopListening();
-    _homeCubit.close();
     super.dispose();
   }
 }

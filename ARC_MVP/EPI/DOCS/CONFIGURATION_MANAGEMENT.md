@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 29, 2026 (doc sync 2026-03-29, v3.3.90)  
+**Last Updated:** March 29, 2026 (doc sync 2026-03-29, v3.3.91)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -45,15 +45,15 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-29 | ✅ Synced | v3.3.90 - research_scope gate; chat attachment doc context; RAM trims |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-29 | ✅ Synced | v3.3.90 - Worker research_scope + LUMARA research/chat memory trims |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-29 | ✅ Synced | v2.10.3 - §27 planResearchSubQuestions + clarification phases |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-29 | ✅ Synced | v1.39.0 - Doc sync 2026-03-29 (v3.3.90) |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-29 | ✅ Synced | v3.5.6 - Recent changes v3.3.90 row |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-29 | ✅ Synced | v3.3.90 - Research scope UX; attach PDF/Word; mobile research RAM |
-| README.md | `/DOCS/README.md` | 2026-03-29 | ✅ Synced | Key docs table; see CHANGELOG v3.3.90 |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-29 | ✅ Synced | v3.3.91 - HomeCubit root; Agents/Writing; CHRONICLE deferral; auth developers |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-29 | ✅ Synced | v3.3.91 - Shell tab; agents writing routing; output copy; authGuard |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-29 | ✅ Synced | v2.10.3 - v3.3.91 audit (no new prompts) |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-29 | ✅ Synced | v1.40.0 - Doc sync 2026-03-29 (v3.3.91) |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-29 | ✅ Synced | v3.5.7 - Recent changes v3.3.91 row |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-29 | ✅ Synced | v3.3.91 - Writing-first agents; output copy; import UX |
+| README.md | `/DOCS/README.md` | 2026-03-29 | ✅ Synced | Key docs table; see CHANGELOG v3.3.91 |
 | claude.md | `/DOCS/claude.md` | 2026-03-29 | ✅ Synced | Doc/Config/Git Backup prompt; footer sync |
-| backend.md | `/DOCS/backend.md` | 2026-03-20 | ✅ Synced | v3.3.80 - proxyGroq.ts module, rateLimiter/authGuard |
+| backend.md | `/DOCS/backend.md` | 2026-03-29 | ✅ Synced | v3.3.91 - authGuard `developers` collection |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
 ### White Papers & Specifications
@@ -121,6 +121,20 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-29 - Documentation & Git Backup run (v3.3.91; doc sync 2026-03-29)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md). Trigger: user request.
+
+**PROMPT REFERENCES AUDIT:** Scanned delta (Agents, Writing, run screen, outputs, settings import, **`authGuard.ts`**). No new LLM prompt definitions; **`PROMPT_REFERENCES.md`** v2.10.3 header note only.
+
+**Git delta:** `HomeCubit` at app root; import flow navigation trim; pure-writing intent routing; Writing screen / format card simplification; research→writing handoffs; CHRONICLE bundle deferral until research scope confirmed; output detail copy-as-plain; **`shareWorkflowMarkdown`** removal; Firestore **`developers`** for plan docs in **`authGuard`**.
+
+**Updates:** `CHANGELOG.md` v3.3.91; `FEATURES.md` / `ARCHITECTURE.md`; `backend.md`; `bug_tracker.md` v3.5.7; `PROMPT_TRACKER.md` v1.40.0; this file; `README.md`.
+
+**Status:** Commit and push `main` (this run).
+
+---
 
 ### 2026-03-29 - Documentation & Git Backup run (v3.3.90; doc sync 2026-03-29)
 

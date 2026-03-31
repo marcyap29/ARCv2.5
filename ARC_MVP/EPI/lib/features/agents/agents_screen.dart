@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:my_app/arc/chat/ui/writing_screen.dart';
 import 'package:my_app/lumara/agents/screens/plugin_activity_screen.dart';
 import 'package:my_app/lumara/agents/widgets/lumara_writing_format_card.dart';
 import 'package:my_app/lumara/agents/screens/plugin_catalog_screen.dart';
@@ -13,7 +14,6 @@ import 'package:uuid/uuid.dart';
 import 'agents_data.dart';
 import 'agents_persona_resolver.dart';
 import 'run_screen.dart';
-import 'worker_service.dart';
 
 /// Emoji hints for [AgentsData.swarmspaceOfficialFreeApiSlugs] (site-style list).
 const Map<String, String> _kFreeApiSlugEmoji = {
@@ -57,14 +57,15 @@ class _AgentsScreenState extends State<AgentsScreen> {
   late final ScrollController _scrollController;
   bool _outputFormatExpanded = false;
   bool _inspirationExpanded = false;
+  bool _agentsExpanded = false;
   bool _swarmSpaceStoreExpanded = true;
   final List<_PartEntry> _partEntries = [];
   final List<AgentAttachment> _attachments = [];
   /// See [LumaraWritingFormatIds]; legacy ids still accepted by Run screen defaults.
-  String _writingFormatId = LumaraWritingFormatIds.mediumSocial;
+  String _writingFormatId = LumaraWritingFormatIds.normalizeSelectableId(
+      LumaraWritingFormatIds.mediumSocial);
 
   bool _includeWritingSources = false;
-  late Map<String, bool> _formatSocialSelections;
   String _profileContextHint = '';
 
   bool get _canSubmit {
@@ -77,6 +78,23 @@ class _AgentsScreenState extends State<AgentsScreen> {
     return hasText || hasParts || _attachments.isNotEmpty;
   }
 
+  /// Matches [AgentsData.orchestrate] for the current Your run + enabled agents.
+  bool get _predictedRunIncludesWriting {
+    if (!_canSubmit) return false;
+    final parts = _snapshotRequestParts();
+    final composed = AgentsData.composeOrchestrationInput(
+      _input,
+      parts,
+      _attachments,
+    );
+    final enabledIds = _agentToggles.entries
+        .where((e) => e.value)
+        .map((e) => e.key)
+        .toList();
+    final chain = AgentsData.orchestrate(composed, _personaKey, enabledIds);
+    return chain.steps.any((s) => s.toLowerCase().contains('writing'));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -86,9 +104,6 @@ class _AgentsScreenState extends State<AgentsScreen> {
     _researchPaperSpecsController = TextEditingController();
     _capabilitySearchController = TextEditingController();
     _inputFocusNode = FocusNode();
-    _formatSocialSelections = {
-      for (final p in WritingPlatforms.all) p.id: p.defaultSelected,
-    };
     _inputController.addListener(() {
       if (mounted) setState(() {});
     });
@@ -129,20 +144,6 @@ class _AgentsScreenState extends State<AgentsScreen> {
         setState(() => _profileContextHint = line);
       }
     } catch (_) {}
-  }
-
-  List<String>? _platformIdsForRun() {
-    switch (_writingFormatId) {
-      case LumaraWritingFormatIds.shortThreads:
-      case LumaraWritingFormatIds.mediumSocial:
-        final ids = _formatSocialSelections.entries
-            .where((e) => e.value)
-            .map((e) => e.key)
-            .toList();
-        return ids.isEmpty ? null : ids;
-      default:
-        return null;
-    }
   }
 
   String _specsForRun() {
@@ -285,17 +286,19 @@ class _AgentsScreenState extends State<AgentsScreen> {
           const SizedBox(height: 12),
           _buildFreeformCard(),
           const SizedBox(height: 16),
-          _buildChevronSection(
-            expanded: _outputFormatExpanded,
-            onToggle: () => setState(
-              () => _outputFormatExpanded = !_outputFormatExpanded,
+          if (_predictedRunIncludesWriting) ...[
+            _buildChevronSection(
+              expanded: _outputFormatExpanded,
+              onToggle: () => setState(
+                () => _outputFormatExpanded = !_outputFormatExpanded,
+              ),
+              title: 'Output format',
+              subtitle:
+                  'Length and specs for this run (shown when Writing is in the chain).',
+              child: _buildWritingFormatSection(),
             ),
-            title: 'Output format',
-            subtitle:
-                'Length, tone, channels, and specs for writing—only affects runs that include Writing.',
-            child: _buildWritingFormatSection(),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
+          ],
           _buildChevronSection(
             expanded: _inspirationExpanded,
             onToggle: () => setState(
@@ -319,9 +322,15 @@ class _AgentsScreenState extends State<AgentsScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          _buildSectionLabel('AGENTS'),
-          const SizedBox(height: 12),
-          _buildAgentsList(),
+          _buildChevronSection(
+            expanded: _agentsExpanded,
+            onToggle: () =>
+                setState(() => _agentsExpanded = !_agentsExpanded),
+            title: 'Agents',
+            subtitle:
+                'Enable or open built-in agents. Writing opens its own workspace.',
+            child: _buildAgentsList(),
+          ),
           const SizedBox(height: 24),
           _buildChevronSection(
             expanded: _swarmSpaceStoreExpanded,
@@ -522,9 +531,6 @@ class _AgentsScreenState extends State<AgentsScreen> {
       includeSources: _includeWritingSources,
       onIncludeSourcesChanged: (v) =>
           setState(() => _includeWritingSources = v),
-      socialSelections: _formatSocialSelections,
-      onSocialSelectionsChanged: (m) =>
-          setState(() => _formatSocialSelections = m),
     );
   }
 
@@ -801,10 +807,19 @@ class _AgentsScreenState extends State<AgentsScreen> {
       _openPluginActivity();
       return;
     }
+    if (agent.id == 'writing') {
+      Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => const WritingScreen(),
+        ),
+      );
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${agent.label} runs inside a workflow from your request above.',
+          '${agent.label} runs when you use Work it out for me above.',
           style: GoogleFonts.inter(fontWeight: FontWeight.w600),
         ),
         backgroundColor: const Color(0xFF2A2A3E),
@@ -1613,7 +1628,7 @@ class _AgentsScreenState extends State<AgentsScreen> {
           input: _input.trim(),
           requestParts: parts,
           attachments: List<AgentAttachment>.from(_attachments),
-          platforms: _platformIdsForRun(),
+          platforms: null,
           personaKey: _personaKey,
           useChronicle: _useChronicle,
           enabledAgentIds: enabledIds,

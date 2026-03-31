@@ -837,6 +837,15 @@ class AgentsData {
       );
     }
 
+    if (_isPureWritingIntent(lower)) {
+      return const WorkflowChain(
+        label: 'Writing',
+        steps: ['Writing'],
+        reason:
+            'Detected: drafting or polishing content — open the Writing workspace to compose with your chosen length.',
+      );
+    }
+
     if (_containsAny(lower, ['synthesis', 'synthesize']) &&
         _containsAny(lower, [
           'document',
@@ -928,21 +937,6 @@ class AgentsData {
     }
 
     if (_containsAny(lower, [
-      'content',
-      'post',
-      'linkedin',
-      'twitter',
-      'write',
-      'draft',
-    ])) {
-      return const WorkflowChain(
-        label: 'Research and write content',
-        steps: ['Research', 'Writing'],
-        reason: 'Detected: content creation intent',
-      );
-    }
-
-    if (_containsAny(lower, [
       'compet',
       'rival',
       'market',
@@ -1011,6 +1005,19 @@ class AgentsData {
       if (source.contains(term)) return true;
     }
     return false;
+  }
+
+  /// Drafting / posts without an explicit research leg (research+write is handled separately).
+  static bool _isPureWritingIntent(String lower) {
+    if (_isResearchThenWriteIntent(lower)) return false;
+    final writeCue = RegExp(
+      r'\b(write|draft|post|publish|essay|article|blog|newsletter|piece|content|compose|author)\b',
+    );
+    if (!writeCue.hasMatch(lower)) return false;
+    final researchCue = RegExp(
+      r'\b(research|look up|look into|investigate|find out about|gather (info|information|sources)|deep dive|literature review|compare (the )?market|competitor|competitive|citations?|sources?)\b',
+    );
+    return !researchCue.hasMatch(lower);
   }
 
   /// "Research X then write…", "look into … and draft …", etc.

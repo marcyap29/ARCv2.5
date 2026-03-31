@@ -30,6 +30,7 @@ import 'package:my_app/shared/ui/settings/settings_cubit.dart';
 import 'package:my_app/services/pending_conversation_service.dart';
 import 'package:my_app/mira/store/arcx/import_progress_cubit.dart';
 import 'package:my_app/features/agents/agents_page.dart';
+import 'package:my_app/shared/ui/home/home_cubit.dart';
 
 // Global navigator key for deep linking from notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -162,6 +163,10 @@ class _AppState extends State<App> {
           ),
           // Global import progress (mini status bar in HomeView)
           BlocProvider(create: (_) => ImportProgressCubit()),
+          // Shell tab index — must be above Navigator so pushed routes (e.g. output detail) can read it for [LumaraUnifiedBottomBar].
+          BlocProvider(
+            create: (_) => HomeCubit()..initialize(),
+          ),
         ],
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
