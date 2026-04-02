@@ -1,7 +1,7 @@
 # EPI MVP - Bug Tracker
 
-**Version:** 3.5.7  
-**Last Updated:** 2026-03-29  
+**Version:** 3.5.8  
+**Last Updated:** 2026-03-30  
 **Record count:** 40 individual bug records in [records/](records/). Index below matches all files in records/.
 
 **Master index & format:** For overview, document structure, standardized bug entry format, and maintenance procedures see [BUGTRACKER_MASTER_INDEX.md](BUGTRACKER_MASTER_INDEX.md). New records should follow the BUG-[ID] format (🐛🔧🎯📋) when possible; see audit [BUGTRACKER_AUDIT_REPORT.md](BUGTRACKER_AUDIT_REPORT.md).
@@ -103,6 +103,7 @@ This section is derived from the repo and [CHANGELOG.md](../CHANGELOG.md) to kee
 
 | Fix / change | Version | Bug record | Notes |
 |--------------|---------|------------|--------|
+| Subscription details fallback (`getUserSubscription`); premium Future cache (no paywall flicker); billing UI for founder / non-Stripe premium | v3.3.92 | — | 2026-03-30: `subscription_service.dart`, `subscription_management_view.dart`, `revenuecat_service.dart` (no live `appl_` in source). **Triage:** If `getSubscriptionDetails` is deployed later, fallback still safe; verify Stripe vs founder copy. |
 | HomeCubit app-wide; pure-writing intent; Writing agent → WritingScreen; CHRONICLE defer until research scope; output copy-as-plain; authGuard `developers` collection | v3.3.91 | — | 2026-03-29: `app.dart`, `home_view.dart`, `settings_view` (import navigation), `agents_data` / `agents_screen` / `run_screen`, `writing_screen`, `lumara_writing_format_card`, `output_detail_screen`, `report_export_service`, `functions/src/authGuard.ts`. **Triage:** Firestore migration if prod still on `users` for plan docs; verify bottom bar tab index on deep routes; import progress UX without forced `/home`. |
 | Research scope clarification (`research_scope` SSE phase); `planResearchSubQuestions`; chat + Research PDF/Word → document context; mobile RAM trims (compact search results, smaller search batches) | v3.3.90 | — | 2026-03-29: Workers — `skip_research_scope_clarification`, `research.ts` / `research_writing.ts` / `writing.ts` phase fields, `research_pipeline.ts` refactor. EPI — `run_screen.dart`, `worker_service.dart`, `chat_attachment_document_context.dart`, `lumara_assistant_cubit.dart`, `research_screen.dart`, `research_agent.dart`, `search_orchestrator.dart`, `synthesis_engine.dart`, `research_models.dart`, `swarmspace_web_search_tool.dart`, `agent_attachment_text.dart`, `writing_prompts.dart`. **Triage:** Two-step clarification (intake + research_scope); verify `skip` flags after user continue; memory on long research runs. |
 | Worker clarification gate + shared research pipeline; PDF/txt/md → `source_documents`; LumaraOutputs + Firestore mirror | v3.3.89 | — | 2026-03-29: `workers/workflows` — `clarification_gate.ts`, `research_pipeline.ts`, `types.ts` (`SourceDocument`, `skip_writer_clarification`), `research.ts` / `research_writing.ts` / `writing.ts` wiring, SSE `clarification_needed`. EPI — `agent_attachment_text.dart`, `run_screen` clarification UI, `worker_service` body fields; `workflow_output_persistence.dart`, outputs screens. **Triage:** Watch clarification loop vs `skip_writer_clarification`; large attachment truncation caps. |

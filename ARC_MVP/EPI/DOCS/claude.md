@@ -1,65 +1,23 @@
-# Claude or Cursor Implementation:
+# Claude or Cursor implementation
 
 For each prompt:
 
-1. Create an Agent that will Analyze the prompt, plan out the actions to fulfill the promp, and then break down the actions into manageble steps composed of sub-tasks that can assigned to individual sub-agents. This overseeing agent will also determine the definition of done prior to assigning tasks.
+1. Create an agent that analyzes the prompt, plans how to fulfill it, and breaks work into sub-tasks assignable to sub-agents. The overseer defines **definition of done** before assigning work.
 2. Create enough sub-agents to handle the tasks.
-3. Assign each sub-agent their respective sub-tasks that make up the steps.
-4. Create A review agent that also knows the definition of done (from step 1), and will oversee the review of tasking that finishes from the sub-agents as they finishe their tasking.
-5. Output when you are done and a review. when the prompt is finished implementation.
+3. Assign each sub-agent its sub-tasks.
+4. Create a review agent that shares the definition of done and reviews completed work as sub-agents finish.
+5. When implementation is complete, output a short summary and review.
 
-# LUMARA Documentation Context Guide
-`
-**Version:** 3.3.30
-**Last Updated:** March 29, 2026
-**Current Branch:** `test`
+---
 
-### Recent Updates (v3.3.30)
-- **LUMARA response modes locked in this doc**: Personal / Simple / Analysis — intended behavior, provenance tags, prompt wiring, and regression rules. See [LUMARA response modes](#lumara-response-modes-personal--simple--analysis) under Key Services. Do not change mode semantics or remove the binding preamble without updating that section and `lib/arc/chat/prompts/lumara_mode_definition.dart`.
+## LUMARA documentation context guide
 
-### Recent Updates (v3.3.29)
-- **Bug tracker incorporated for regression prevention**: The bugtracker is now explicitly part of this context. Before generating or modifying code, you **must** use the [Bug prevention](#bug-prevention-avoid-reintroducing) list below and, for affected areas, `DOCS/bugtracker/` (index, records, master index) to avoid reintroducing known bugs. See [Bug Tracking](#bug-tracking) and the mandate there.
+**Purpose:** Orient assistants and contributors to this repo. **Release history and version notes** belong in `DOCS/CHANGELOG.md` — do not duplicate them here.
 
-### Earlier Updates (v3.3.28)
-- **Unified feed Pinned filter & timeline bookmark (bug prevention)**: Doc updated so these don't regress. (1) Feed Pinned filter: `FeedEntry.isPinned` for journal entries must come from FavoritesService (`getFavoriteJournalEntries()` → entryId set); FeedRepository must resolve this on refresh—do not hardcode `isPinned: false`. (2) Timeline favorite bookmark: use ≥44pt tap target and tooltip; see Bug prevention → LUMARA & journal, Timeline & UI.
+**Before changing LUMARA, CHRONICLE, prompts, feed, or timeline code:**
 
-### Earlier Updates (v3.3.27)
-- **ARCHITECTURE.md Module Naming Refactor**: ARC → LUMARA (interface), MIRA → CHRONICLE (storage + synthesis + on-device embeddings). System diagram and all references updated. Executive Summary clarified: "5-module architecture: LUMARA (interface), PRISM, CHRONICLE, AURORA, ECHO."
-- **Pattern Index in Orchestrator**: `PatternQueryRouter` created during CHRONICLE init and passed to `ChronicleSubsystem`. Pattern-like intents route through vectorizer; results merged via `<chronicle_pattern_index>` tags. VEIL-CHRONICLE scheduler starts at app launch (`home_view.dart`). CHRONICLE Management UI: pattern index section with last-updated timestamp and manual rebuild.
-- **Narrative Intelligence**: `DOCS/NARRATIVE_INTELLIGENCE_OVERVIEW.md` — framework overview (architecture, VEIL cycle, subsystems, vector generation, intellectual honesty, Crossroads). Formal paper: `DOCS/NARRATIVE_INTELLIGENCE_WHITE_PAPER.tex`.
-
-### Earlier Updates (v3.3.26)
-- **Crossroads Decision Capture**: New `lib/crossroads/` subsystem. RIVET-triggered decision detection (`RivetDecisionAnalyzer`) → confirmation prompt → four-step capture → CHRONICLE Layer 0 (`entry_type: "decision"`). Outcome revisitation via scheduled prompts. Monthly synthesis weaves decisions as inflection points. `QueryIntent.decisionArchaeology`. Export `decisions/` directory. Hive adapters 118/119.
-- **LUMARA Intellectual Honesty / Pushback**: `<intellectual_honesty>` section in master prompt. `ChronicleContradictionChecker` detects claims contradicting journal record → `truth_check` injected into system prompt (chat + reflection paths). `PushbackEvidence` on `LumaraMessage`. `EvidenceReviewWidget` shows CHRONICLE excerpts.
-- **CHRONICLE Cross-Temporal Pattern Index**: On-device TFLite Universal Sentence Encoder. `ChronicleIndexBuilder`, `ThreeStageMatcher`, `PatternQueryRouter`, `ChronicleIndexStorage`. Updated after each monthly synthesis. `tflite_flutter: ^0.12.1` dependency.
-- **CHRONICLE Edit Validation**: `EditValidator` detects pattern suppression + factual contradictions in user edits. `ChronicleEditingService`.
-- **CHRONICLE Import/Export**: `ChronicleImportService` (from export directory). Export gains `decisions/` folder. Import button in CHRONICLE Management.
-- **CHRONICLE Schedule Preferences**: User-selectable cadence (Daily/Weekly/Monthly). VEIL scheduler adapts interval. FilterChip in settings.
-- **Expanded Entry View**: Full entry loaded for LUMARA blocks, related entries (tappable from metadata), overview/blocks content.
-- **Journal View-Only**: Read-only LUMARA blocks, paragraph formatting, view-only continuation field.
-- **Phase Display Unification**: `_displayPhaseName` single source of truth (profile first, then regime). Splash removes backfill migration. "Set your phase" placeholder.
-- **UI Polish**: Dark-theme-safe export dialogs, multi-delete label with count, CHRONICLE progress UX improvements, MCP export date validation.
-
-### Earlier Updates (v3.3.25)
-- **Chat Phase Classification System**: `ChatPhaseService` auto-classifies LUMARA chat sessions into ATLAS phases. Phase in session app bar with manual override. Phase chips on chat list cards. Chat sessions contribute to regime building. Draft reflection fix (`draft_*` IDs skip AURORA). 3D constellation card in feed.
-- **Groq Primary LLM Provider (v3.3.24)**: Groq (Llama 3.3 70B / Mixtral 8x7b) primary, Gemini fallback. `proxyGroq` Firebase Cloud Function. Mode-aware temperature.
-- **PROMPT_REFERENCES v2.0.0**: `proxyGroq`/`proxyGemini` backend, CHRONICLE synthesis prompts, Voice Split-Payload, Speed-Tiered Context, Conversation Summary.
-- **CHRONICLE Speed-Tiered Context**: ResponseSpeed enum (instant/fast/normal/deep) with mode-aware query routing; ChronicleContextCache (in-memory TTL, 50 entries, 30-min); context building tiers from mini-context (50 tokens) to full multi-layer.
-- **Streaming LUMARA Responses**: `geminiSendStream`/`GroqService.generateContentStream` with `onStreamChunk` callback for real-time response delivery in journal reflection UI.
-- **Unified Feed Phase 2.3**: Scroll-to-top/bottom navigation, Gantt card auto-refresh via notifiers, improved paragraph rendering (dividers, line height, summary overlap detection), feed sort by `createdAt`, summary stripping from preview.
-- **Phase Display Fix**: Regime phase shown regardless of RIVET gate status; phase change dialog redesigned as bottom sheet; direct timeline navigation from Gantt card.
-- **DevSecOps Security Audit**: Verified findings for auth, secrets, storage, network, logging, rate limiting, deep links.
-
-### Earlier Updates (v3.3.13–v3.3.24)
-- **Documentation & Configuration Manager role pass**: README key documents table (purpose, when to read); claude.md paths to relative DOCS/; CONFIGURATION_MANAGEMENT "Key documents for onboarding"; ARCHITECTURE Phase Quiz/Phase tab achievement; traceability via change log.
-- **Phase Quiz / Phase Tab Sync**: Phase Quiz V2 result now persisted via UserPhaseService; Phase tab shows quiz phase when no regimes exist; rotating phase shape (AnimatedPhaseShape) shown alongside 3D constellation on Phase tab.
-- **Response Length Architecture Refactor**: Response length now tied to Engagement Mode, not Persona. Persona applies density modifiers.
-- **Phase Intelligence Integration**: Documented two-stage memory system (Context Selection + CHRONICLE). LUMARA Enterprise Architecture: four-subsystem spine (ARC, ATLAS, CHRONICLE, AURORA) coordinated by LUMARA Orchestrator.
-- **Custom Memory Focus UI**: Sliders for Time Window, Matching Precision, Max Entries when Custom preset selected
-- **LUMARA Context Selector**: New service for sophisticated context selection based on Memory Focus, Engagement Mode, and Phase Intelligence
-- **Temporal Context Accuracy Fix**: Current entry excluded from recent entries, relative dates added (e.g., "3 days ago")
-- **Export System Improvements**: Automatic full export on first run, sequential numbering, always-available Full Export option
-- **Persona Rename**: "Therapist" → "Grounded"
+- Use [Bug prevention](#bug-prevention-avoid-reintroducing) and skim `DOCS/bugtracker/` when the area matches.
+- For **response modes** (Personal / Simple / Analysis), follow [LUMARA response modes](#lumara-response-modes-personal--simple--analysis) and keep `lib/arc/chat/prompts/lumara_mode_definition.dart` aligned with this doc.
 
 ---
 
@@ -68,6 +26,8 @@ For each prompt:
 | Document | Purpose | Path |
 |----------|---------|------|
 | **README.md** | Project overview and key documents | `DOCS/README.md` |
+| **RULE.md** | Local / portable SOP pointer + Cursor workflow notes | `DOCS/RULE.md` |
+| **Starter Repo/** | Copy-paste doc pack: **RULE.md**, **claude.md** SOPs for new repos | `DOCS/Starter Repo/` |
 | **ARCHITECTURE.md** | System architecture | `DOCS/ARCHITECTURE.md` |
 | **FEATURES.md** | Comprehensive features | `DOCS/FEATURES.md` |
 | **UI_UX.md** | UI/UX documentation | `DOCS/UI_UX.md` |
@@ -256,7 +216,7 @@ Before implementing features that touch LUMARA, CHRONICLE, timeline, export/impo
 
 ---
 
-## Current Architecture (v3.3.13)
+## Current architecture (reference)
 
 ### Response Length System
 Response length is determined by **Engagement Mode** (primary driver), with **Persona** applying density modifiers:
@@ -347,8 +307,8 @@ Response length is determined by **Engagement Mode** (primary driver), with **Pe
 
 ### Subscription Management
 - Service: `lib/services/subscription_service.dart`
-- UI Widget: `lib/ui/subscription/lumara_subscription_status.dart`
-- Access Control: `lib/services/phase_history_access_control.dart`
+- UI: `lib/ui/subscription/lumara_subscription_status.dart`, `lib/ui/subscription/subscription_management_view.dart`
+- Access control: `lib/services/phase_history_access_control.dart`
 
 ### Phase System
 - Phase Analysis: `lib/ui/phase/phase_analysis_view.dart`
@@ -379,7 +339,7 @@ When asked to update documentation:
 3. Replace outdated context
 4. Archive deprecated content to `/docs/archive/`
 5. Keep changelog split into parts if too large
-6. **NEW**: Update `claude.md` with any significant architectural changes
+6. Update `claude.md` with any significant architectural changes (when they affect this context guide).
 7. **Role:** For the full Documentation, Configuration Management, and Git Backup role (universal prompt), see the section "Ultimate Documentation, Configuration Management and Git Backup Prompt" below.
 
 ---
@@ -605,17 +565,7 @@ For each change, update the appropriate documents (only where relevant):
 
 ---
 
-## Pending Implementation
-
-### Phase Intelligence Integration (Full)
-The architecture is documented but full integration requires:
-1. `enhanced_lumara_api.dart` to call `MemoryModeService.retrieveMemories()` with selected entry IDs after context selection
-2. Combine entry excerpts + filtered memories in the prompt
-3. Full RIVET/SENTINEL/ATLAS integration in `LumaraContextSelector`
-
----
-
-*Last synchronized: March 29, 2026 | Version: 3.3.89*
+*Context guide last revised: April 1, 2026. App version: see `DOCS/CHANGELOG.md`.*
 
 ---
 
@@ -635,7 +585,7 @@ model: opus
 
 **When to use:** You're asked to simplify or refine recently modified or targeted code—not full codebase consolidation. Operate as a single expert agent.
 
-**System instruction for yourself:** You are an expert code simplification specialist. Your job is to improve code for clarity, consistency, and maintainability while preserving **exact** functionality. Never change what the code does—only how it does it. Apply the project's standards (see CLAUDE.md). Prefer explicit, readable code over clever brevity. Avoid over-simplification: keep code debuggable and extensible; favor composition and generic types; extract configuration instead of hardcoding. For each change: (1) identify the modified sections, (2) find clarity/consistency opportunities, (3) apply project standards and simplify structure, (4) confirm functionality unchanged, (5) document only changes that affect understanding.
+**System instruction for yourself:** You are an expert code simplification specialist. Your job is to improve code for clarity, consistency, and maintainability while preserving **exact** functionality. Never change what the code does—only how it does it. Apply the standards in this file (`DOCS/claude.md`) and repo conventions. Prefer explicit, readable code over clever brevity. Avoid over-simplification: keep code debuggable and extensible; favor composition and generic types; extract configuration instead of hardcoding. For each change: (1) identify the modified sections, (2) find clarity/consistency opportunities, (3) apply project standards and simplify structure, (4) confirm functionality unchanged, (5) document only changes that affect understanding.
 
 ### Core principles
 
@@ -643,7 +593,7 @@ model: opus
    Never change what the code does—only how it does it. All public APIs, function signatures, outputs, behaviors, edge cases, and error handling must remain intact. Zero breaking changes.
 
 2. **Apply project standards**  
-   Follow the project's coding standards in CLAUDE.md (e.g. module/import conventions, explicit types, component and error-handling patterns, consistent naming for the stack in use).
+   Follow the coding standards in `DOCS/claude.md` and matching project conventions (imports, types, error handling, naming).
 
 3. **Enhance clarity**  
    - Reduce unnecessary complexity and nesting; eliminate redundant code and unhelpful abstractions.  
@@ -732,11 +682,11 @@ Interpret scope: *recent code* → Refinement only; *full consolidation* → Wav
 
 ### SHARED CONTEXT (all agents)
 
-**Core principles:** (1) Preserve functionality—no API/behavior changes. (2) Apply CLAUDE.md standards. (3) Enhance clarity—reduce nesting, clear names, avoid nested ternaries. (4) Maintain balance—no over-simplification. (5) Efficiency—single source of truth, eliminate duplicates.
+**Core principles:** (1) Preserve functionality—no API/behavior changes. (2) Apply `DOCS/claude.md` / project standards. (3) Enhance clarity—reduce nesting, clear names, avoid nested ternaries. (4) Maintain balance—no over-simplification. (5) Efficiency—single source of truth, eliminate duplicates.
 
 ### AGENT — SCAN
 
-**Task:** Find duplicate files (JournalVersionService, QuickActionsService), similar components (>80% overlap), redundant services, unused imports, dead code, circular deps, oversized files. Output `CODE_SIMPLIFIER_SCAN_REPORT.md` with paths, line counts, risk. **Done when:** Report exists; major opportunities listed.
+**Task:** Find duplicate or near-duplicate files, similar components (>80% overlap), redundant services, unused imports, dead code, circular deps, oversized files. Output `CODE_SIMPLIFIER_SCAN_REPORT.md` with paths, line counts, risk. **Done when:** Report exists; major opportunities listed.
 
 ### AGENT — REFINEMENT
 
@@ -744,7 +694,7 @@ Interpret scope: *recent code* → Refinement only; *full consolidation* → Wav
 
 ### AGENT — DUPLICATES
 
-**Task:** (1) Delete `lib/arc/internal/mira/version_service.dart`; update `mira_internal.dart` to export core `journal_version_service.dart`. (2) Single QuickActionsService in `quick_actions_service.dart`; fix widget_* imports. **Done when:** Duplicates removed; imports resolve; analyzer passes.
+**Task:** Use `CODE_SIMPLIFIER_SCAN_REPORT.md` and `DOCS/CODE_SIMPLIFIER_CONSOLIDATION_PLAN.md`: remove duplicate modules/services, consolidate exports, fix imports. **Done when:** Duplicates called out in the plan/scan are resolved; analyzer passes.
 
 ### AGENT — CONSOLIDATION
 
@@ -760,7 +710,7 @@ Interpret scope: *recent code* → Refinement only; *full consolidation* → Wav
 
 ### REVIEWER (run after Orchestrator)
 
-**Checklist:** (1) Functionality preserved; tests pass. (2) Duplicates removed (JournalVersionService, QuickActionsService). (3) No broken imports. (4) Consolidation complete; shared patterns applied. (5) Docs and metrics exist. (6) Code readable; type-safe. **Output:** PASS/FAIL per area; specific issues for any FAIL. If FAIL, Orchestrator re-assigns and re-runs Reviewer.
+**Checklist:** (1) Functionality preserved; tests pass. (2) Duplicates from scan/plan removed or justified. (3) No broken imports. (4) Consolidation complete; shared patterns applied. (5) Docs and metrics exist. (6) Code readable; type-safe. **Output:** PASS/FAIL per area; specific issues for any FAIL. If FAIL, Orchestrator re-assigns and re-runs Reviewer.
 
 ---
 

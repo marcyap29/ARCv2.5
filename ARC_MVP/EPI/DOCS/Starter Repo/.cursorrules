@@ -1,17 +1,25 @@
 # Cursor Rules — [Project Name]
 
+# SOPs (canonical)
+# Full procedures: DOCS/RULE.md
+# Doc-sync / backup workflow: DOCS/claude.md → "SOP-DOC"
+
 # Documentation
 - Update DOCS/ when making architectural or behavioral changes.
-- Run doc sync before significant git pushes (see claude.md).
-- Keep CHANGELOG.md, CONFIGURATION_MANAGEMENT.md, and bugtracker/ in sync with code changes.
+- Before significant releases or pushes, run SOP-DOC in claude.md (prompt audit → drift → core docs → commit/push as appropriate).
+- Keep CHANGELOG.md, CONFIGURATION_MANAGEMENT.md, and bugtracker/ aligned with code changes.
 
 # Code style
 - Follow existing conventions in the codebase.
 - Prefer readability and maintainability over cleverness.
 
 # Bug tracking
+- Before risky changes (auth, payments, export/import, core UX), skim DOCS/bugtracker/bug_tracker.md and relevant records.
 - Add a bug record in DOCS/bugtracker/records/ when fixing a non-trivial bug.
-- Link fixes to CHANGELOG entries in the "Recent code changes" table.
+- Link fixes to CHANGELOG or "Recent code changes" when your project uses that table.
+
+# LLM / prompts (if applicable)
+- When changing prompts, update PROMPT_REFERENCES.md and PROMPT_TRACKER.md per claude.md SOP-PROMPT.
 
 # Architecture
 - Respect module boundaries and data flow (see ARCHITECTURE.md).

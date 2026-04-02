@@ -508,7 +508,10 @@ class SubscriptionService {
     return await openCustomerPortal();
   }
 
-  /// Get subscription status details
+  /// Get subscription status details (Stripe IDs, usage, etc.).
+  ///
+  /// Falls back to [getUserSubscription] when `getSubscriptionDetails` is not
+  /// deployed, so the UI does not show "no subscription" for premium users.
   Future<Map<String, dynamic>?> getSubscriptionDetails() async {
     try {
       final functions = FirebaseService.instance.getFunctions();
@@ -518,6 +521,36 @@ class SubscriptionService {
       return result.data as Map<String, dynamic>;
     } catch (e) {
       if (kDebugMode) debugPrint('SubscriptionService: Failed to get subscription details: $e');
+      return _subscriptionDetailsFromUserSubscription();
+    }
+  }
+
+  /// Builds a minimal details map from the deployed [getUserSubscription] callable.
+  Future<Map<String, dynamic>?> _subscriptionDetailsFromUserSubscription() async {
+    try {
+      final functions = FirebaseService.instance.getFunctions();
+      final callable = functions.httpsCallable('getUserSubscription');
+      final result = await callable.call();
+      final data = result.data as Map<String, dynamic>;
+      final tier = (data['tier'] as String?)?.toLowerCase();
+      final isFounder = data['isFounder'] == true;
+      final isPremium = tier == 'premium' || tier == 'paid';
+
+      if (!isPremium) {
+        return {
+          'status': 'none',
+          'billingSource': 'free',
+        };
+      }
+
+      return {
+        'status': 'active',
+        'billingSource': isFounder ? 'founder' : 'stripe_or_firestore',
+        'tier': tier,
+        'isFounder': isFounder,
+      };
+    } catch (e) {
+      if (kDebugMode) debugPrint('SubscriptionService: subscription details fallback failed: $e');
       return null;
     }
   }

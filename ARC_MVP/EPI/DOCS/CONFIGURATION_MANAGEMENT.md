@@ -1,7 +1,7 @@
 # Configuration Management & Documentation Tracking
 
 **Lead Configuration Management Analyst:** Active  
-**Last Updated:** March 29, 2026 (doc sync 2026-03-29, v3.3.91)  
+**Last Updated:** March 30, 2026 (doc sync 2026-03-30, v3.3.92)  
 **Status:** ✅ All Documents Synced with Repo
 
 ---
@@ -27,6 +27,8 @@ Per the **Documentation, Configuration Management and Git Backup** role (see [cl
 | **PROMPT_TRACKER.md** | Prompt change tracking; quick reference | Recent prompt changes; links to PROMPT_REFERENCES |
 | **CONFIGURATION_MANAGEMENT.md** (this file) | Docs inventory and change log | Sync status; what changed in docs |
 | **claude.md** | Context guide; Documentation & Config Role | Onboarding; adopting docs/config manager role |
+| **RULE.md** | SOP pointer + local Cursor workflow notes | Optional; see **Starter Repo/RULE.md** for portable SOPs |
+| **Starter Repo/** | Template **claude.md** / **RULE.md** / **.cursorrules** for new repos | Copy into greenfield projects |
 
 Prompt/role definitions: **Ultimate Documentation, Configuration Management and Git Backup Prompt** in [claude.md](claude.md).
 
@@ -45,14 +47,17 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 | Document | Location | Last Reviewed | Status | Notes |
 |----------|----------|---------------|--------|-------|
-| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-29 | ✅ Synced | v3.3.91 - HomeCubit root; Agents/Writing; CHRONICLE deferral; auth developers |
-| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-29 | ✅ Synced | v3.3.91 - Shell tab; agents writing routing; output copy; authGuard |
-| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-29 | ✅ Synced | v2.10.3 - v3.3.91 audit (no new prompts) |
-| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-29 | ✅ Synced | v1.40.0 - Doc sync 2026-03-29 (v3.3.91) |
-| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-29 | ✅ Synced | v3.5.7 - Recent changes v3.3.91 row |
-| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-29 | ✅ Synced | v3.3.91 - Writing-first agents; output copy; import UX |
-| README.md | `/DOCS/README.md` | 2026-03-29 | ✅ Synced | Key docs table; see CHANGELOG v3.3.91 |
-| claude.md | `/DOCS/claude.md` | 2026-03-29 | ✅ Synced | Doc/Config/Git Backup prompt; footer sync |
+| ARCHITECTURE.md | `/DOCS/ARCHITECTURE.md` | 2026-03-30 | ✅ Synced | v3.3.92 - see CHANGELOG (no major structural delta) |
+| CHANGELOG.md | `/DOCS/CHANGELOG.md` | 2026-03-30 | ✅ Synced | v3.3.92 - Subscription UI + doc SOP pack + iOS pbxproj |
+| PROMPT_REFERENCES.md | `/DOCS/PROMPT_REFERENCES.md` | 2026-03-30 | ✅ Synced | v2.10.3 - v3.3.92 audit (no new prompts) |
+| PROMPT_TRACKER.md | `/DOCS/PROMPT_TRACKER.md` | 2026-03-30 | ✅ Synced | v1.41.0 - Doc sync 2026-03-30 (v3.3.92) |
+| bug_tracker.md | `/DOCS/bugtracker/bug_tracker.md` | 2026-03-30 | ✅ Synced | v3.5.8 - Recent changes v3.3.92 row |
+| FEATURES.md | `/DOCS/FEATURES.md` | 2026-03-30 | ✅ Synced | v3.3.92 - Subscription management UX |
+| README.md | `/DOCS/README.md` | 2026-03-30 | ✅ Synced | Key docs table; see CHANGELOG v3.3.92 |
+| claude.md | `/DOCS/claude.md` | 2026-03-30 | ✅ Synced | Header trim; Quick Ref + RULE.md / Starter Repo |
+| RULE.md | `/DOCS/RULE.md` | 2026-03-30 | ✅ Synced | Portable SOP pointer; local Cursor notes |
+| Starter Repo/claude.md | `/DOCS/Starter Repo/claude.md` | 2026-03-30 | ✅ Synced | SOP-DOC / SOP-TASK template v1.1.0 |
+| Starter Repo/RULE.md | `/DOCS/Starter Repo/RULE.md` | 2026-03-30 | ✅ Synced | Canonical portable SOPs |
 | backend.md | `/DOCS/backend.md` | 2026-03-29 | ✅ Synced | v3.3.91 - authGuard `developers` collection |
 | git.md | `/DOCS/git.md` | 2026-02-07 | ✅ Synced | Git history and key phases |
 
@@ -121,6 +126,22 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 ---
 
 ## Change Tracking Log
+
+### 2026-03-30 - Documentation & Git Backup run (v3.3.92; doc sync 2026-03-30)
+
+**Action:** Ran Documentation, Configuration Management and Git Backup workflow (claude.md). User asked to read **RULE.md** first, then run doc-config-git-backup.
+
+**PROMPT REFERENCES AUDIT:** Subscription, subscription UI, `claude.md` edits, Starter Repo pack, `RULE.md`, iOS `project.pbxproj`. No new LLM prompts; **v2.10.3** header only.
+
+**Git delta:** `getSubscriptionDetails` → `getUserSubscription` fallback; premium **`Future`** cache + billing copy; **RevenueCat** live key **not** stored in repo (dart-define / CI). **`claude.md`** header deduped vs CHANGELOG. **`DOCS/RULE.md`** + **`Starter Repo/`** SOP files. Xcode **objectVersion** 70 + Runner/Shims paths.
+
+**Updates:** `CHANGELOG.md` v3.3.92; `FEATURES.md`; `CONFIGURATION_MANAGEMENT.md`; `PROMPT_TRACKER.md` v1.41.0; `PROMPT_REFERENCES.md` header; `bug_tracker.md` v3.5.8; `README.md`; `claude.md` Quick Reference.
+
+**Security note:** Reverted any committed **appl_** public key to test placeholder in source; production builds must inject via `--dart-define`.
+
+**Status:** Commit and push `main` (this run).
+
+---
 
 ### 2026-03-29 - Documentation & Git Backup run (v3.3.91; doc sync 2026-03-29)
 

@@ -1,7 +1,7 @@
 # Prompt Tracker
 
-**Version:** 1.40.0  
-**Last Updated:** March 29, 2026  
+**Version:** 1.41.0  
+**Last Updated:** March 30, 2026  
 **Purpose:** Prompt change tracking and quick reference. Full prompt catalog and version history live in [PROMPT_REFERENCES.md](PROMPT_REFERENCES.md).
 
 ---
@@ -16,6 +16,7 @@
 ## Recent prompt-related changes
 
 | Date | Change | Source / doc |
+| 2026-03-30 | Doc sync v3.3.92: Prompt audit — subscription/doc SOP/claude trim / iOS pbxproj; no new prompts; `PROMPT_REFERENCES` v2.10.3 (header only) | CHANGELOG v3.3.92 |
 | 2026-03-29 | Doc sync v3.3.91: Prompt audit — Agents/Writing/run_screen/settings/authGuard delta has no new LLM prompts; `PROMPT_REFERENCES` v2.10.3 (header only) | CHANGELOG v3.3.91 |
 | 2026-03-29 | Doc sync v3.3.90: Worker orchestration — `planResearchSubQuestions`, `research_scope` SSE phase, `skip_research_scope_clarification`; catalog §27; `PROMPT_REFERENCES` v2.10.3 | CHANGELOG v3.3.90 |
 | 2026-03-29 | Doc sync v3.3.89: Worker `clarification_gate.ts` + `research_pipeline.ts` prompt strings catalogued; `PROMPT_REFERENCES` v2.10.2 (§27 expansion); session: Documentation & Config & Git Backup | CHANGELOG v3.3.89 |

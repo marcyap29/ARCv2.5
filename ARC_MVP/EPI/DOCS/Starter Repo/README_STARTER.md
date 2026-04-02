@@ -1,7 +1,7 @@
 # Starter Repo — Standardized Repository Kickoff Pack
 
 **Version:** 1.0.0  
-**Last Updated:** February 26, 2026  
+**Last Updated:** March 30, 2026  
 **Purpose:** A curated set of docs, templates, and configs that any repo should start with. Copy and adapt these into your project root or DOCS folder.
 
 ---
@@ -12,7 +12,8 @@
 |---------------|---------|
 | **README.md** | Project overview and key documents (adapt for your project) |
 | **Overview.md** | Quick orientation: what the project is, core components, where to read more |
-| **claude.md** | AI context guide — onboarding, quick reference, role prompts |
+| **claude.md** | AI context guide — onboarding, Quick Reference, **SOP-DOC** (doc/git sync), SOP-TASK, optional role blocks |
+| **RULE.md** | **Standard Operating Procedures** — request handling, orchestrator pattern, docs, bugs, prompts |
 | **CONFIGURATION_MANAGEMENT.md** | Central docs inventory, change log, sync tracking |
 | **CHANGELOG.md** | Version history template |
 | **ARCHITECTURE.md** | System architecture template |
@@ -47,6 +48,7 @@ your-repo/
 │   ├── README.md
 │   ├── Overview.md
 │   ├── claude.md
+│   ├── RULE.md
 │   ├── CONFIGURATION_MANAGEMENT.md
 │   ├── CHANGELOG.md
 │   ├── ARCHITECTURE.md
@@ -71,7 +73,7 @@ your-repo/
 ## Checklist: First-Time Setup
 
 - [ ] Copy core docs (README, CONFIGURATION_MANAGEMENT, CHANGELOG, ARCHITECTURE)
-- [ ] Copy claude.md and update project-specific sections
+- [ ] Copy **claude.md** and **RULE.md**; update project-specific sections (SOPs are in both — RULE is the short form)
 - [ ] Create bugtracker/ and add first record if needed
 - [ ] Copy .gitignore and merge with existing (avoid overwriting)
 - [ ] Add .cursorrules if using Cursor IDE

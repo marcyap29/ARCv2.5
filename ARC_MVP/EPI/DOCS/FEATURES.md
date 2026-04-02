@@ -1,7 +1,7 @@
 # EPI MVP - Comprehensive Features Guide
 
-**Version:** 3.3.91
-**Last Updated:** March 29, 2026
+**Version:** 3.3.92
+**Last Updated:** March 30, 2026
 
 ---
 
@@ -215,6 +215,7 @@ EPI MVP provides a comprehensive set of features for intelligent journaling, AI 
 - **Google Sign-In via Firebase provider (v3.3.87)**: Mobile uses `FirebaseAuth.signInWithProvider` / `User.linkWithProvider` with `GoogleAuthProvider` and `prompt=select_account` for account picker; web uses `signInWithPopup`. Sign-in screen adds timeout and clearer errors (see `firebase_auth_service.dart`, `sign_in_screen.dart`).
 - **Onboarding completion ordering (v3.3.87)**: `ArcOnboardingCubit` emits complete before async persistence; sequence navigates via root navigator to `/home` after frame to avoid stack issues; profile-fields save timeout + skip path uses cubit `markSkipped`; `UserPhaseService.setOnboardingCompleted` can create a minimal Hive profile when absent.
 - **RevenueCat bootstrap (v3.3.87)**: iOS configures RevenueCat after Firebase init attempt even if Firebase Auth fails; service adds TestFlight/`appl_` key notes and structured logging (`revenuecat_service.dart`, `bootstrap.dart`).
+- **Subscription management UX (v3.3.92)**: **`getSubscriptionDetails`** falls back to **`getUserSubscription`** when the details callable is unavailable so premium state stays accurate. **Settings → Subscription** caches **`hasPremiumAccess`** once per load to avoid a brief free/paywall flash; shows a spinner while resolving; billing section explains **active premium without a Stripe row** (founder / Firestore tier) vs **Stripe subscription ID** + next bill date. **Production iOS RevenueCat key:** use **`--dart-define=REVENUECAT_IOS_API_KEY=appl_…`** (do not commit live public App Store keys in source).
 - **iOS build — static CocoaPods frameworks (v3.3.87)**: `use_frameworks! :linkage => :static` in `Podfile` to reduce gRPC dynamic-framework simulator codesign failures.
 - **Robust iOS gallery / camera picking (v3.3.88)**: `RobustGalleryPicker` (`requestFullMetadata: false`, dimension/quality caps, FilePicker fallback) to avoid `NSItemProvider` / `invalid_image` failures on HEIC, screenshots, and iCloud-backed photos.
 - **Unified LUMARA image pipeline (v3.3.88)**: `MediaPickAndAnalyzeService` centralizes gallery/camera/video pick helpers and Vision analysis; journal (`journal_screen`), ARC capture (`journal_capture_view`), and research document scan (`research_screen`) share the same paths and `AnalyzedMedia.toPhotoAttachment()` for journal attachments.

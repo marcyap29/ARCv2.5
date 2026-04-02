@@ -353,6 +353,9 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
   bool _upgradeLoading = false;
   Map<String, dynamic>? _subscriptionDetails;
   String? _error;
+  /// Cached so [FutureBuilder] is not rebuilt with a new [Future] every frame (which
+  /// briefly shows the non-premium / paywall UI while [ConnectionState.waiting]).
+  late Future<bool> _premiumAccessFuture;
 
   @override
   void initState() {
@@ -377,6 +380,7 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         setState(() {
           _subscriptionDetails = details;
           _loading = false;
+          _premiumAccessFuture = SubscriptionService.instance.hasPremiumAccess();
         });
       }
     } catch (e) {
@@ -385,6 +389,7 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
         setState(() {
           _error = 'Failed to load subscription details';
           _loading = false;
+          _premiumAccessFuture = SubscriptionService.instance.hasPremiumAccess();
         });
       }
     }
@@ -506,7 +511,14 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
   }
 
   Widget _buildBillingInfo() {
-    final hasBilling = _subscriptionDetails?['stripeSubscriptionId'] != null;
+    final d = _subscriptionDetails;
+    final stripeId = d?['stripeSubscriptionId'] as String?;
+    final hasStripe = stripeId != null && stripeId.isNotEmpty;
+    final status = d?['status'] as String?;
+    final billingSource = d?['billingSource'] as String?;
+    final hasPremiumWithoutStripeCard = status == 'active' ||
+        billingSource == 'founder' ||
+        billingSource == 'stripe_or_firestore';
 
     return Card(
       child: Padding(
@@ -525,13 +537,30 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
               ],
             ),
             const SizedBox(height: 16),
-            if (hasBilling) ...[
-              _buildInfoRow('Subscription ID', _subscriptionDetails!['stripeSubscriptionId']),
+            if (hasStripe) ...[
+              _buildInfoRow('Subscription ID', stripeId),
               const SizedBox(height: 8),
-              if (_subscriptionDetails?['nextBillingDate'] != null)
-                _buildInfoRow('Next Billing', _subscriptionDetails!['nextBillingDate']),
+              if (d?['nextBillingDate'] != null)
+                _buildInfoRow('Next Billing', '${d!['nextBillingDate']}'),
               const SizedBox(height: 8),
-              _buildInfoRow('Status', _subscriptionDetails?['status'] ?? 'Active'),
+              _buildInfoRow('Status', d?['status'] as String? ?? 'Active'),
+            ] else if (hasPremiumWithoutStripeCard) ...[
+              Text(
+                'You have active premium access on this account.',
+                style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              if (billingSource == 'founder')
+                Text(
+                  'Access is linked to your account (founder or tester). There is no separate App Store subscription to show here.',
+                  style: TextStyle(color: Colors.grey.shade700, height: 1.35),
+                )
+              else
+                Text(
+                  'If you pay through the website (Stripe), manage billing from the customer portal or your signup email. '
+                  'Only subscriptions bought in the iOS app appear in Apple Subscriptions and RevenueCat.',
+                  style: TextStyle(color: Colors.grey.shade700, height: 1.35),
+                ),
             ] else ...[
               Text(
                 'No active subscription',
@@ -568,18 +597,26 @@ class _SubscriptionManagementViewState extends State<SubscriptionManagementView>
       children: [
         // Upgrade section (if free) or Manage subscription (if premium)
         FutureBuilder<bool>(
-          future: SubscriptionService.instance.hasPremiumAccess(),
+          future: _premiumAccessFuture,
           builder: (context, snapshot) {
-            // Force refresh if we have connection issues or if subscription state seems wrong
             if (snapshot.hasError) {
               debugPrint('SubscriptionManagementView: Error checking premium access: ${snapshot.error}');
             }
 
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
             final isPremium = snapshot.data ?? false;
 
-            debugPrint('SubscriptionManagementView: 🔍 Premium access check result: $isPremium');
-            debugPrint('SubscriptionManagementView: 🔍 Snapshot state: ${snapshot.connectionState}');
-            debugPrint('SubscriptionManagementView: 🔍 Has error: ${snapshot.hasError}');
+            if (kDebugMode) {
+              debugPrint('SubscriptionManagementView: 🔍 Premium access check result: $isPremium');
+              debugPrint('SubscriptionManagementView: 🔍 Snapshot state: ${snapshot.connectionState}');
+              debugPrint('SubscriptionManagementView: 🔍 Has error: ${snapshot.hasError}');
+            }
 
             if (!isPremium) {
               // Show pricing selector for free users

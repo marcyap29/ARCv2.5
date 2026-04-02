@@ -5,6 +5,9 @@
         },
         {
             "path": "../../workers"
+        },
+        {
+            "path": "../../../../Starter Repo"
         }
     ]
 }
