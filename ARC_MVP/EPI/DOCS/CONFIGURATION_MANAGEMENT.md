@@ -133,11 +133,9 @@ Prompt/role definitions: **Ultimate Documentation, Configuration Management and 
 
 **PROMPT REFERENCES AUDIT:** Subscription, subscription UI, `claude.md` edits, Starter Repo pack, `RULE.md`, iOS `project.pbxproj`. No new LLM prompts; **v2.10.3** header only.
 
-**Git delta:** `getSubscriptionDetails` → `getUserSubscription` fallback; premium **`Future`** cache + billing copy; **RevenueCat** live key **not** stored in repo (dart-define / CI). **`claude.md`** header deduped vs CHANGELOG. **`DOCS/RULE.md`** + **`Starter Repo/`** SOP files. Xcode **objectVersion** 70 + Runner/Shims paths.
+**Git delta:** `getSubscriptionDetails` → `getUserSubscription` fallback; premium **`Future`** cache + billing copy; **`kRevenueCatIosApiKeyLive`** holds public App Store key (optional **`dart-define`** override). **`claude.md`** header deduped vs CHANGELOG. **`DOCS/RULE.md`** + **`Starter Repo/`** SOP files. Xcode **objectVersion** 70 + Runner/Shims paths.
 
 **Updates:** `CHANGELOG.md` v3.3.92; `FEATURES.md`; `CONFIGURATION_MANAGEMENT.md`; `PROMPT_TRACKER.md` v1.41.0; `PROMPT_REFERENCES.md` header; `bug_tracker.md` v3.5.8; `README.md`; `claude.md` Quick Reference.
-
-**Security note:** Reverted any committed **appl_** public key to test placeholder in source; production builds must inject via `--dart-define`.
 
 **Status:** Commit and push `main` (this run).
 

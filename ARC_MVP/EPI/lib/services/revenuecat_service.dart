@@ -22,7 +22,7 @@ const String kRevenueCatIosApiKeyTest = 'test_bvEOhrZwfzRusfKcJYIFzYghpCK';
 /// Live iOS API key for production (RevenueCat → API Keys → Public Apple App Store).
 /// Prefer passing the real key at build time so it is not committed:
 /// `flutter build ipa --dart-define=REVENUECAT_IOS_API_KEY=appl_xxxxx`
-const String kRevenueCatIosApiKeyLive = 'test_bvEOhrZwfzRusfKcJYIFzYghpCK';
+const String kRevenueCatIosApiKeyLive = 'appl_AIrljJrMpzBhvROBEzTFVRGIrXU';
 
 /// Non-empty value from `--dart-define=REVENUECAT_IOS_API_KEY=...` overrides [kRevenueCatIosApiKeyLive] / [kRevenueCatIosApiKeyTest].
 const String kRevenueCatIosApiKeyFromEnvironment =

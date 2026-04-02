@@ -13,7 +13,7 @@
 
 **Updated (sync with repo / working tree):**
 - **Subscriptions (`subscription_service.dart`, `subscription_management_view.dart`):** **`getSubscriptionDetails`** falls back to **`getUserSubscription`** when the details callable is missing or fails, so premium users are not shown as unsubscribed. **`SubscriptionManagementView`** caches **`hasPremiumAccess`** in a single **`Future`** (avoids paywall flicker from a new future every frame); loading state shows a spinner; billing card handles **Stripe subscription ID** vs **active premium without Stripe row** (founder / Firestore tier) with clearer copy.
-- **RevenueCat (`revenuecat_service.dart`):** Default **`kRevenueCatIosApiKeyLive`** remains the documented **test** placeholder; **production `appl_` keys must be supplied via** `--dart-define=REVENUECAT_IOS_API_KEY=...` **or CI secrets** — do not commit live public App Store keys.
+- **RevenueCat (`revenuecat_service.dart`):** **`kRevenueCatIosApiKeyLive`** set to the **public Apple App Store** (`appl_…`) key for production iOS; non-empty **`REVENUECAT_IOS_API_KEY`** from **`--dart-define`** still overrides when you pass it at build time.
 - **Docs — `claude.md`:** Opening **implementation** steps cleaned up; long **version history** block removed from the header (**CHANGELOG.md** is the single source for release notes); added **purpose** blurb and pointers to bug prevention / response modes.
 - **Docs — Starter Repo:** **`RULE.md`** (SOPs), expanded **`claude.md`** (SOP-DOC / SOP-TASK), **`.cursorrules`**, **`README_STARTER.md`** updates.
 - **`DOCS/RULE.md`:** Tracked; points to **`Starter Repo`** for portable SOPs.
